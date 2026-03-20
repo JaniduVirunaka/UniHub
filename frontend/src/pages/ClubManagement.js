@@ -5,7 +5,6 @@ function ClubManagement() {
   const [clubs, setClubs] = useState([]);
   const [formData, setFormData] = useState({ name: '', description: '', mission: '' });
 
-  // Fetch clubs when the page loads
   useEffect(() => {
     axios.get('http://localhost:5000/api/clubs')
       .then(res => setClubs(res.data))
@@ -17,32 +16,45 @@ function ClubManagement() {
     axios.post('http://localhost:5000/api/clubs', formData)
       .then(res => {
         setClubs([...clubs, res.data]);
-        setFormData({ name: '', description: '', mission: '' }); // Clear form
+        setFormData({ name: '', description: '', mission: '' }); 
       })
       .catch(err => console.log(err));
   };
 
   return (
-    <div style={{ padding: '20px' }}>
-      <h2>Club Management - Profiling</h2>
-      
-      {/* Form to create a club */}
-      <form onSubmit={handleSubmit} style={{ marginBottom: '30px' }}>
-        <input type="text" placeholder="Club Name" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} required style={{ display: 'block', margin: '10px 0' }} />
-        <textarea placeholder="Description" value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} required style={{ display: 'block', margin: '10px 0', width: '300px', height: '100px' }} />
-        <textarea placeholder="Mission Statement" value={formData.mission} onChange={(e) => setFormData({...formData, mission: e.target.value})} required style={{ display: 'block', margin: '10px 0', width: '300px', height: '100px' }} />
-        <button type="submit">Create Club</button>
-      </form>
+    <div>
+      <div className="card">
+        <h2>Create a New Club Profile</h2>
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <input type="text" className="form-control" placeholder="Club Name (e.g., Coding Club)" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} required />
+          </div>
+          <div className="form-group">
+            <textarea className="form-control" placeholder="Club Description" value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} required />
+          </div>
+          <div className="form-group">
+            <textarea className="form-control" placeholder="Mission Statement" value={formData.mission} onChange={(e) => setFormData({...formData, mission: e.target.value})} required />
+          </div>
+          <button type="submit" className="btn">Create Club</button>
+        </form>
+      </div>
 
-      {/* List to view clubs */}
-      <h3>Registered Clubs</h3>
-      <ul>
-        {clubs.map(club => (
-          <li key={club._id}>
-            <strong>{club.name}</strong>: {club.description} (Mission: {club.mission})
-          </li>
-        ))}
-      </ul>
+      <div className="card">
+        <h2>Registered Clubs Directory</h2>
+        {clubs.length === 0 ? (
+          <p>No clubs registered yet.</p>
+        ) : (
+          <ul className="club-list">
+            {clubs.map(club => (
+              <li key={club._id} className="club-item">
+                <h4>{club.name}</h4>
+                <p><strong>Description:</strong> {club.description}</p>
+                <p><strong>Mission:</strong> {club.mission}</p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }
