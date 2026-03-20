@@ -18,41 +18,111 @@ router.post('/', async (req, res) => {
   try {
     const { name, description, mission, membershipFee, supervisorId, presidentId } = req.body;
 
-    // 1. Security Check: Is the person requesting this actually a Supervisor?
     const requestor = await User.findById(supervisorId);
     if (!requestor || requestor.role !== 'supervisor') {
       return res.status(403).json({ message: "Access Denied: Only Supervisors can create clubs." });
     }
 
-    // 2. Find the student who is being promoted
-    const assignedPresident = await User.findById(presidentId);
-    if (!assignedPresident) {
-      return res.status(400).json({ message: "The assigned president does not exist in the system." });
+    // Upgrade the user to president ONLY if a presidentId was actually provided
+    if (presidentId) {
+      const assignedPresident = await User.findById(presidentId);
+      if (assignedPresident && assignedPresident.role === 'student') {
+        assignedPresident.role = 'president';
+        await assignedPresident.save();
+      }
     }
 
-    // 3. Upgrade their role in the database!
-    if (assignedPresident.role === 'student') {
-      assignedPresident.role = 'president';
-      await assignedPresident.save();
-    }
-
-    // 4. Create the new club with the relationships linked
     const newClub = new Club({
       name,
       description,
       mission,
       membershipFee: membershipFee || 0,
       supervisor: supervisorId,
-      president: presidentId
+      president: presidentId || null // Leaves it empty if no president is assigned
     });
     
     await newClub.save();
-    res.status(201).json({ message: "Club created and President assigned successfully!", club: newClub });
+    res.status(201).json({ message: "Club created successfully!", club: newClub });
 
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 });
+
+// Update a club (Edit details or change President)
+router.put('/:id', async (req, res) => {
+  try {
+    const { name, description, mission, presidentId, supervisorId } = req.body;
+    
+    const requestor = await User.findById(supervisorId);
+    if (!requestor || requestor.role !== 'supervisor') {
+      return res.status(403).json({ message: "Access Denied." });
+    }
+
+    const club = await Club.findById(req.params.id);
+    if (!club) return res.status(404).json({ message: "Club not found." });
+
+    // Handle President Change Logic
+    if (presidentId !== club.president?.toString()) {
+      // 1. Downgrade the OLD president back to a student
+      if (club.president) {
+        const oldPres = await User.findById(club.president);
+        if (oldPres) {
+          oldPres.role = 'student';
+          await oldPres.save();
+        }
+      }
+      // 2. Upgrade the NEW president
+      if (presidentId) {
+        const newPres = await User.findById(presidentId);
+        if (newPres && newPres.role === 'student') {
+          newPres.role = 'president';
+          await newPres.save();
+        }
+      }
+      club.president = presidentId || null;
+    }
+
+    // Update the text fields
+    club.name = name || club.name;
+    club.description = description || club.description;
+    club.mission = mission || club.mission;
+
+    await club.save();
+    res.status(200).json({ message: "Club updated successfully!", club });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Delete a club
+router.delete('/:id', async (req, res) => {
+  try {
+    const { supervisorId } = req.body; 
+    
+    const requestor = await User.findById(supervisorId);
+    if (!requestor || requestor.role !== 'supervisor') {
+      return res.status(403).json({ message: "Access Denied." });
+    }
+
+    const club = await Club.findByIdAndDelete(req.params.id);
+    if (!club) return res.status(404).json({ message: "Club not found." });
+
+    // Downgrade the president back to a student since the club is gone
+    if (club.president) {
+      const oldPres = await User.findById(club.president);
+      if (oldPres) {
+        oldPres.role = 'student';
+        await oldPres.save();
+      }
+    }
+
+    res.status(200).json({ message: "Club deleted successfully!" });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 
 // Student requests to join a club
 router.post('/:id/request-join', async (req, res) => {
