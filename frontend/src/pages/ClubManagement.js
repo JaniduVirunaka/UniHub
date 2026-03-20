@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 
 function ClubManagement() {
   const [clubs, setClubs] = useState([]);
+  const [users, setUsers] = useState([]);
   const [formData, setFormData] = useState({ name: '', description: '', mission: '' });
   const navigate = useNavigate();
 
@@ -12,6 +13,12 @@ function ClubManagement() {
 
   useEffect(() => {
     fetchClubs();
+    // Fetch users so the supervisor can populate the dropdown
+    if (currentUser && currentUser.role === 'supervisor') {
+      axios.get('http://localhost:5000/api/auth/users')
+        .then(res => setUsers(res.data))
+        .catch(err => console.log("Error fetching users:", err));
+    }
   }, []);
 
   const fetchClubs = () => {
@@ -34,14 +41,14 @@ function ClubManagement() {
   // Handle Creating a Club
   const handleCreateClub = (e) => {
     e.preventDefault();
-    // We send the current user's ID so the backend knows who the president is
-    axios.post('http://localhost:5000/api/clubs', { ...formData, userId: currentUser.id })
+  // Send the form data, plus the supervisor's ID
+    axios.post('http://localhost:5000/api/clubs', { ...formData, supervisorId: currentUser.id })
       .then(() => {
-        fetchClubs(); // Refresh the list
-        setFormData({ name: '', description: '', mission: '' }); 
+        fetchClubs(); 
+        setFormData({ name: '', description: '', mission: '', presidentId: '' }); 
         alert("Club created successfully!");
       })
-      .catch(err => alert("Error creating club."));
+    .catch(err => alert(err.response?.data?.message || "Error creating club."));
   };
 
   // Handle Requesting to Join
@@ -63,24 +70,37 @@ function ClubManagement() {
 
   return (
     <div>
-      {/* ONLY show the Create Form if the user is a club_admin */}
-      {currentUser.role === 'club_admin' && (
-        <div className="card">
-          <h2>Leadership Dashboard: Create a New Club Profile</h2>
-          <form onSubmit={handleCreateClub}>
-            <div className="form-group">
-              <input type="text" className="form-control" placeholder="Club Name" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} required />
-            </div>
-            <div className="form-group">
-              <textarea className="form-control" placeholder="Club Description" value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} required />
-            </div>
-            <div className="form-group">
-              <textarea className="form-control" placeholder="Mission Statement" value={formData.mission} onChange={(e) => setFormData({...formData, mission: e.target.value})} required />
-            </div>
-            <button type="submit" className="btn">Create Club</button>
-          </form>
-        </div>
-      )}
+    {/* ONLY show the Create Form if the user is a supervisor */}
+    {currentUser.role === 'supervisor' && (
+      <div className="card">
+        <h2>Supervisor Dashboard: Register a New Club</h2>
+        <form onSubmit={handleCreateClub}>
+          <div className="form-group">
+            <input type="text" className="form-control" placeholder="Club Name" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} required />
+          </div>
+          <div className="form-group">
+            <textarea className="form-control" placeholder="Club Description" value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} required />
+          </div>
+          <div className="form-group">
+            <textarea className="form-control" placeholder="Mission Statement" value={formData.mission} onChange={(e) => setFormData({...formData, mission: e.target.value})} required />
+          </div>
+
+          {/* NEW: Dropdown to assign a president */}
+          <div className="form-group">
+            <select className="form-control" value={formData.presidentId} onChange={(e) => setFormData({...formData, presidentId: e.target.value})} required>
+              <option value="">-- Assign a Club President --</option>
+              {users.map(user => (
+                <option key={user._id} value={user._id}>
+                  {user.name} ({user.email}) - Current Role: {user.role}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <button type="submit" className="btn">Register Club & Assign President</button>
+        </form>
+      </div>
+    )}
 
       <div className="card">
         <h2>Registered Clubs Directory</h2>

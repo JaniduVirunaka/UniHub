@@ -61,4 +61,15 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// GET ALL USERS (For the Supervisor to assign roles)
+router.get('/users', async (req, res) => {
+  try {
+    // .select('-password') ensures we never send passwords to the frontend
+    const users = await User.find().select('-password'); 
+    res.status(200).json(users);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 module.exports = router;

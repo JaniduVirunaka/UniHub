@@ -13,26 +13,47 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Create a new club (Only allows users marked as 'club_admin' from the frontend)
+// Create a new club (STRICTLY FOR SUPERVISORS)
 router.post('/', async (req, res) => {
-  const { name, description, mission, userId } = req.body;
-  
-  const club = new Club({
-    name,
-    description,
-    mission,
-    president: userId // The user creating the club becomes the president
-  });
-  
   try {
-    const newClub = await club.save();
-    res.status(201).json(newClub);
+    const { name, description, mission, membershipFee, supervisorId, presidentId } = req.body;
+
+    // 1. Security Check: Is the person requesting this actually a Supervisor?
+    const requestor = await User.findById(supervisorId);
+    if (!requestor || requestor.role !== 'supervisor') {
+      return res.status(403).json({ message: "Access Denied: Only Supervisors can create clubs." });
+    }
+
+    // 2. Find the student who is being promoted
+    const assignedPresident = await User.findById(presidentId);
+    if (!assignedPresident) {
+      return res.status(400).json({ message: "The assigned president does not exist in the system." });
+    }
+
+    // 3. Upgrade their role in the database!
+    if (assignedPresident.role === 'student') {
+      assignedPresident.role = 'president';
+      await assignedPresident.save();
+    }
+
+    // 4. Create the new club with the relationships linked
+    const newClub = new Club({
+      name,
+      description,
+      mission,
+      membershipFee: membershipFee || 0,
+      supervisor: supervisorId,
+      president: presidentId
+    });
+    
+    await newClub.save();
+    res.status(201).json({ message: "Club created and President assigned successfully!", club: newClub });
+
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    res.status(500).json({ message: err.message });
   }
 });
 
-// Student requests to join a club
 // Student requests to join a club
 router.post('/:id/request-join', async (req, res) => {
   try {
