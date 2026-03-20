@@ -215,6 +215,50 @@ router.post('/:id/announcements', async (req, res) => {
   }
 });
 
+// Supervisor APPROVES an announcement
+router.put('/:clubId/announcements/:annId/approve', async (req, res) => {
+  try {
+    const { supervisorId } = req.body;
+    const requestor = await User.findById(supervisorId);
+    if (!requestor || requestor.role !== 'supervisor') {
+      return res.status(403).json({ message: "Access Denied." });
+    }
+
+    const club = await Club.findById(req.params.clubId);
+    // Find the specific announcement inside the club's array
+    const announcement = club.announcements.id(req.params.annId); 
+    
+    if (!announcement) return res.status(404).json({ message: "Announcement not found." });
+
+    announcement.isApproved = true; // Flip the flag!
+    await club.save();
+    
+    res.status(200).json({ message: "Announcement approved and is now live!" });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Supervisor REJECTS/DELETES an announcement
+router.delete('/:clubId/announcements/:annId', async (req, res) => {
+  try {
+    const { supervisorId } = req.body; // In an axios delete, we pass this in the 'data' object
+    const requestor = await User.findById(supervisorId);
+    if (!requestor || requestor.role !== 'supervisor') {
+      return res.status(403).json({ message: "Access Denied." });
+    }
+
+    const club = await Club.findById(req.params.clubId);
+    // Mongoose command to remove a sub-document by its ID
+    club.announcements.pull(req.params.annId); 
+    await club.save();
+    
+    res.status(200).json({ message: "Announcement rejected and removed." });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // Assign a Board Member (President Only)
 router.post('/:id/board', async (req, res) => {
   try {

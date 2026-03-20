@@ -8,6 +8,7 @@ function ClubManagement() {
   const [formData, setFormData] = useState({ name: '', description: '', mission: '' });
   const [editingClubId, setEditingClubId] = useState(null);
   const [announcementData, setAnnouncementData] = useState({ title: '', content: '' });
+  const [showCreateForm, setShowCreateForm] = useState(false);
   const navigate = useNavigate();
 
   // 1. Get the current logged-in user from local storage
@@ -134,53 +135,116 @@ const handlePostAnnouncement = (e, clubId) => {
     .catch(err => alert(err.response?.data?.message || "Error posting announcement."));
 };
 
+// --- SUPERVISOR ANNOUNCEMENT ACTIONS ---
+const handleApproveAnnouncement = (clubId, annId) => {
+  axios.put(`http://localhost:5000/api/clubs/${clubId}/announcements/${annId}/approve`, { supervisorId: currentUser.id })
+    .then(res => {
+      fetchClubs(); // Refresh to remove from pending list
+    })
+    .catch(err => alert("Error approving announcement."));
+};
+
+const handleRejectAnnouncement = (clubId, annId) => {
+  if(window.confirm("Reject and delete this announcement?")) {
+    axios.delete(`http://localhost:5000/api/clubs/${clubId}/announcements/${annId}`, { data: { supervisorId: currentUser.id } })
+      .then(res => {
+        fetchClubs();
+      })
+      .catch(err => alert("Error rejecting announcement."));
+  }
+};
+
+// Extract all pending announcements across all clubs into a single array
+const pendingAnnouncements = clubs.flatMap(club => 
+  (club.announcements || [])
+    .filter(ann => !ann.isApproved)
+    .map(ann => ({ ...ann, clubName: club.name, clubId: club._id }))
+);
+
   return (
     <div>
-      {/* ONLY show the Form if the user is a supervisor */}
+      {/* SUPERVISOR DASHBOARD */}
       {currentUser.role === 'supervisor' && (
-        <div className="card" style={{ borderTop: editingClubId ? '4px solid #f59e0b' : '4px solid var(--primary-color)' }}>
-          <h2>{editingClubId ? 'Supervisor Dashboard: Edit Club' : 'Supervisor Dashboard: Register a New Club'}</h2>
-
-          <form onSubmit={editingClubId ? handleUpdateClub : handleCreateClub}>
-            <div className="form-group">
-              <input type="text" className="form-control" placeholder="Club Name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} required />
-            </div>
-            <div className="form-group">
-              <textarea className="form-control" placeholder="Club Description" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} required />
-            </div>
-            <div className="form-group">
-              <textarea className="form-control" placeholder="Mission Statement" value={formData.mission} onChange={(e) => setFormData({ ...formData, mission: e.target.value })} required />
-            </div>
-
-            {/* Dropdown to assign a president - NO LONGER REQUIRED */}
-            <div className="form-group">
-              <select className="form-control" value={formData.presidentId} onChange={(e) => setFormData({ ...formData, presidentId: e.target.value })}>
-                <option value="">-- No President Assigned --</option>
-                {eligibleUsers.map(user => (
-                  <option key={user._id} value={user._id}>
-                    {user.name} ({user.email}) - Current Role: {user.role}
-                  </option>
+        <div style={{ marginBottom: '30px' }}>
+          
+          {/* 1. TOP PRIORITY: PENDING ACTION CENTER */}
+          <div className="card" style={{ borderLeft: pendingAnnouncements.length > 0 ? '4px solid #ef4444' : '4px solid #10b981' }}>
+            <h2 style={{ marginTop: 0, color: pendingAnnouncements.length > 0 ? '#b91c1c' : '#047857' }}>
+              Action Center: Pending Approvals
+            </h2>
+            
+            {pendingAnnouncements.length === 0 ? (
+              <p style={{ color: 'var(--text-muted)' }}>✅ All caught up! No pending announcements.</p>
+            ) : (
+              <div style={{ display: 'grid', gap: '15px' }}>
+                {pendingAnnouncements.map((ann) => (
+                  <div key={ann._id} style={{ backgroundColor: '#fef2f2', border: '1px solid #fecaca', padding: '15px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#dc2626', textTransform: 'uppercase' }}>{ann.clubName}</span>
+                      <h4 style={{ margin: '5px 0' }}>{ann.title}</h4>
+                      <p style={{ margin: 0, fontSize: '0.9rem', color: '#4b5563' }}>{ann.content}</p>
+                    </div>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      <button className="btn" style={{ backgroundColor: '#10b981', padding: '8px 15px' }} onClick={() => handleApproveAnnouncement(ann.clubId, ann._id)}>Approve</button>
+                      <button className="btn" style={{ backgroundColor: '#ef4444', padding: '8px 15px' }} onClick={() => handleRejectAnnouncement(ann.clubId, ann._id)}>Reject</button>
+                    </div>
+                  </div>
                 ))}
-              </select>
-              <small style={{ color: 'var(--text-muted)' }}>You can assign a president later.</small>
-            </div>
+              </div>
+            )}
+          </div>
 
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button type="submit" className="btn" style={{ backgroundColor: editingClubId ? '#f59e0b' : 'var(--primary-color)' }}>
-                {editingClubId ? 'Save Changes' : 'Register Club'}
-              </button>
-
-              {/* Show a Cancel button if we are in edit mode */}
-              {editingClubId && (
-                <button type="button" className="btn" style={{ backgroundColor: '#6b7280' }} onClick={() => {
+          {/* 2. SECONDARY OPS: CLUB MANAGEMENT TOGGLE */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '15px' }}>
+            <button 
+              className="btn" 
+              style={{ backgroundColor: showCreateForm || editingClubId ? '#6b7280' : 'var(--primary-color)' }}
+              onClick={() => {
+                setShowCreateForm(!showCreateForm);
+                if (editingClubId) {
                   setEditingClubId(null);
                   setFormData({ name: '', description: '', mission: '', presidentId: '' });
-                }}>
-                  Cancel Edit
-                </button>
-              )}
+                }
+              }}
+            >
+              {showCreateForm || editingClubId ? 'Close Form' : '+ Register New Club'}
+            </button>
+          </div>
+
+          {/* HIDDEN FORM (Only shows if toggle is clicked OR if editing a club) */}
+          {(showCreateForm || editingClubId) && (
+            <div className="card" style={{ borderTop: editingClubId ? '4px solid #f59e0b' : '4px solid var(--primary-color)' }}>
+              <h2 style={{ marginTop: 0 }}>{editingClubId ? 'Edit Club Details' : 'Register a New Club'}</h2>
+              <form onSubmit={editingClubId ? handleUpdateClub : handleCreateClub}>
+                <div className="form-group">
+                  <input type="text" className="form-control" placeholder="Club Name" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} required />
+                </div>
+                <div className="form-group">
+                  <textarea className="form-control" placeholder="Club Description" value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} required />
+                </div>
+                <div className="form-group">
+                  <textarea className="form-control" placeholder="Mission Statement" value={formData.mission} onChange={(e) => setFormData({...formData, mission: e.target.value})} required />
+                </div>
+                <div className="form-group">
+                  <select className="form-control" value={formData.presidentId} onChange={(e) => setFormData({...formData, presidentId: e.target.value})}>
+                    <option value="">-- No President Assigned --</option>
+                    {eligibleUsers.map(user => (
+                      <option key={user._id} value={user._id}>
+                        {user.name} ({user.email})
+                      </option>
+                    ))}
+                  </select>
+                  <small style={{ color: 'var(--text-muted)' }}>Only available students are shown.</small>
+                </div>
+
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button type="submit" className="btn" style={{ backgroundColor: editingClubId ? '#f59e0b' : 'var(--primary-color)' }}>
+                    {editingClubId ? 'Save Changes' : 'Register Club'}
+                  </button>
+                </div>
+              </form>
             </div>
-          </form>
+          )}
         </div>
       )}
 
