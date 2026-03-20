@@ -107,6 +107,20 @@ function ClubManagement() {
       .catch(err => alert("Error approving member."));
   };
 
+  // --- NEW: Filter eligible presidents ---
+  // We only want normal 'students' to appear in the dropdown.
+  // BUT, if we are editing a club, we must also include the CURRENT president of this club in the list.
+  const eligibleUsers = users.filter(user => {
+    // Exclude supervisors entirely from the list
+    if (user.role === 'supervisor') return false;
+    
+    // If we are editing, and this user is the current president of the club in the form, keep them!
+    if (editingClubId && formData.presidentId === user._id) return true;
+    
+    // Otherwise, only include users who are currently normal students
+    return user.role === 'student';
+  });
+
   return (
     <div>
       {/* ONLY show the Form if the user is a supervisor */}
@@ -129,7 +143,7 @@ function ClubManagement() {
             <div className="form-group">
               <select className="form-control" value={formData.presidentId} onChange={(e) => setFormData({ ...formData, presidentId: e.target.value })}>
                 <option value="">-- No President Assigned --</option>
-                {users.map(user => (
+                {eligibleUsers.map(user => (
                   <option key={user._id} value={user._id}>
                     {user.name} ({user.email}) - Current Role: {user.role}
                   </option>
