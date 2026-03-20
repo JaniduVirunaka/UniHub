@@ -171,4 +171,28 @@ router.post('/:id/approve', async (req, res) => {
   }
 });
 
+// President drafts a new announcement
+router.post('/:id/announcements', async (req, res) => {
+  try {
+    const { title, content, presidentId } = req.body;
+    const club = await Club.findById(req.params.id);
+
+    if (!club) return res.status(404).json({ message: "Club not found." });
+    
+    // Security check: Ensure the person posting is actually THIS club's president
+    if (club.president?.toString() !== presidentId) {
+      return res.status(403).json({ message: "Access Denied: Only the club president can post announcements." });
+    }
+
+    // Push the new announcement into the array. 
+    // It defaults to isApproved: false based on our schema!
+    club.announcements.push({ title, content });
+    await club.save();
+
+    res.status(200).json({ message: "Announcement submitted and pending Supervisor approval!" });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 module.exports = router;

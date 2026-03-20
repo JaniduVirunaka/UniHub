@@ -7,6 +7,7 @@ function ClubManagement() {
   const [users, setUsers] = useState([]);
   const [formData, setFormData] = useState({ name: '', description: '', mission: '' });
   const [editingClubId, setEditingClubId] = useState(null);
+  const [announcementData, setAnnouncementData] = useState({ title: '', content: '' });
   const navigate = useNavigate();
 
   // 1. Get the current logged-in user from local storage
@@ -77,6 +78,20 @@ function ClubManagement() {
       .catch(err => alert(err.response?.data?.message || "Error updating club."));
   };
 
+    // --- NEW: Filter eligible presidents ---
+  // We only want normal 'students' to appear in the dropdown.
+  // BUT, if we are editing a club, we must also include the CURRENT president of this club in the list.
+  const eligibleUsers = users.filter(user => {
+    // Exclude supervisors entirely from the list
+    if (user.role === 'supervisor') return false;
+    
+    // If we are editing, and this user is the current president of the club in the form, keep them!
+    if (editingClubId && formData.presidentId === user._id) return true;
+    
+    // Otherwise, only include users who are currently normal students
+    return user.role === 'student';
+  });
+
   // Deletes the club
   const handleDeleteClub = (clubId) => {
     if (window.confirm("Are you sure you want to delete this club? This action cannot be undone.")) {
@@ -107,19 +122,17 @@ function ClubManagement() {
       .catch(err => alert("Error approving member."));
   };
 
-  // --- NEW: Filter eligible presidents ---
-  // We only want normal 'students' to appear in the dropdown.
-  // BUT, if we are editing a club, we must also include the CURRENT president of this club in the list.
-  const eligibleUsers = users.filter(user => {
-    // Exclude supervisors entirely from the list
-    if (user.role === 'supervisor') return false;
-    
-    // If we are editing, and this user is the current president of the club in the form, keep them!
-    if (editingClubId && formData.presidentId === user._id) return true;
-    
-    // Otherwise, only include users who are currently normal students
-    return user.role === 'student';
-  });
+  // Submits a new announcement for the President's club
+const handlePostAnnouncement = (e, clubId) => {
+  e.preventDefault();
+  axios.post(`http://localhost:5000/api/clubs/${clubId}/announcements`, { ...announcementData, presidentId: currentUser.id })
+    .then(res => {
+      alert(res.data.message);
+      setAnnouncementData({ title: '', content: '' }); // Clear the form
+      fetchClubs(); // Refresh to see the new announcement
+    })
+    .catch(err => alert(err.response?.data?.message || "Error posting announcement."));
+};
 
   return (
     <div>
@@ -209,6 +222,47 @@ function ClubManagement() {
                   ))}
                 </div>
               )}
+
+              {/* --- PRESIDENT'S CONTROL PANEL --- */}
+              {club.president?._id === currentUser.id && (
+                <div style={{ marginTop: '20px', padding: '15px', backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px' }}>
+                  <h4 style={{ color: '#1d4ed8', marginTop: '0' }}>President's Control Panel</h4>
+                  
+                  {/* Membership Fee Display */}
+                  <p><strong>Current Membership Fee:</strong> Rs. {club.membershipFee || 0}</p>
+                  
+                  <hr style={{ borderColor: '#bfdbfe', margin: '15px 0' }} />
+                  
+                  {/* Draft Announcement Form */}
+                  <h5 style={{ color: '#1e40af' }}>Draft New Announcement</h5>
+                  <form onSubmit={(e) => handlePostAnnouncement(e, club._id)}>
+                    <input type="text" className="form-control" placeholder="Announcement Title" value={announcementData.title} onChange={(e) => setAnnouncementData({...announcementData, title: e.target.value})} required style={{ marginBottom: '10px' }}/>
+                    <textarea className="form-control" placeholder="What do you want to tell your members?" value={announcementData.content} onChange={(e) => setAnnouncementData({...announcementData, content: e.target.value})} required style={{ marginBottom: '10px', minHeight: '60px' }}/>
+                    <button type="submit" className="btn" style={{ padding: '5px 15px', fontSize: '0.9rem' }}>Submit for Approval</button>
+                  </form>
+                </div>
+              )}
+
+              {/* --- ALL USERS: VIEW ANNOUNCEMENTS --- */}
+              {club.announcements?.length > 0 && (
+                <div style={{ marginTop: '15px' }}>
+                  <h5 style={{ borderBottom: '1px solid #e5e7eb', paddingBottom: '5px' }}>Club Announcements</h5>
+                  {club.announcements.map((ann, index) => (
+                    <div key={index} style={{ padding: '10px', backgroundColor: '#f9fafb', marginBottom: '5px', borderRadius: '5px', borderLeft: ann.isApproved ? '4px solid #10b981' : '4px solid #f59e0b' }}>
+                      <h6 style={{ margin: '0 0 5px 0' }}>{ann.title}</h6>
+                      <p style={{ margin: '0', fontSize: '0.9rem', color: '#4b5563' }}>{ann.content}</p>
+                      
+                      {/* Show status flag ONLY to the President or Supervisor */}
+                      {(currentUser.role === 'supervisor' || club.president?._id === currentUser.id) && (
+                        <small style={{ color: ann.isApproved ? '#10b981' : '#f59e0b', fontWeight: 'bold', display: 'block', marginTop: '5px' }}>
+                          Status: {ann.isApproved ? 'Live (Approved)' : 'Pending Supervisor Approval'}
+                        </small>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              
             </li>
           ))}
         </ul>
