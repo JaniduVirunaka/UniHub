@@ -6,6 +6,8 @@ function ClubDetail() {
   const { id } = useParams(); // Gets the club ID from the URL
   const navigate = useNavigate();
   const [club, setClub] = useState(null);
+  const [announcementData, setAnnouncementData] = useState({ title: '', content: '' });
+  const [boardData, setBoardData] = useState({ userId: '', role: '' });
   
   const currentUser = JSON.parse(localStorage.getItem('user'));
 
@@ -39,6 +41,40 @@ function ClubDetail() {
       .catch(err => alert("Error approving member."));
   };
 
+  // --- PRESIDENT ACTIONS ---
+  
+  const handlePostAnnouncement = (e) => {
+    e.preventDefault();
+    axios.post(`http://localhost:5000/api/clubs/${id}/announcements`, { ...announcementData, presidentId: currentUser.id })
+      .then(res => {
+        alert(res.data.message);
+        setAnnouncementData({ title: '', content: '' }); 
+        fetchClubData(); 
+      })
+      .catch(err => alert(err.response?.data?.message || "Error posting announcement."));
+  };
+
+  const handleAssignBoard = (e) => {
+    e.preventDefault();
+    axios.post(`http://localhost:5000/api/clubs/${id}/board`, { ...boardData, presidentId: currentUser.id })
+      .then(res => {
+        alert(res.data.message);
+        setBoardData({ userId: '', role: '' }); // Clear form
+        fetchClubData();
+      })
+      .catch(err => alert(err.response?.data?.message || "Error assigning role."));
+  };
+
+  const handleRemoveBoard = (userId) => {
+    if(window.confirm("Are you sure you want to remove this member from the board?")) {
+      axios.delete(`http://localhost:5000/api/clubs/${id}/board/${userId}`, { data: { presidentId: currentUser.id } })
+        .then(res => {
+          fetchClubData();
+        })
+        .catch(err => alert("Error removing board member."));
+    }
+  };
+
   if (!club) return <div style={{ textAlign: 'center', marginTop: '50px' }}>Loading Club Details...</div>;
 
   // --- Determine User's Access Level ---
@@ -56,13 +92,21 @@ function ClubDetail() {
      {/* 1. PUBLIC HEADER (Everyone sees this) */}
       <div className="card" style={{ borderTop: '4px solid var(--primary-color)' }}>
         <button className="btn" style={{ backgroundColor: '#6b7280', marginBottom: '20px' }} onClick={() => navigate('/clubs')}>
-          {isPresident ? '🌍 Browse Other Clubs' : '&larr; Back to Directory'}
+          {isPresident ? 'Browse Other Clubs' : '&larr; Back to Directory'}
         </button>
         
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
             <h1 style={{ color: 'var(--primary-color)', margin: '0 0 10px 0' }}>{club.name}</h1>
             <p><strong>President:</strong> {club.president?.name || 'Vacant'}</p>
+            {club.topBoard?.length > 0 && (
+                <p style={{ margin: '5px 0' }}>
+                    <strong>Executive Board: </strong> 
+                    {club.topBoard.map((b, index) => (
+                        <span key={index}>{b.role}: {b.user?.name}{index < club.topBoard.length - 1 ? ', ' : ''}</span>
+                    ))}
+                </p>
+            )}
           </div>
           
           {/* JOIN BUTTON LOGIC FOR STUDENTS */}
@@ -156,31 +200,58 @@ function ClubDetail() {
           <h2 style={{ color: '#3b82f6', marginTop: 0 }}>President's Control Center</h2>
           
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-            {/* Pending Requests Box */}
-            <div style={{ backgroundColor: '#fef3c7', padding: '15px', borderRadius: '8px', border: '1px solid #fde68a' }}>
-              <h4 style={{ color: '#d97706', marginTop: 0 }}>👥 Pending Join Requests</h4>
-              {club.pendingMembers?.length === 0 ? (
-                <p style={{ color: '#b45309', fontSize: '0.9rem' }}>No pending requests at this time.</p>
-              ) : (
-                club.pendingMembers?.map(student => (
-                  <div key={student._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', backgroundColor: '#fff', padding: '10px', borderRadius: '5px' }}>
-                    <span><strong>{student.name}</strong><br/><small>{student.email}</small></span>
-                    <button className="btn" style={{ padding: '5px 10px', fontSize: '0.8rem', backgroundColor: '#059669' }} onClick={() => handleApprove(student._id)}>
-                      Approve
-                    </button>
+            
+            {/* LEFT COLUMN: People Management */}
+            <div>
+              <div style={{ backgroundColor: '#fef3c7', padding: '15px', borderRadius: '8px', border: '1px solid #fde68a', marginBottom: '20px' }}>
+                <h4 style={{ color: '#d97706', marginTop: 0 }}>👥 Pending Join Requests</h4>
+                {club.pendingMembers?.length === 0 ? (
+                  <p style={{ color: '#b45309', fontSize: '0.9rem' }}>No pending requests.</p>
+                ) : (
+                  club.pendingMembers?.map(student => (
+                    <div key={student._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', backgroundColor: '#fff', padding: '10px', borderRadius: '5px' }}>
+                      <span><strong>{student.name}</strong><br/><small>{student.email}</small></span>
+                      <button className="btn" style={{ padding: '5px 10px', fontSize: '0.8rem', backgroundColor: '#059669' }} onClick={() => handleApprove(student._id)}>Approve</button>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div style={{ backgroundColor: '#f3f4f6', padding: '15px', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+                <h4 style={{ color: '#374151', marginTop: 0 }}>👔 Top Board Management</h4>
+                
+                {/* Form to Assign a Role */}
+                <form onSubmit={handleAssignBoard} style={{ marginBottom: '15px' }}>
+                  <select className="form-control" style={{ marginBottom: '10px' }} value={boardData.userId} onChange={(e) => setBoardData({...boardData, userId: e.target.value})} required>
+                    <option value="">-- Select an Approved Member --</option>
+                    {club.members?.map(member => (
+                      <option key={member._id} value={member._id}>{member.name}</option>
+                    ))}
+                  </select>
+                  <input type="text" className="form-control" placeholder="Role (e.g., Secretary, Treasurer)" value={boardData.role} onChange={(e) => setBoardData({...boardData, role: e.target.value})} required style={{ marginBottom: '10px' }} />
+                  <button type="submit" className="btn" style={{ width: '100%', padding: '8px', backgroundColor: '#374151' }}>Assign Role</button>
+                </form>
+
+                {/* List of Current Board Members */}
+                {club.topBoard?.map((boardMember, i) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fff', padding: '8px', borderRadius: '5px', marginBottom: '5px', borderLeft: '3px solid #3b82f6' }}>
+                    <span><strong>{boardMember.role}:</strong> {boardMember.user?.name}</span>
+                    <button className="btn" style={{ padding: '2px 8px', fontSize: '0.8rem', backgroundColor: '#ef4444' }} onClick={() => handleRemoveBoard(boardMember.user?._id)}>X</button>
                   </div>
-                ))
-              )}
+                ))}
+              </div>
             </div>
 
-            {/* Quick Actions Box */}
+            {/* RIGHT COLUMN: Communications */}
             <div style={{ backgroundColor: '#eff6ff', padding: '15px', borderRadius: '8px', border: '1px solid #bfdbfe' }}>
-               <h4 style={{ color: '#1e40af', marginTop: 0 }}>⚙️ Quick Actions</h4>
-               <p style={{ fontSize: '0.9rem', color: '#3b82f6' }}>Manage your club operations here.</p>
-               <button className="btn" style={{ width: '100%', marginBottom: '10px', backgroundColor: '#3b82f6' }}>Post New Announcement</button>
-               <button className="btn" style={{ width: '100%', backgroundColor: '#3b82f6' }}>Update Membership Fees</button>
-               <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'center', marginTop: '10px' }}>[Forms connecting to these buttons coming soon]</p>
+               <h4 style={{ color: '#1e40af', marginTop: 0 }}>📢 Draft New Announcement</h4>
+               <form onSubmit={handlePostAnnouncement}>
+                 <input type="text" className="form-control" placeholder="Announcement Title" value={announcementData.title} onChange={(e) => setAnnouncementData({...announcementData, title: e.target.value})} required style={{ marginBottom: '10px' }}/>
+                 <textarea className="form-control" placeholder="What do you want to tell your members?" value={announcementData.content} onChange={(e) => setAnnouncementData({...announcementData, content: e.target.value})} required style={{ marginBottom: '10px', minHeight: '120px' }}/>
+                 <button type="submit" className="btn" style={{ width: '100%', backgroundColor: '#3b82f6' }}>Submit for Supervisor Approval</button>
+               </form>
             </div>
+            
           </div>
         </div>
       )}

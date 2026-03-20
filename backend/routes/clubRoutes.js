@@ -23,7 +23,8 @@ router.get('/:id', async (req, res) => {
     const club = await Club.findById(req.params.id)
       .populate('president', 'name email')
       .populate('pendingMembers', 'name email')
-      .populate('members', 'name email');
+      .populate('members', 'name email')
+      .populate('topBoard.user', 'name email');
       
     if (!club) return res.status(404).json({ message: "Club not found" });
     res.json(club);
@@ -209,6 +210,51 @@ router.post('/:id/announcements', async (req, res) => {
     await club.save();
 
     res.status(200).json({ message: "Announcement submitted and pending Supervisor approval!" });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Assign a Board Member (President Only)
+router.post('/:id/board', async (req, res) => {
+  try {
+    const { userId, role, presidentId } = req.body;
+    const club = await Club.findById(req.params.id);
+
+    if (club.president?.toString() !== presidentId) {
+      return res.status(403).json({ message: "Only the president can assign board roles." });
+    }
+
+    // Check if the user is already on the board to prevent duplicates
+    const alreadyOnBoard = club.topBoard.find(b => b.user.toString() === userId);
+    if (alreadyOnBoard) {
+      return res.status(400).json({ message: "This member is already on the board." });
+    }
+
+    club.topBoard.push({ user: userId, role });
+    await club.save();
+    
+    res.status(200).json({ message: `${role} assigned successfully!` });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Remove a Board Member (President Only)
+router.delete('/:id/board/:userId', async (req, res) => {
+  try {
+    const { presidentId } = req.body;
+    const club = await Club.findById(req.params.id);
+
+    if (club.president?.toString() !== presidentId) {
+      return res.status(403).json({ message: "Only the president can remove board members." });
+    }
+
+    // Filter out the specific user from the topBoard array
+    club.topBoard = club.topBoard.filter(b => b.user.toString() !== req.params.userId);
+    await club.save();
+
+    res.status(200).json({ message: "Board member removed." });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

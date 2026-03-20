@@ -18,7 +18,10 @@ const clubSchema = new mongoose.Schema({
   // Leadership & Access Control [cite: 63]
   supervisor: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // The Lecturer in Charge
   president: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // Assigned by the Supervisor
-  topBoard: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], // e.g., Secretary, Treasurer
+  topBoard: [{ 
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    role: { type: String, required: true } 
+  }],
   
   // Membership Management [cite: 49]
   members: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], // Approved students
