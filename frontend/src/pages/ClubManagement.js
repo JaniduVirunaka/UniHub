@@ -184,88 +184,74 @@ const handlePostAnnouncement = (e, clubId) => {
         </div>
       )}
 
+    {/* DIRECTORY SECTION WITH TABS */}
       <div className="card">
-        <h2>Registered Clubs Directory</h2>
-        <ul className="club-list">
-          {clubs.map(club => (
-            <li key={club._id} className="club-item">
-              <h4>{club.name}</h4>
-              {/* Supervisor Operational Controls */}
-              {currentUser.role === 'supervisor' && (
-                <div style={{ float: 'right', display: 'flex', gap: '10px' }}>
-                  <button onClick={() => handleEditClick(club)} style={{ padding: '5px 10px', cursor: 'pointer', backgroundColor: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: '4px' }}>Edit</button>
-                  <button onClick={() => handleDeleteClub(club._id)} style={{ padding: '5px 10px', cursor: 'pointer', backgroundColor: '#fee2e2', color: '#dc2626', border: '1px solid #fca5a5', borderRadius: '4px' }}>Delete</button>
-                </div>
-              )}
-              <p><strong>Description:</strong> {club.description}</p>
-              <p><strong>Mission:</strong> {club.mission}</p>
-              <p><small>President: {club.president?.name || 'Unknown'}</small></p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid var(--border-color)', paddingBottom: '10px', marginBottom: '20px' }}>
+          <h2 style={{ margin: 0 }}>Club Directory</h2>
+          
+          {/* Filtering Tabs */}
+          {currentUser.role === 'student' && (
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button 
+                className="btn" 
+                style={{ backgroundColor: 'var(--primary-color)' }}
+                onClick={() => fetchClubs()} // Grabs all clubs
+              >
+                Explore All Clubs
+              </button>
+              <button 
+                className="btn" 
+                style={{ backgroundColor: '#10b981' }} // Green color for 'My Clubs'
+                onClick={() => {
+                  // Filter local state to only show clubs where they are a member
+                  const myClubs = clubs.filter(club => club.members.some(m => m._id === currentUser.id));
+                  setClubs(myClubs);
+                }}
+              >
+                My Registered Clubs
+              </button>
+            </div>
+          )}
+        </div>
 
-              {/* If user is a student, show Join button */}
-              {currentUser.role === 'student' && (
-                <button className="btn" style={{ marginTop: '10px' }} onClick={() => handleJoinRequest(club._id)}>
-                  Request to Join
-                </button>
-              )}
+        {clubs.length === 0 ? (
+          <p>No clubs found in this view.</p>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
+            {clubs.map(club => (
+              <div key={club._id} style={{ border: '1px solid var(--border-color)', borderRadius: '8px', padding: '1.5rem', backgroundColor: 'var(--surface-color)', position: 'relative' }}>
+                <h3 style={{ color: 'var(--primary-color)', marginTop: '0' }}>{club.name}</h3>
+                <p style={{ color: 'var(--text-muted)' }}>{club.description.substring(0, 100)}...</p>
+                
+                {/* Visual indicator if they are already a member */}
+                {club.members?.some(m => m._id === currentUser.id) && (
+                   <span style={{ position: 'absolute', top: '10px', right: '10px', backgroundColor: '#d1fae5', color: '#065f46', padding: '2px 8px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 'bold' }}>
+                     Member
+                   </span>
+                )}
+                {club.president?._id === currentUser.id && (
+                   <span style={{ position: 'absolute', top: '10px', right: '10px', backgroundColor: '#dbeafe', color: '#1e40af', padding: '2px 8px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 'bold' }}>
+                     President
+                   </span>
+                )}
 
-              {/* If user is the president of THIS specific club, show the pending requests */}
-              {club.president?._id === currentUser.id && club.pendingMembers?.length > 0 && (
-                <div style={{ marginTop: '15px', padding: '10px', backgroundColor: '#fef3c7', borderRadius: '5px' }}>
-                  <h5 style={{ margin: '0 0 10px 0', color: '#d97706' }}>Pending Join Requests</h5>
-                  {club.pendingMembers.map(student => (
-                    <div key={student._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
-                      <span>{student.name} ({student.email})</span>
-                      <button className="btn" style={{ padding: '5px 10px', fontSize: '0.8rem', backgroundColor: '#059669' }} onClick={() => handleApprove(club._id, student._id)}>
-                        Approve
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* --- PRESIDENT'S CONTROL PANEL --- */}
-              {club.president?._id === currentUser.id && (
-                <div style={{ marginTop: '20px', padding: '15px', backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px' }}>
-                  <h4 style={{ color: '#1d4ed8', marginTop: '0' }}>President's Control Panel</h4>
+                <div style={{ marginTop: '15px', display: 'flex', gap: '10px' }}>
+                  <button className="btn" style={{ flex: 1 }} onClick={() => navigate(`/clubs/${club._id}`)}>
+                    View Club Hub
+                  </button>
                   
-                  {/* Membership Fee Display */}
-                  <p><strong>Current Membership Fee:</strong> Rs. {club.membershipFee || 0}</p>
-                  
-                  <hr style={{ borderColor: '#bfdbfe', margin: '15px 0' }} />
-                  
-                  {/* Draft Announcement Form */}
-                  <h5 style={{ color: '#1e40af' }}>Draft New Announcement</h5>
-                  <form onSubmit={(e) => handlePostAnnouncement(e, club._id)}>
-                    <input type="text" className="form-control" placeholder="Announcement Title" value={announcementData.title} onChange={(e) => setAnnouncementData({...announcementData, title: e.target.value})} required style={{ marginBottom: '10px' }}/>
-                    <textarea className="form-control" placeholder="What do you want to tell your members?" value={announcementData.content} onChange={(e) => setAnnouncementData({...announcementData, content: e.target.value})} required style={{ marginBottom: '10px', minHeight: '60px' }}/>
-                    <button type="submit" className="btn" style={{ padding: '5px 15px', fontSize: '0.9rem' }}>Submit for Approval</button>
-                  </form>
+                  {/* Supervisor Edit/Delete controls remain here on the dashboard */}
+                  {currentUser.role === 'supervisor' && (
+                    <>
+                      <button onClick={() => handleEditClick(club)} style={{ padding: '5px 10px', cursor: 'pointer', backgroundColor: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: '4px' }}>Edit</button>
+                      <button onClick={() => handleDeleteClub(club._id)} style={{ padding: '5px 10px', cursor: 'pointer', backgroundColor: '#fee2e2', color: '#dc2626', border: '1px solid #fca5a5', borderRadius: '4px' }}>Delete</button>
+                    </>
+                  )}
                 </div>
-              )}
-
-              {/* --- ALL USERS: VIEW ANNOUNCEMENTS --- */}
-              {club.announcements?.length > 0 && (
-                <div style={{ marginTop: '15px' }}>
-                  <h5 style={{ borderBottom: '1px solid #e5e7eb', paddingBottom: '5px' }}>Club Announcements</h5>
-                  {club.announcements.map((ann, index) => (
-                    <div key={index} style={{ padding: '10px', backgroundColor: '#f9fafb', marginBottom: '5px', borderRadius: '5px', borderLeft: ann.isApproved ? '4px solid #10b981' : '4px solid #f59e0b' }}>
-                      <h6 style={{ margin: '0 0 5px 0' }}>{ann.title}</h6>
-                      <p style={{ margin: '0', fontSize: '0.9rem', color: '#4b5563' }}>{ann.content}</p>
-                      
-                      {/* Show status flag ONLY to the President or Supervisor */}
-                      {(currentUser.role === 'supervisor' || club.president?._id === currentUser.id) && (
-                        <small style={{ color: ann.isApproved ? '#10b981' : '#f59e0b', fontWeight: 'bold', display: 'block', marginTop: '5px' }}>
-                          Status: {ann.isApproved ? 'Live (Approved)' : 'Pending Supervisor Approval'}
-                        </small>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-              
-            </li>
-          ))}
-        </ul>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -3,11 +3,30 @@ const router = express.Router();
 const Club = require('../models/Club');
 const User = require('../models/User'); // We need the user model to fetch names
 
-// Get all clubs (and populate the president's name so we can display it)
+// Get all clubs 
 router.get('/', async (req, res) => {
   try {
-    const clubs = await Club.find().populate('president', 'name').populate('pendingMembers', 'name email');
+    // NEW: Added .populate('members') so we can filter "My Clubs" on the frontend
+    const clubs = await Club.find()
+      .populate('president', 'name')
+      .populate('pendingMembers', 'name email')
+      .populate('members', 'name email'); 
     res.json(clubs);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Get a SINGLE club by ID
+router.get('/:id', async (req, res) => {
+  try {
+    const club = await Club.findById(req.params.id)
+      .populate('president', 'name email')
+      .populate('pendingMembers', 'name email')
+      .populate('members', 'name email');
+      
+    if (!club) return res.status(404).json({ message: "Club not found" });
+    res.json(club);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
