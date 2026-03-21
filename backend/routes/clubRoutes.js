@@ -390,4 +390,119 @@ router.put('/:clubId/proposals/:proposalId/pledge/:pledgeId', async (req, res) =
   }
 });
 
+
+// Voting Functionality
+// 1. Supervisor Creates a New Election
+router.post('/:id/elections', async (req, res) => {
+  try {
+    const { position, supervisorId } = req.body;
+    const club = await Club.findById(req.params.id);
+    if (!club) return res.status(404).json({ message: "Club not found." });
+
+    // Strict Security: Only the assigned Supervisor can create this
+    if (club.supervisor?.toString() !== supervisorId) {
+      return res.status(403).json({ message: "Access Denied: Only the Club Supervisor can initiate elections." });
+    }
+
+    club.elections.push({ position, isActive: false, isPublished: false, candidates: [] });
+    await club.save();
+
+    res.status(200).json({ message: "Election initialized successfully." });
+  } catch (err) {
+    console.error("Election Creation Error:", err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 2. Supervisor Adds a Candidate to the Ballot
+router.post('/:id/elections/:electionId/candidates', async (req, res) => {
+  try {
+    const { candidateUserId, manifesto, supervisorId } = req.body;
+    const club = await Club.findById(req.params.id);
+
+    if (club.supervisor?.toString() !== supervisorId) {
+      return res.status(403).json({ message: "Access Denied." });
+    }
+
+    const election = club.elections.id(req.params.electionId);
+    if (!election) return res.status(404).json({ message: "Election not found." });
+
+    // Ensure the candidate isn't already on the ballot
+    const alreadyNominated = election.candidates.find(c => c.user?.toString() === candidateUserId);
+    if (alreadyNominated) return res.status(400).json({ message: "This student is already on the ballot." });
+
+    election.candidates.push({ user: candidateUserId, manifesto, voteCount: 0 });
+    await club.save();
+
+    res.status(200).json({ message: "Candidate added to the ballot." });
+  } catch (err) {
+    console.error("Candidate Error:", err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 3. Supervisor Toggles Election Status (Open Voting / Publish Results)
+router.put('/:id/elections/:electionId/status', async (req, res) => {
+  try {
+    const { isActive, isPublished, supervisorId } = req.body;
+    const club = await Club.findById(req.params.id);
+
+    if (club.supervisor?.toString() !== supervisorId) {
+      return res.status(403).json({ message: "Access Denied." });
+    }
+
+    const election = club.elections.id(req.params.electionId);
+    if (isActive !== undefined) election.isActive = isActive;
+    if (isPublished !== undefined) election.isPublished = isPublished;
+
+    await club.save();
+    res.status(200).json({ message: "Election status updated." });
+  } catch (err) {
+    console.error("Election Status Error:", err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 4. Approved Member Casts a Secure Vote
+router.post('/:id/elections/:electionId/vote', async (req, res) => {
+  try {
+    const { userId, candidateId } = req.body;
+    const club = await Club.findById(req.params.id);
+
+    // 1. Is the election actually open?
+    const election = club.elections.id(req.params.electionId);
+    if (!election || !election.isActive) {
+      return res.status(400).json({ message: "Voting is currently closed." });
+    }
+
+    // 2. Is the user actually an approved member? (Top Board & President are also members)
+    const isMember = club.members.includes(userId);
+    const isPresident = club.president?.toString() === userId;
+    const isTopBoard = club.topBoard.some(b => b.user?.toString() === userId);
+
+    if (!isMember && !isPresident && !isTopBoard) {
+      return res.status(403).json({ message: "Only approved club members can vote." });
+    }
+
+    // 3. ANTI-FRAUD: Has this user already voted?
+    if (election.votedUsers.includes(userId)) {
+      return res.status(400).json({ message: "You have already cast your vote in this election." });
+    }
+
+    // 4. Record the vote securely
+    const candidate = election.candidates.id(candidateId);
+    if (!candidate) return res.status(404).json({ message: "Candidate not found." });
+
+    candidate.voteCount += 1;
+    election.votedUsers.push(userId); // Lock them out from ever voting again
+
+    await club.save();
+    res.status(200).json({ message: "Vote cast successfully! Your vote is secure." });
+
+  } catch (err) {
+    console.error("Voting Error:", err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
 module.exports = router;

@@ -28,6 +28,20 @@ const proposalSchema = new mongoose.Schema({
   pledges: [pledgeSchema] 
 });
 
+const candidateSchema = new mongoose.Schema({
+  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  manifesto: { type: String, required: true },
+  voteCount: { type: Number, default: 0 } // Mathematically secure tally
+});
+
+const electionSchema = new mongoose.Schema({
+  position: { type: String, required: true }, // e.g., "President 2026/2027"
+  isActive: { type: Boolean, default: false }, // Supervisor turns this on when voting begins
+  isPublished: { type: Boolean, default: false }, // Supervisor turns this on to reveal results
+  candidates: [candidateSchema],
+  votedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }] // Prevents double-voting!
+});
+
 const clubSchema = new mongoose.Schema({
   // Basic Info
   name: { type: String, required: true },

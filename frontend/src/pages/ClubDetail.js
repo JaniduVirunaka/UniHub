@@ -8,7 +8,8 @@ function ClubDetail() {
   const [club, setClub] = useState(null);
   const [announcementData, setAnnouncementData] = useState({ title: '', content: '' });
   const [boardData, setBoardData] = useState({ userId: '', role: '' });
-  const [sponsorData, setSponsorData] = useState({ sponsorName: '', description: '', targetAmount: '' });
+  const [electionData, setElectionData] = useState({ position: '' });
+  const [candidateData, setCandidateData] = useState({ candidateUserId: '', manifesto: '' });
 
   const currentUser = JSON.parse(localStorage.getItem('user'));
 
@@ -43,7 +44,6 @@ function ClubDetail() {
   };
 
   // --- PRESIDENT ACTIONS ---
-  
   const handlePostAnnouncement = (e) => {
     e.preventDefault();
     axios.post(`http://localhost:5000/api/clubs/${id}/announcements`, { ...announcementData, presidentId: currentUser.id })
@@ -54,24 +54,6 @@ function ClubDetail() {
       })
       .catch(err => alert(err.response?.data?.message || "Error posting announcement."));
   };
-
-  // --- SPONSORSHIP ACTIONS ---
-const handleAddSponsorship = (e) => {
-  e.preventDefault();
-  axios.post(`http://localhost:5000/api/clubs/${id}/sponsorships`, { ...sponsorData, presidentId: currentUser.id })
-    .then(res => {
-      alert(res.data.message);
-      setSponsorData({ sponsorName: '', description: '', targetAmount: '' }); 
-      fetchClubData(); 
-    })
-    .catch(err => alert(err.response?.data?.message || "Error adding sponsorship."));
-};
-
-const handleUpdateFunds = (sponsorId, newAmount) => {
-  axios.put(`http://localhost:5000/api/clubs/${id}/sponsorships/${sponsorId}`, { currentAmount: newAmount, presidentId: currentUser.id })
-    .then(res => fetchClubData())
-    .catch(err => alert("Error updating funds."));
-};
 
   const handleAssignBoard = (e) => {
     e.preventDefault();
@@ -92,6 +74,46 @@ const handleUpdateFunds = (sponsorId, newAmount) => {
         })
         .catch(err => alert("Error removing board member."));
     }
+  };
+
+  // --- ELECTION & VOTING ACTIONS ---
+  const handleCreateElection = (e) => {
+    e.preventDefault();
+    axios.post(`http://localhost:5000/api/clubs/${id}/elections`, { position: electionData.position, supervisorId: currentUser?.id })
+      .then(res => {
+        alert(res.data.message);
+        setElectionData({ position: '' });
+        fetchClubData();
+      })
+      .catch(err => alert(err.response?.data?.message || "Error creating election."));
+  };
+
+  const handleAddCandidate = (e, electionId) => {
+    e.preventDefault();
+    axios.post(`http://localhost:5000/api/clubs/${id}/elections/${electionId}/candidates`, { ...candidateData, supervisorId: currentUser?.id })
+      .then(res => {
+        alert(res.data.message);
+        setCandidateData({ candidateUserId: '', manifesto: '' });
+        fetchClubData();
+      })
+      .catch(err => alert(err.response?.data?.message || "Error adding candidate."));
+  };
+
+  const handleToggleElection = (electionId, isActive, isPublished) => {
+    if(!window.confirm("Are you sure you want to change the election status?")) return;
+    axios.put(`http://localhost:5000/api/clubs/${id}/elections/${electionId}/status`, { isActive, isPublished, supervisorId: currentUser?.id })
+      .then(res => fetchClubData())
+      .catch(err => alert("Error updating election status."));
+  };
+
+  const handleVote = (electionId, candidateId) => {
+    if (!window.confirm("Are you sure? Your vote is final and anonymous.")) return;
+    axios.post(`http://localhost:5000/api/clubs/${id}/elections/${electionId}/vote`, { userId: currentUser?.id, candidateId })
+      .then(res => {
+        alert(res.data.message);
+        fetchClubData();
+      })
+      .catch(err => alert(err.response?.data?.message || "Error casting vote."));
   };
 
   if (!club) return <div style={{ textAlign: 'center', marginTop: '50px' }}>Loading Club Details...</div>;
@@ -244,6 +266,72 @@ const handleUpdateFunds = (sponsorId, newAmount) => {
                 </div>
               )}
             </div>
+
+            {/* 🗳️ LIVE VOTING BOOTH */}
+            {club.elections && club.elections.length > 0 && (
+              <div style={{ backgroundColor: '#f0fdf4', padding: '15px', borderRadius: '8px', border: '1px solid #bbf7d0', gridColumn: '1 / -1', marginTop: '15px' }}>
+                <h4 style={{ margin: 0, color: '#166534', borderBottom: '2px solid #bbf7d0', paddingBottom: '10px', marginBottom: '15px' }}>🗳️ Official Club Elections</h4>
+                
+                <div style={{ display: 'grid', gap: '15px' }}>
+                  {club.elections.map((election) => {
+                    const hasVoted = election.votedUsers.includes(currentUser?.id);
+                    const totalVotes = election.votedUsers.length;
+
+                    return (
+                      <div key={election._id} style={{ backgroundColor: '#fff', border: '1px solid #d1d5db', padding: '15px', borderRadius: '8px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                          <h5 style={{ margin: 0, color: '#065f46', fontSize: '1.1rem' }}>{election.position}</h5>
+                          <span style={{ fontSize: '0.8rem', padding: '4px 10px', borderRadius: '12px', backgroundColor: election.isActive ? '#dcfce7' : '#f3f4f6', color: election.isActive ? '#166534' : '#4b5563', fontWeight: 'bold' }}>
+                            {election.isPublished ? 'Results Published' : election.isActive ? 'Voting Open' : 'Voting Closed'}
+                          </span>
+                        </div>
+
+                        {/* Candidates List */}
+                        <div style={{ display: 'grid', gap: '10px' }}>
+                          {election.candidates.map((c) => {
+                            const candidateName = club.members.find(m => m._id === c.user)?.name || 'Unknown User';
+                            const votePercent = totalVotes > 0 ? ((c.voteCount / totalVotes) * 100).toFixed(0) : 0;
+
+                            return (
+                              <div key={c._id} style={{ border: '1px solid #e5e7eb', padding: '10px', borderRadius: '5px', backgroundColor: '#f9fafb', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div style={{ flex: 1 }}>
+                                  <strong style={{ display: 'block', fontSize: '1rem' }}>{candidateName}</strong>
+                                  <span style={{ fontSize: '0.85rem', color: '#6b7280', fontStyle: 'italic' }}>"{c.manifesto}"</span>
+                                  
+                                  {/* Render Results ONLY if published */}
+                                  {election.isPublished && (
+                                    <div style={{ marginTop: '8px' }}>
+                                      <div style={{ width: '100%', backgroundColor: '#e5e7eb', borderRadius: '4px', height: '8px', overflow: 'hidden' }}>
+                                        <div style={{ width: `${votePercent}%`, backgroundColor: '#10b981', height: '100%' }}></div>
+                                      </div>
+                                      <small style={{ fontWeight: 'bold', color: '#166534' }}>{c.voteCount} Votes ({votePercent}%)</small>
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Voting Button */}
+                                {election.isActive && !hasVoted && (
+                                  <button className="btn" style={{ backgroundColor: '#10b981', marginLeft: '15px', padding: '8px 20px' }} onClick={() => handleVote(election._id, c._id)}>
+                                    Vote
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {/* Voter Status Message */}
+                        {election.isActive && hasVoted && (
+                          <div style={{ marginTop: '15px', padding: '10px', backgroundColor: '#dcfce7', color: '#166534', textAlign: 'center', borderRadius: '5px', fontWeight: 'bold' }}>
+                            ✅ Your vote has been securely recorded.
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             
             <div style={{ backgroundColor: '#f9fafb', padding: '15px', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
               <h4 style={{ marginTop: '0' }}>🗳️ Digital Voting</h4>
@@ -318,6 +406,66 @@ const handleUpdateFunds = (sponsorId, newAmount) => {
                </form>
             </div>
             
+          </div>
+        </div>
+      )}
+
+      {/* ========================================== */}
+      {/* 5. SUPERVISOR ADMIN PANEL (Highest Authority)*/}
+      {/* ========================================== */}
+      {isSupervisor && (
+        <div style={{ marginTop: '30px' }}>
+          <h3 style={{ color: '#111827', borderBottom: '2px solid #e5e7eb', paddingBottom: '10px' }}>
+            🛡️ Supervisor Control Center
+          </h3>
+          
+          <div className="card" style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+            <h4 style={{ color: '#166534', marginTop: 0 }}>Electoral Engine</h4>
+            
+            {/* Create Election Form */}
+            <form onSubmit={handleCreateElection} style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+              <input type="text" className="form-control" placeholder="Position (e.g., President 2026/2027)" required value={electionData.position} onChange={(e) => setElectionData({ position: e.target.value })} style={{ flex: 1 }}/>
+              <button type="submit" className="btn" style={{ backgroundColor: '#166534' }}>Initialize Election</button>
+            </form>
+
+            {/* Manage Active Elections */}
+            {club.elections?.map(election => (
+              <div key={election._id} style={{ backgroundColor: '#fff', border: '1px solid #d1d5db', padding: '15px', borderRadius: '8px', marginBottom: '15px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                  <h5 style={{ margin: 0, fontSize: '1.1rem', color: '#065f46' }}>{election.position}</h5>
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button className="btn" style={{ backgroundColor: election.isActive ? '#ef4444' : '#10b981', padding: '5px 10px', fontSize: '0.8rem' }} onClick={() => handleToggleElection(election._id, !election.isActive, election.isPublished)}>
+                      {election.isActive ? '🛑 Close Voting' : '🟢 Open Voting'}
+                    </button>
+                    <button className="btn" style={{ backgroundColor: election.isPublished ? '#6b7280' : '#8b5cf6', padding: '5px 10px', fontSize: '0.8rem' }} onClick={() => handleToggleElection(election._id, false, !election.isPublished)}>
+                      {election.isPublished ? 'Hide Results' : '📢 Publish Results'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Live Tally (Only Supervisor sees this before publishing) */}
+                <p style={{ margin: '0 0 10px 0', fontWeight: 'bold' }}>Live Tally ({election.votedUsers.length} votes cast)</p>
+                <ul style={{ margin: '0 0 15px 0', paddingLeft: '20px' }}>
+                  {election.candidates.map(c => {
+                    const candidateName = club.members.find(m => m._id === c.user)?.name || 'Unknown User';
+                    return <li key={c._id}>{candidateName}: <strong>{c.voteCount} votes</strong></li>
+                  })}
+                </ul>
+
+                {/* Add Candidate Form (Hidden if voting has started) */}
+                {!election.isActive && !election.isPublished && (
+                  <form onSubmit={(e) => handleAddCandidate(e, election._id)} style={{ backgroundColor: '#f9fafb', padding: '10px', border: '1px solid #e5e7eb', borderRadius: '5px' }}>
+                    <h6 style={{ margin: '0 0 5px 0' }}>Add Candidate to Ballot</h6>
+                    <select className="form-control" required onChange={(e) => setCandidateData({...candidateData, candidateUserId: e.target.value})} style={{ marginBottom: '8px' }}>
+                      <option value="">-- Select an Approved Member --</option>
+                      {club.members.map(m => <option key={m._id} value={m._id}>{m.name}</option>)}
+                    </select>
+                    <input type="text" className="form-control" placeholder="Short Manifesto / Slogan" required onChange={(e) => setCandidateData({...candidateData, manifesto: e.target.value})} style={{ marginBottom: '8px' }}/>
+                    <button type="submit" className="btn" style={{ backgroundColor: '#059669', padding: '5px 15px', fontSize: '0.85rem' }}>Add to Ballot</button>
+                  </form>
+                )}
+              </div>
+            ))}
           </div>
         </div>
       )}
