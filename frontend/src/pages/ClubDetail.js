@@ -192,16 +192,21 @@ const handleCreateElection = (e) => {
   if (!club) return <div style={{ textAlign: 'center', marginTop: '50px' }}>Loading Club Details...</div>;
 
   // --- Determine User's Access Level ---
-  const isPresident = club.president?._id === currentUser?.id;
-  const isTopBoard = isPresident || club.topBoard?.some(b => b.user?._id === currentUser?.id);
+  const isActualPresident = club.president?._id === currentUser?.id;
+  const isVP = club.topBoard?.some(b => b.user?._id === currentUser?.id && b.role === 'Vice President');
+  
+  // The VP now shares the "President" boolean to see the full Admin Panel
+  const isPresident = isActualPresident || isVP; 
+  
+  const isSecretary = club.topBoard?.some(b => b.user?._id === currentUser?.id && ['Secretary', 'Assistant Secretary'].includes(b.role));
+  const canManageAnnouncements = isPresident || isSecretary; // Grants comms access
+
   const isSupervisor = currentUser?.role === 'supervisor';
-  // Check if the current user's ID exists in the approved members array
+  const isTopBoard = isPresident || club.topBoard?.some(b => b.user?._id === currentUser?.id);
   const isMember = club.members?.some(member => member._id === currentUser?.id);
-
-  // They get full access if they are the president, an approved member, or the supervisor
-  const hasFullAccess = isPresident || isMember || isSupervisor;
+  const hasFullAccess = isTopBoard || isMember || isSupervisor;
   const isPending = club.pendingMembers?.some(member => member._id === currentUser?.id);
-
+  
   return (
     <div className="container">
       {/* 1. PUBLIC HEADER (Everyone sees this) */}
@@ -362,15 +367,16 @@ const handleCreateElection = (e) => {
             </div>
 
             {/* 🗳️ LIVE VOTING BOOTH */}
-            {club.elections && club.elections.length > 0 && (
+            {club.elections && club.elections.filter(e => e.isActive || e.isPublished).length > 0 && (
               <div style={{ backgroundColor: '#f0fdf4', padding: '15px', borderRadius: '8px', border: '1px solid #bbf7d0', gridColumn: '1 / -1', marginTop: '15px' }}>
                 <h4 style={{ margin: 0, color: '#166534', borderBottom: '2px solid #bbf7d0', paddingBottom: '10px', marginBottom: '15px' }}>🗳️ Official Club Elections</h4>
 
                 <div style={{ display: 'grid', gap: '15px' }}>
-                  {club.elections.map((election) => {
+                  {/* ONLY MAP OVER ELECTIONS THAT ARE ACTIVE OR PUBLISHED */}
+                  {club.elections.filter(e => e.isActive || e.isPublished).map((election) => {
                     const hasVoted = election.votedUsers.includes(currentUser?.id);
                     const totalVotes = election.votedUsers.length;
-
+                  
                     return (
                       <div key={election._id} style={{ backgroundColor: '#fff', border: '1px solid #d1d5db', padding: '15px', borderRadius: '8px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
@@ -436,69 +442,76 @@ const handleCreateElection = (e) => {
         </div>
       )}
 
-      {/* 4. PRESIDENT'S ADMIN PANEL (Only President sees this) */}
-      {isPresident && (
+     {/* 4. EXECUTIVE ADMIN PANEL (Pres, VP, Secretaries) */}
+      {(isPresident || canManageAnnouncements) && (
         <div className="card" style={{ borderLeft: '4px solid #3b82f6', marginTop: '20px' }}>
-          <h2 style={{ color: '#3b82f6', marginTop: 0 }}>President's Control Center</h2>
+          <h2 style={{ color: '#3b82f6', marginTop: 0 }}>
+            {isPresident ? "President's Control Center" : "Executive Communications"}
+          </h2>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+          {/* Dynamic Grid: 2 columns for Pres/VP, 1 column for Secretaries */}
+          <div style={{ display: 'grid', gridTemplateColumns: isPresident ? '1fr 1fr' : '1fr', gap: '20px' }}>
 
-            {/* LEFT COLUMN: People Management */}
-            <div>
-              <div style={{ backgroundColor: '#fef3c7', padding: '15px', borderRadius: '8px', border: '1px solid #fde68a', marginBottom: '20px' }}>
-                <h4 style={{ color: '#d97706', marginTop: 0 }}>👥 Pending Join Requests</h4>
-                {club.pendingMembers?.length === 0 ? (
-                  <p style={{ color: '#b45309', fontSize: '0.9rem' }}>No pending requests.</p>
-                ) : (
-                  club.pendingMembers?.map(student => (
-                    <div key={student._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', backgroundColor: '#fff', padding: '10px', borderRadius: '5px' }}>
-                      <span><strong>{student.name}</strong><br /><small>{student.email}</small></span>
-                      <div style={{ display: 'flex', gap: '5px' }}>
-                        <button className="btn" style={{ padding: '5px 10px', fontSize: '0.8rem', backgroundColor: '#059669' }} onClick={() => handleApprove(student._id)}>Approve</button>
-                        <button className="btn" style={{ padding: '5px 10px', fontSize: '0.8rem', backgroundColor: '#ef4444' }} onClick={() => handleRejectRequest(student._id)}>Decline</button>
+            {/* LEFT COLUMN: People Management (ONLY FOR PRES/VP) */}
+            {isPresident && (
+              <div>
+                <div style={{ backgroundColor: '#fef3c7', padding: '15px', borderRadius: '8px', border: '1px solid #fde68a', marginBottom: '20px' }}>
+                  <h4 style={{ color: '#d97706', marginTop: 0 }}>👥 Pending Join Requests</h4>
+                  {club.pendingMembers?.length === 0 ? (
+                    <p style={{ color: '#b45309', fontSize: '0.9rem' }}>No pending requests.</p>
+                  ) : (
+                    club.pendingMembers?.map(student => (
+                      <div key={student._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', backgroundColor: '#fff', padding: '10px', borderRadius: '5px' }}>
+                        <span><strong>{student.name}</strong><br /><small>{student.email}</small></span>
+                        <div style={{ display: 'flex', gap: '5px' }}>
+                          <button className="btn" style={{ padding: '5px 10px', fontSize: '0.8rem', backgroundColor: '#059669' }} onClick={() => handleApprove(student._id)}>Approve</button>
+                          <button className="btn" style={{ padding: '5px 10px', fontSize: '0.8rem', backgroundColor: '#ef4444' }} onClick={() => handleRejectRequest(student._id)}>Decline</button>
+                        </div>
                       </div>
+                    ))
+                  )}
+                </div>
+
+                <div style={{ backgroundColor: '#f3f4f6', padding: '15px', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+                  <h4 style={{ color: '#374151', marginTop: 0 }}>👔 Top Board Management</h4>
+
+                  {/* Form to Assign a Role */}
+                  <form onSubmit={handleAssignBoard} style={{ marginBottom: '15px' }}>
+                    <select className="form-control" style={{ marginBottom: '10px' }} value={boardData.userId} onChange={(e) => setBoardData({ ...boardData, userId: e.target.value })} required>
+                      <option value="">-- Select an Approved Member --</option>
+                      {club.members?.map(member => (
+                        <option key={member._id} value={member._id}>{member.name}</option>
+                      ))}
+                    </select>
+                    <select className="form-control" value={boardData.role} onChange={(e) => setBoardData({ ...boardData, role: e.target.value })} required style={{ marginBottom: '10px' }}>
+                      <option value="">-- Select a Position --</option>
+                      {availableRoles.map(r => <option key={r} value={r}>{r}</option>)}
+                    </select>
+                    <button type="submit" className="btn" style={{ width: '100%', padding: '8px', backgroundColor: '#374151' }}>Assign Role</button>
+                  </form>
+
+                  {/* List of Current Board Members */}
+                  {club.topBoard?.map((boardMember, i) => (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fff', padding: '8px', borderRadius: '5px', marginBottom: '5px', borderLeft: '3px solid #3b82f6' }}>
+                      <span><strong>{boardMember.role}:</strong> {boardMember.user?.name}</span>
+                      <button className="btn" style={{ padding: '2px 8px', fontSize: '0.8rem', backgroundColor: '#ef4444' }} onClick={() => handleRemoveBoard(boardMember.user?._id)}>X</button>
                     </div>
-                  ))
-                )}
+                  ))}
+                </div>
               </div>
+            )}
 
-              <div style={{ backgroundColor: '#f3f4f6', padding: '15px', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
-                <h4 style={{ color: '#374151', marginTop: 0 }}>👔 Top Board Management</h4>
-
-                {/* Form to Assign a Role */}
-                <form onSubmit={handleAssignBoard} style={{ marginBottom: '15px' }}>
-                  <select className="form-control" style={{ marginBottom: '10px' }} value={boardData.userId} onChange={(e) => setBoardData({ ...boardData, userId: e.target.value })} required>
-                    <option value="">-- Select an Approved Member --</option>
-                    {club.members?.map(member => (
-                      <option key={member._id} value={member._id}>{member.name}</option>
-                    ))}
-                  </select>
-                  <select className="form-control" value={boardData.role} onChange={(e) => setBoardData({ ...boardData, role: e.target.value })} required style={{ marginBottom: '10px' }}>
-                    <option value="">-- Select a Position --</option>
-                    {availableRoles.map(r => <option key={r} value={r}>{r}</option>)}
-                  </select>
-                  <button type="submit" className="btn" style={{ width: '100%', padding: '8px', backgroundColor: '#374151' }}>Assign Role</button>
+            {/* RIGHT COLUMN: Communications (FOR PRES, VP, AND SECRETARIES) */}
+            {canManageAnnouncements && (
+              <div style={{ backgroundColor: '#eff6ff', padding: '15px', borderRadius: '8px', border: '1px solid #bfdbfe', height: 'fit-content' }}>
+                <h4 style={{ color: '#1e40af', marginTop: 0 }}>📢 Draft New Announcement</h4>
+                <form onSubmit={handlePostAnnouncement}>
+                  <input type="text" className="form-control" placeholder="Announcement Title" value={announcementData.title} onChange={(e) => setAnnouncementData({ ...announcementData, title: e.target.value })} required style={{ marginBottom: '10px' }} />
+                  <textarea className="form-control" placeholder="What do you want to tell your members?" value={announcementData.content} onChange={(e) => setAnnouncementData({ ...announcementData, content: e.target.value })} required style={{ marginBottom: '10px', minHeight: '120px' }} />
+                  <button type="submit" className="btn" style={{ width: '100%', backgroundColor: '#3b82f6' }}>Submit for Supervisor Approval</button>
                 </form>
-
-                {/* List of Current Board Members */}
-                {club.topBoard?.map((boardMember, i) => (
-                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fff', padding: '8px', borderRadius: '5px', marginBottom: '5px', borderLeft: '3px solid #3b82f6' }}>
-                    <span><strong>{boardMember.role}:</strong> {boardMember.user?.name}</span>
-                    <button className="btn" style={{ padding: '2px 8px', fontSize: '0.8rem', backgroundColor: '#ef4444' }} onClick={() => handleRemoveBoard(boardMember.user?._id)}>X</button>
-                  </div>
-                ))}
               </div>
-            </div>
-
-            {/* RIGHT COLUMN: Communications */}
-            <div style={{ backgroundColor: '#eff6ff', padding: '15px', borderRadius: '8px', border: '1px solid #bfdbfe' }}>
-              <h4 style={{ color: '#1e40af', marginTop: 0 }}>📢 Draft New Announcement</h4>
-              <form onSubmit={handlePostAnnouncement}>
-                <input type="text" className="form-control" placeholder="Announcement Title" value={announcementData.title} onChange={(e) => setAnnouncementData({ ...announcementData, title: e.target.value })} required style={{ marginBottom: '10px' }} />
-                <textarea className="form-control" placeholder="What do you want to tell your members?" value={announcementData.content} onChange={(e) => setAnnouncementData({ ...announcementData, content: e.target.value })} required style={{ marginBottom: '10px', minHeight: '120px' }} />
-                <button type="submit" className="btn" style={{ width: '100%', backgroundColor: '#3b82f6' }}>Submit for Supervisor Approval</button>
-              </form>
-            </div>
+            )}
 
           </div>
         </div>

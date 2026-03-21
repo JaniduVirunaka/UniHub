@@ -168,18 +168,19 @@ router.post('/:id/request-join', async (req, res) => {
   }
 });
 
-// President approves a student
+// President OR Vice President approves a student
 router.post('/:id/approve', async (req, res) => {
   try {
     const club = await Club.findById(req.params.id);
-    const { studentId, presidentId } = req.body;
+    const { studentId, presidentId } = req.body; // 'presidentId' is the ID of the user making the request
 
-    // Security check: Make sure the person approving is actually the president
-    if (club.president.toString() !== presidentId) {
-      return res.status(403).json({ message: "Only the club president can approve members." });
+    const isPres = club.president?.toString() === presidentId;
+    const isVP = club.topBoard.some(b => b.user?.toString() === presidentId && b.role === 'Vice President');
+
+    if (!isPres && !isVP) {
+      return res.status(403).json({ message: "Only the President or Vice President can approve members." });
     }
 
-    // Move from pending to members
     club.pendingMembers = club.pendingMembers.filter(id => id.toString() !== studentId);
     club.members.push(studentId);
     
@@ -190,19 +191,20 @@ router.post('/:id/approve', async (req, res) => {
   }
 });
 
-// President rejects a student request
+// President OR Vice President rejects a student request
 router.post('/:id/reject-request', async (req, res) => {
   try {
     const club = await Club.findById(req.params.id);
     const { studentId, presidentId } = req.body;
 
-    if (club.president?.toString() !== presidentId) {
-      return res.status(403).json({ message: "Only the club president can reject requests." });
+    const isPres = club.president?.toString() === presidentId;
+    const isVP = club.topBoard.some(b => b.user?.toString() === presidentId && b.role === 'Vice President');
+
+    if (!isPres && !isVP) {
+      return res.status(403).json({ message: "Only the President or Vice President can reject requests." });
     }
 
-    // Filter them out of the pending array
     club.pendingMembers = club.pendingMembers.filter(id => id.toString() !== studentId);
-    
     await club.save();
     res.status(200).json({ message: "Student request declined and removed." });
   } catch (err) {
@@ -210,24 +212,23 @@ router.post('/:id/reject-request', async (req, res) => {
   }
 });
 
-// President drafts a new announcement
+// Exec Board drafts a new announcement (Pres, VP, Sec, Asst Sec)
 router.post('/:id/announcements', async (req, res) => {
   try {
     const { title, content, presidentId } = req.body;
     const club = await Club.findById(req.params.id);
-
     if (!club) return res.status(404).json({ message: "Club not found." });
     
-    // Security check: Ensure the person posting is actually THIS club's president
-    if (club.president?.toString() !== presidentId) {
-      return res.status(403).json({ message: "Access Denied: Only the club president can post announcements." });
+    const isPres = club.president?.toString() === presidentId;
+    const isVP = club.topBoard.some(b => b.user?.toString() === presidentId && b.role === 'Vice President');
+    const isSec = club.topBoard.some(b => b.user?.toString() === presidentId && ['Secretary', 'Assistant Secretary'].includes(b.role));
+
+    if (!isPres && !isVP && !isSec) {
+      return res.status(403).json({ message: "Access Denied: You do not have permission to post announcements." });
     }
 
-    // Push the new announcement into the array. 
-    // It defaults to isApproved: false based on our schema!
     club.announcements.push({ title, content });
     await club.save();
-
     res.status(200).json({ message: "Announcement submitted and pending Supervisor approval!" });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -278,27 +279,26 @@ router.delete('/:clubId/announcements/:annId', async (req, res) => {
   }
 });
 
-// Assign a Board Member (President / Election Winner)
+// Assign a Board Member (President OR Vice President)
 router.post('/:id/board', async (req, res) => {
   try {
     const { userId, role, presidentId } = req.body;
     const club = await Club.findById(req.params.id);
 
-    if (club.president?.toString() !== presidentId) {
-      return res.status(403).json({ message: "Only the president can assign board roles." });
+    const isPres = club.president?.toString() === presidentId;
+    const isVP = club.topBoard.some(b => b.user?.toString() === presidentId && b.role === 'Vice President');
+
+    if (!isPres && !isVP) {
+      return res.status(403).json({ message: "Only the President or Vice President can assign board roles." });
     }
 
-    // 1 user == 1 role
-    // 1. Remove ANY existing person who currently holds this exact role.
     club.topBoard = club.topBoard.filter(b => b.role !== role);
-    // 2. Remove THIS specific user from any OTHER roles they might currently hold.
     club.topBoard = club.topBoard.filter(b => b.user.toString() !== userId);
     
-    // 3. Now safely push the clean assignment
     club.topBoard.push({ user: userId, role });
     await club.save();
     
-    res.status(200).json({ message: `${role} assigned successfully! Old assignments overwritten.` });
+    res.status(200).json({ message: `${role} assigned successfully!` });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -350,20 +350,21 @@ router.put('/:id/elections/:electionId/status', async (req, res) => {
   }
 });
 
-// Remove a Board Member (President Only)
+// Remove a Board Member (President OR Vice President)
 router.delete('/:id/board/:userId', async (req, res) => {
   try {
     const { presidentId } = req.body;
     const club = await Club.findById(req.params.id);
 
-    if (club.president?.toString() !== presidentId) {
-      return res.status(403).json({ message: "Only the president can remove board members." });
+    const isPres = club.president?.toString() === presidentId;
+    const isVP = club.topBoard.some(b => b.user?.toString() === presidentId && b.role === 'Vice President');
+
+    if (!isPres && !isVP) {
+      return res.status(403).json({ message: "Only the President or Vice President can remove board members." });
     }
 
-    // Filter out the specific user from the topBoard array
     club.topBoard = club.topBoard.filter(b => b.user.toString() !== req.params.userId);
     await club.save();
-
     res.status(200).json({ message: "Board member removed." });
   } catch (err) {
     res.status(500).json({ message: err.message });
