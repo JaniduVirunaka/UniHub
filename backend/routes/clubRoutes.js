@@ -304,45 +304,88 @@ router.delete('/:id/board/:userId', async (req, res) => {
   }
 });
 
-// President adds a new Sponsorship Target
-router.post('/:id/sponsorships', async (req, res) => {
+// 1. Top Board publishes a new Proposal (BULLETPROOF DB VERSION)
+router.post('/:id/proposals', async (req, res) => {
   try {
-    const { sponsorName, description, targetAmount, presidentId } = req.body;
+    const { title, description, targetAmount, proposalDocumentUrl, userId } = req.body;
+    
+    // 1. Fetch the club just to verify permissions
     const club = await Club.findById(req.params.id);
+    if (!club) return res.status(404).json({ message: "Club not found." });
 
-    if (club.president?.toString() !== presidentId) {
-      return res.status(403).json({ message: "Only the president can manage sponsorships." });
+    const isPresident = club.president?.toString() === userId;
+    const isBoardMember = club.topBoard && club.topBoard.some(b => b.user?.toString() === userId);
+    
+    if (!isPresident && !isBoardMember) {
+      return res.status(403).json({ message: "Only the Top Board can publish proposals." });
     }
 
-    club.sponsorships.push({ sponsorName, description, targetAmount });
-    await club.save();
+    // 2. The Native MongoDB $push command!
+    // This forcefully injects the data into the database, ignoring local memory issues.
+    await Club.findByIdAndUpdate(req.params.id, {
+      $push: {
+        proposals: {
+          title,
+          description,
+          targetAmount,
+          proposalDocumentUrl,
+          isActive: true, // Explicitly forcing this to true so the frontend sees it
+          pledges: []
+        }
+      }
+    });
 
-    res.status(200).json({ message: "Sponsorship target created successfully!" });
+    res.status(200).json({ message: "Proposal published successfully!" });
   } catch (err) {
+    console.error("Proposal Error:", err); 
     res.status(500).json({ message: err.message });
   }
 });
 
-// President updates the funds received for a sponsorship
-router.put('/:clubId/sponsorships/:sponsorId', async (req, res) => {
+// 2. Company submits a Pledge to a Proposal (Public Route)
+router.post('/:clubId/proposals/:proposalId/pledge', async (req, res) => {
   try {
-    const { currentAmount, status, presidentId } = req.body;
+    const { companyName, contactEmail, amount, message } = req.body;
+    const club = await Club.findById(req.params.clubId);
+    if (!club) return res.status(404).json({ message: "Club not found." });
+
+    const proposal = club.proposals.id(req.params.proposalId);
+    if (!proposal || !proposal.isActive) {
+      return res.status(400).json({ message: "This proposal is no longer active." });
+    }
+
+    proposal.pledges.push({ companyName, contactEmail, amount, message });
+    await club.save();
+
+    res.status(200).json({ message: "Pledge submitted successfully! The club will contact you soon." });
+  } catch (err) {
+    console.error("Pledge Error:", err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 3. Top Board Accepts/Rejects a Pledge
+router.put('/:clubId/proposals/:proposalId/pledge/:pledgeId', async (req, res) => {
+  try {
+    const { status, userId } = req.body; 
     const club = await Club.findById(req.params.clubId);
 
-    if (club.president?.toString() !== presidentId) {
+    const isPresident = club.president?.toString() === userId;
+    const isBoardMember = club.topBoard && club.topBoard.some(b => b.user?.toString() === userId);
+    
+    if (!isPresident && !isBoardMember) {
       return res.status(403).json({ message: "Access Denied." });
     }
 
-    const sponsorship = club.sponsorships.id(req.params.sponsorId);
-    if (!sponsorship) return res.status(404).json({ message: "Sponsorship not found." });
-
-    // Update the values
-    if (currentAmount !== undefined) sponsorship.currentAmount = currentAmount;
-    if (status) sponsorship.status = status;
-
+    const proposal = club.proposals.id(req.params.proposalId);
+    const pledge = proposal.pledges.id(req.params.pledgeId);
+    
+    pledge.status = status;
     await club.save();
-    res.status(200).json({ message: "Sponsorship updated successfully!" });
+
+    res.status(200).json({ message: `Pledge marked as ${status}.` });
   } catch (err) {
+    console.error("Pledge Status Error:", err);
     res.status(500).json({ message: err.message });
   }
 });

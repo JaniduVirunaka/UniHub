@@ -98,6 +98,7 @@ const handleUpdateFunds = (sponsorId, newAmount) => {
 
   // --- Determine User's Access Level ---
   const isPresident = club.president?._id === currentUser?.id;
+  const isTopBoard = isPresident || club.topBoard?.some(b => b.user?._id === currentUser?.id);
   const isSupervisor = currentUser?.role === 'supervisor';
   // Check if the current user's ID exists in the approved members array
   const isMember = club.members?.some(member => member._id === currentUser?.id);
@@ -153,14 +154,18 @@ const handleUpdateFunds = (sponsorId, newAmount) => {
       </div>
 
       {/* 2. PUBLIC SECTIONS (Everyone sees this) */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
-        <div className="card" style={{ marginBottom: '0' }}>
-          <h3 style={{ color: 'var(--primary-color)' }}>Public Gallery</h3>
-          <p style={{ color: 'var(--text-muted)' }}>[Gallery Module Coming Soon]</p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', marginBottom: '20px' }}>
+        <div className="card" style={{ marginBottom: '0', textAlign: 'center', backgroundColor: '#f5f3ff', border: '1px solid #ddd6fe' }}>
+          <h3 style={{ color: '#8b5cf6', marginTop: 0 }}>🏢 Corporate Partnerships</h3>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>View active funding proposals or submit a pledge on behalf of your company.</p>
+          <button className="btn" style={{ backgroundColor: '#8b5cf6', width: '100%', marginTop: '10px' }} onClick={() => navigate(`/clubs/${id}/sponsorships`)}>
+            Enter Sponsorship Portal
+          </button>
         </div>
-        <div className="card" style={{ marginBottom: '0' }}>
-          <h3 style={{ color: 'var(--primary-color)' }}>Leaderboard & Achievements</h3>
-          <p style={{ color: 'var(--text-muted)' }}>[Achievements Module Coming Soon]</p>
+        
+        <div className="card" style={{ marginBottom: '0', textAlign: 'center' }}>
+          <h3 style={{ color: 'var(--primary-color)', marginTop: 0 }}>Leaderboard & Gallery</h3>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>[Achievements & Gallery Module Coming Soon]</p>
         </div>
       </div>
 
@@ -192,61 +197,47 @@ const handleUpdateFunds = (sponsorId, newAmount) => {
               )}
             </div>
 
-            {/* Sponsorships & Voting */}
-            {/* Sponsorships & Funding */}
+         {/* 🤝 Funding & Proposals (UPDATED FOR B2B SYSTEM) */}
             <div style={{ backgroundColor: '#f9fafb', padding: '15px', borderRadius: '8px', border: '1px solid #e5e7eb', gridColumn: '1 / -1' }}>
-              <h4 style={{ marginTop: '0', borderBottom: '2px solid #e5e7eb', paddingBottom: '10px' }}>🤝 Funding & Sponsorships</h4>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #e5e7eb', paddingBottom: '10px', marginBottom: '15px' }}>
+                <h4 style={{ margin: 0, color: '#6d28d9' }}>🤝 Active Funding Campaigns</h4>
+                
+                {/* Quick link for the Top Board to jump into the CRM */}
+                {isTopBoard && (
+                  <button className="btn" style={{ padding: '5px 15px', backgroundColor: '#8b5cf6', fontSize: '0.85rem' }} onClick={() => navigate(`/clubs/${id}/sponsorships`)}>
+                    Manage in Corporate Portal
+                  </button>
+                )}
+              </div>
               
-              {club.sponsorships?.length === 0 ? (
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>No active funding targets.</p>
+              {!club.proposals || club.proposals.length === 0 ? (
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>No active campaigns at the moment.</p>
               ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '15px', marginTop: '15px' }}>
-                  {club.sponsorships.map((sponsor) => {
-                    // Calculate the percentage for the progress bar
-                    const percent = Math.min((sponsor.currentAmount / sponsor.targetAmount) * 100, 100).toFixed(0);
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '15px' }}>
+                  {club.proposals.map((prop) => {
+                    // MAGIC: Automatically calculate the total raised from ONLY the 'Accepted' pledges!
+                    const totalRaised = prop.pledges?.filter(p => p.status === 'Accepted').reduce((sum, p) => sum + p.amount, 0) || 0;
+                    const percent = Math.min((totalRaised / prop.targetAmount) * 100, 100).toFixed(0);
                     
                     return (
-                      <div key={sponsor._id} style={{ backgroundColor: '#fff', border: '1px solid #d1d5db', borderRadius: '8px', padding: '15px' }}>
+                      <div key={prop._id} style={{ backgroundColor: '#fff', border: '1px solid #d1d5db', borderRadius: '8px', padding: '15px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                          <h5 style={{ margin: '0 0 5px 0', color: 'var(--primary-color)' }}>{sponsor.sponsorName}</h5>
-                          <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '12px', backgroundColor: sponsor.status === 'Completed' ? '#d1fae5' : '#dbeafe', color: sponsor.status === 'Completed' ? '#065f46' : '#1e40af' }}>
-                            {sponsor.status}
+                          <h5 style={{ margin: '0 0 5px 0', color: '#6d28d9' }}>{prop.title}</h5>
+                          <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '12px', backgroundColor: prop.isActive ? '#dbeafe' : '#f3f4f6', color: prop.isActive ? '#1e40af' : '#4b5563' }}>
+                            {prop.isActive ? 'Active' : 'Closed'}
                           </span>
                         </div>
-                        <p style={{ margin: '0 0 15px 0', fontSize: '0.9rem', color: '#6b7280' }}>{sponsor.description}</p>
+                        <p style={{ margin: '0 0 15px 0', fontSize: '0.85rem', color: '#6b7280' }}>{prop.description}</p>
                         
-                        {/* Progress Bar UI */}
+                        {/* Dynamic Progress Bar UI */}
                         <div style={{ width: '100%', backgroundColor: '#e5e7eb', borderRadius: '4px', height: '10px', marginBottom: '5px', overflow: 'hidden' }}>
-                          <div style={{ width: `${percent}%`, backgroundColor: percent >= 100 ? '#10b981' : '#3b82f6', height: '100%', transition: 'width 0.5s ease-in-out' }}></div>
+                          <div style={{ width: `${percent}%`, backgroundColor: percent >= 100 ? '#10b981' : '#8b5cf6', height: '100%', transition: 'width 0.5s ease-in-out' }}></div>
                         </div>
                         
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', fontWeight: 'bold' }}>
-                          <span style={{ color: '#374151' }}>Rs. {sponsor.currentAmount}</span>
-                          <span style={{ color: '#9ca3af' }}>Goal: Rs. {sponsor.targetAmount}</span>
+                          <span style={{ color: '#10b981' }}>Raised: Rs. {totalRaised}</span>
+                          <span style={{ color: '#9ca3af' }}>Goal: Rs. {prop.targetAmount}</span>
                         </div>
-
-                        {/* Quick Update Button (President Only) */}
-                        {isPresident && (
-                          <div style={{ marginTop: '15px', display: 'flex', gap: '5px' }}>
-                            <input 
-                              type="number" 
-                              id={`fund-${sponsor._id}`} 
-                              className="form-control" 
-                              placeholder="New Total" 
-                              style={{ padding: '5px', fontSize: '0.85rem' }} 
-                            />
-                            <button 
-                              className="btn" 
-                              style={{ padding: '5px 10px', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
-                              onClick={() => {
-                                const val = document.getElementById(`fund-${sponsor._id}`).value;
-                                if(val) handleUpdateFunds(sponsor._id, Number(val));
-                              }}
-                            >
-                              Update
-                            </button>
-                          </div>
-                        )}
                       </div>
                     );
                   })}
@@ -324,15 +315,6 @@ const handleUpdateFunds = (sponsorId, newAmount) => {
                  <input type="text" className="form-control" placeholder="Announcement Title" value={announcementData.title} onChange={(e) => setAnnouncementData({...announcementData, title: e.target.value})} required style={{ marginBottom: '10px' }}/>
                  <textarea className="form-control" placeholder="What do you want to tell your members?" value={announcementData.content} onChange={(e) => setAnnouncementData({...announcementData, content: e.target.value})} required style={{ marginBottom: '10px', minHeight: '120px' }}/>
                  <button type="submit" className="btn" style={{ width: '100%', backgroundColor: '#3b82f6' }}>Submit for Supervisor Approval</button>
-               </form>
-
-               <hr style={{ borderColor: '#bfdbfe', margin: '20px 0' }} />
-               <h4 style={{ color: '#1e40af', marginTop: 0 }}>🤝 Setup Sponsorship Target</h4>
-               <form onSubmit={handleAddSponsorship}>
-                 <input type="text" className="form-control" placeholder="Target/Campaign Name (e.g., Annual Tech Hackathon)" value={sponsorData.sponsorName} onChange={(e) => setSponsorData({...sponsorData, sponsorName: e.target.value})} required style={{ marginBottom: '10px' }}/>
-                 <input type="text" className="form-control" placeholder="Short Description" value={sponsorData.description} onChange={(e) => setSponsorData({...sponsorData, description: e.target.value})} required style={{ marginBottom: '10px' }}/>
-                 <input type="number" className="form-control" placeholder="Target Amount (Rs.)" value={sponsorData.targetAmount} onChange={(e) => setSponsorData({...sponsorData, targetAmount: e.target.value})} required style={{ marginBottom: '10px' }} min="1" />
-                 <button type="submit" className="btn" style={{ width: '100%', backgroundColor: '#10b981' }}>Create Funding Target</button>
                </form>
             </div>
             
