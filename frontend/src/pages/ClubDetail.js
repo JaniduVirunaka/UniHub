@@ -12,7 +12,11 @@ function ClubDetail() {
   const [candidateData, setCandidateData] = useState({ candidateUserId: '', manifesto: '' });
 
   const currentUser = JSON.parse(localStorage.getItem('user'));
-
+  const availableRoles = [
+  "President","Vice President", "Secretary", "Assistant Secretary", 
+  "Treasurer", "Assistant Treasurer", "Event Coordinator", 
+  "Public Relations", "Editor"
+  ];
   useEffect(() => {
     fetchClubData();
   }, [id]);
@@ -42,6 +46,17 @@ function ClubDetail() {
       })
       .catch(err => alert("Error approving member."));
   };
+
+  // President rejects a student request
+  const handleRejectRequest = (studentId) => {
+  if(!window.confirm("Are you sure you want to decline this request?")) return;
+  axios.post(`http://localhost:5000/api/clubs/${id}/reject-request`, { studentId, presidentId: currentUser.id })
+    .then(res => {
+      alert(res.data.message);
+      fetchClubData(); 
+    })
+    .catch(err => alert("Error rejecting member."));
+};
 
   // --- PRESIDENT ACTIONS ---
   const handlePostAnnouncement = (e) => {
@@ -359,7 +374,10 @@ function ClubDetail() {
                   club.pendingMembers?.map(student => (
                     <div key={student._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', backgroundColor: '#fff', padding: '10px', borderRadius: '5px' }}>
                       <span><strong>{student.name}</strong><br/><small>{student.email}</small></span>
-                      <button className="btn" style={{ padding: '5px 10px', fontSize: '0.8rem', backgroundColor: '#059669' }} onClick={() => handleApprove(student._id)}>Approve</button>
+                      <div style={{ display: 'flex', gap: '5px' }}>
+                        <button className="btn" style={{ padding: '5px 10px', fontSize: '0.8rem', backgroundColor: '#059669' }} onClick={() => handleApprove(student._id)}>Approve</button>
+                        <button className="btn" style={{ padding: '5px 10px', fontSize: '0.8rem', backgroundColor: '#ef4444' }} onClick={() => handleRejectRequest(student._id)}>Decline</button>
+                      </div>
                     </div>
                   ))
                 )}
@@ -376,7 +394,10 @@ function ClubDetail() {
                       <option key={member._id} value={member._id}>{member.name}</option>
                     ))}
                   </select>
-                  <input type="text" className="form-control" placeholder="Role (e.g., Secretary, Treasurer)" value={boardData.role} onChange={(e) => setBoardData({...boardData, role: e.target.value})} required style={{ marginBottom: '10px' }} />
+                  <select className="form-control" value={boardData.role} onChange={(e) => setBoardData({...boardData, role: e.target.value})} required style={{ marginBottom: '10px' }}>
+                    <option value="">-- Select a Position --</option>
+                    {availableRoles.map(r => <option key={r} value={r}>{r}</option>)}
+                  </select>
                   <button type="submit" className="btn" style={{ width: '100%', padding: '8px', backgroundColor: '#374151' }}>Assign Role</button>
                 </form>
 
@@ -418,7 +439,10 @@ function ClubDetail() {
             
             {/* Create Election Form */}
             <form onSubmit={handleCreateElection} style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-              <input type="text" className="form-control" placeholder="Position (e.g., President 2026/2027)" required value={electionData.position} onChange={(e) => setElectionData({ position: e.target.value })} style={{ flex: 1 }}/>
+              <select className="form-control" required value={electionData.position} onChange={(e) => setElectionData({ position: e.target.value })} style={{ flex: 1 }}>
+                <option value="">-- Select Position to Elect --</option>
+                {availableRoles.map(r => <option key={r} value={r}>{r}</option>)}
+              </select>
               <button type="submit" className="btn" style={{ backgroundColor: '#166534' }}>Initialize Election</button>
             </form>
 

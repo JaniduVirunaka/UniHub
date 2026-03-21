@@ -6,7 +6,6 @@ const User = require('../models/User'); // We need the user model to fetch names
 // Get all clubs 
 router.get('/', async (req, res) => {
   try {
-    // NEW: Added .populate('members') so we can filter "My Clubs" on the frontend
     const clubs = await Club.find()
       .populate('president', 'name')
       .populate('pendingMembers', 'name email')
@@ -191,6 +190,26 @@ router.post('/:id/approve', async (req, res) => {
   }
 });
 
+// President rejects a student request
+router.post('/:id/reject-request', async (req, res) => {
+  try {
+    const club = await Club.findById(req.params.id);
+    const { studentId, presidentId } = req.body;
+
+    if (club.president?.toString() !== presidentId) {
+      return res.status(403).json({ message: "Only the club president can reject requests." });
+    }
+
+    // Filter them out of the pending array
+    club.pendingMembers = club.pendingMembers.filter(id => id.toString() !== studentId);
+    
+    await club.save();
+    res.status(200).json({ message: "Student request declined and removed." });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // President drafts a new announcement
 router.post('/:id/announcements', async (req, res) => {
   try {
@@ -259,7 +278,7 @@ router.delete('/:clubId/announcements/:annId', async (req, res) => {
   }
 });
 
-// Assign a Board Member (President Only)
+// Assign a Board Member (President / Election Winner)
 router.post('/:id/board', async (req, res) => {
   try {
     const { userId, role, presidentId } = req.body;
@@ -269,17 +288,64 @@ router.post('/:id/board', async (req, res) => {
       return res.status(403).json({ message: "Only the president can assign board roles." });
     }
 
-    // Check if the user is already on the board to prevent duplicates
-    const alreadyOnBoard = club.topBoard.find(b => b.user.toString() === userId);
-    if (alreadyOnBoard) {
-      return res.status(400).json({ message: "This member is already on the board." });
-    }
-
+    // 1 user == 1 role
+    // 1. Remove ANY existing person who currently holds this exact role.
+    club.topBoard = club.topBoard.filter(b => b.role !== role);
+    // 2. Remove THIS specific user from any OTHER roles they might currently hold.
+    club.topBoard = club.topBoard.filter(b => b.user.toString() !== userId);
+    
+    // 3. Now safely push the clean assignment
     club.topBoard.push({ user: userId, role });
     await club.save();
     
-    res.status(200).json({ message: `${role} assigned successfully!` });
+    res.status(200).json({ message: `${role} assigned successfully! Old assignments overwritten.` });
   } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Auto assign election winners to the board when results are published
+router.put('/:id/elections/:electionId/status', async (req, res) => {
+  try {
+    const { isActive, isPublished, supervisorId } = req.body;
+    const club = await Club.findById(req.params.id);
+
+    if (club.supervisor?.toString() !== supervisorId) {
+      return res.status(403).json({ message: "Access Denied." });
+    }
+
+    const election = club.elections.id(req.params.electionId);
+    if (isActive !== undefined) election.isActive = isActive;
+    
+    // --- SMART AUTO-ASSIGNMENT LOGIC (With Strict Overwrite) ---
+    if (isPublished === true && election.isPublished === false) {
+      let winningCandidate = null;
+      let maxVotes = -1;
+      
+      election.candidates.forEach(candidate => {
+        if (candidate.voteCount > maxVotes) {
+          maxVotes = candidate.voteCount;
+          winningCandidate = candidate.user;
+        }
+      });
+
+      if (winningCandidate) {
+        // 1. Evict whoever currently holds this position
+        club.topBoard = club.topBoard.filter(b => b.role !== election.position);
+        // 2. Strip the winner of any lesser roles they currently hold
+        club.topBoard = club.topBoard.filter(b => b.user?.toString() !== winningCandidate.toString());
+        
+        // 3. Crown the winner
+        club.topBoard.push({ user: winningCandidate, role: election.position });
+      }
+    }
+
+    if (isPublished !== undefined) election.isPublished = isPublished;
+
+    await club.save();
+    res.status(200).json({ message: "Election status updated and winner processed." });
+  } catch (err) {
+    console.error("Election Status Error:", err);
     res.status(500).json({ message: err.message });
   }
 });
