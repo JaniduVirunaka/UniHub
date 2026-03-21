@@ -392,21 +392,34 @@ router.put('/:clubId/proposals/:proposalId/pledge/:pledgeId', async (req, res) =
 
 
 // Voting Functionality
-// 1. Supervisor Creates a New Election
+// 1. Supervisor Creates a New Election 
 router.post('/:id/elections', async (req, res) => {
   try {
     const { position, supervisorId } = req.body;
+    
     const club = await Club.findById(req.params.id);
     if (!club) return res.status(404).json({ message: "Club not found." });
 
-    // Strict Security: Only the assigned Supervisor can create this
-    if (club.supervisor?.toString() !== supervisorId) {
-      return res.status(403).json({ message: "Access Denied: Only the Club Supervisor can initiate elections." });
+    // Self-Healing: Assign supervisor if missing
+    if (!club.supervisor) {
+      club.supervisor = supervisorId;
+    } else if (club.supervisor.toString() !== supervisorId) {
+      return res.status(403).json({ message: "Access Denied: Only the assigned Club Supervisor can initiate elections." });
     }
 
-    club.elections.push({ position, isActive: false, isPublished: false, candidates: [] });
-    await club.save();
+    // Initialize array if it doesn't exist
+    if (!club.elections) club.elections = [];
 
+    // Use Mongoose to push so it automatically generates an _id!
+    club.elections.push({
+      position,
+      isActive: false,
+      isPublished: false,
+      candidates: [],
+      votedUsers: []
+    });
+
+    await club.save();
     res.status(200).json({ message: "Election initialized successfully." });
   } catch (err) {
     console.error("Election Creation Error:", err);

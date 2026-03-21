@@ -18,7 +18,7 @@ const pledgeSchema = new mongoose.Schema({
   date: { type: Date, default: Date.now }
 });
 
-// 3. Official Club Request (NEW)
+// 3. Official Club Request 
 const proposalSchema = new mongoose.Schema({
   title: { type: String, required: true },
   description: { type: String, required: true },
@@ -27,7 +27,7 @@ const proposalSchema = new mongoose.Schema({
   isActive: { type: Boolean, default: true },
   pledges: [pledgeSchema] 
 });
-
+// 4. Election System 
 const candidateSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   manifesto: { type: String, required: true },
@@ -63,7 +63,8 @@ const clubSchema = new mongoose.Schema({
   
   // Club Operations
   announcements: [announcementSchema],
-  proposals: [proposalSchema] 
+  proposals: [proposalSchema],
+  elections: [electionSchema]
 });
 
 module.exports = mongoose.model('Club', clubSchema);

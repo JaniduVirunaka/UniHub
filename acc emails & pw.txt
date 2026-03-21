@@ -4,6 +4,10 @@ backend terminal ----> cd backend
 frontend terminal ----> cd frontend
                         npm start
 
+reject new members
+generate pdf reports of votes/ club members
+membership fee 
+member list
 
 ClubAdmin@gmail.com
 ClubAdmin
@@ -19,3 +23,9 @@ jack
 
 john@gmail.com
 john
+
+sath@gmail.com
+sath
+
+jill@gmail.com
+jill

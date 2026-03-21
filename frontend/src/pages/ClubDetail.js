@@ -332,12 +332,6 @@ function ClubDetail() {
                 </div>
               </div>
             )}
-            
-            <div style={{ backgroundColor: '#f9fafb', padding: '15px', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
-              <h4 style={{ marginTop: '0' }}>🗳️ Digital Voting</h4>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>[Active Elections Coming Soon]</p>
-            </div>
-
           </div>
         </div>
       ) : (
@@ -410,7 +404,7 @@ function ClubDetail() {
         </div>
       )}
 
-      {/* ========================================== */}
+     {/* ========================================== */}
       {/* 5. SUPERVISOR ADMIN PANEL (Highest Authority)*/}
       {/* ========================================== */}
       {isSupervisor && (
@@ -443,22 +437,24 @@ function ClubDetail() {
                   </div>
                 </div>
 
-                {/* Live Tally (Only Supervisor sees this before publishing) */}
-                <p style={{ margin: '0 0 10px 0', fontWeight: 'bold' }}>Live Tally ({election.votedUsers.length} votes cast)</p>
+                {/* Live Tally */}
+                <p style={{ margin: '0 0 10px 0', fontWeight: 'bold' }}>Live Tally ({election.votedUsers?.length || 0} votes cast)</p>
                 <ul style={{ margin: '0 0 15px 0', paddingLeft: '20px' }}>
-                  {election.candidates.map(c => {
-                    const candidateName = club.members.find(m => m._id === c.user)?.name || 'Unknown User';
+                  {election.candidates?.map(c => {
+                    // Added safety question marks here!
+                    const candidateName = club.members?.find(m => m._id === c.user)?.name || 'Unknown User';
                     return <li key={c._id}>{candidateName}: <strong>{c.voteCount} votes</strong></li>
                   })}
                 </ul>
 
-                {/* Add Candidate Form (Hidden if voting has started) */}
+                {/* Add Candidate Form */}
                 {!election.isActive && !election.isPublished && (
                   <form onSubmit={(e) => handleAddCandidate(e, election._id)} style={{ backgroundColor: '#f9fafb', padding: '10px', border: '1px solid #e5e7eb', borderRadius: '5px' }}>
                     <h6 style={{ margin: '0 0 5px 0' }}>Add Candidate to Ballot</h6>
                     <select className="form-control" required onChange={(e) => setCandidateData({...candidateData, candidateUserId: e.target.value})} style={{ marginBottom: '8px' }}>
                       <option value="">-- Select an Approved Member --</option>
-                      {club.members.map(m => <option key={m._id} value={m._id}>{m.name}</option>)}
+                      {/* Added safety question marks here! */}
+                      {club.members?.map(m => <option key={m._id} value={m._id}>{m.name}</option>)}
                     </select>
                     <input type="text" className="form-control" placeholder="Short Manifesto / Slogan" required onChange={(e) => setCandidateData({...candidateData, manifesto: e.target.value})} style={{ marginBottom: '8px' }}/>
                     <button type="submit" className="btn" style={{ backgroundColor: '#059669', padding: '5px 15px', fontSize: '0.85rem' }}>Add to Ballot</button>
