@@ -259,21 +259,56 @@ router.put('/:clubId/announcements/:annId/approve', async (req, res) => {
   }
 });
 
-// Supervisor REJECTS/DELETES an announcement
-router.delete('/:clubId/announcements/:annId', async (req, res) => {
+// Exec Board EDITS an announcement (Resets approval status)
+router.put('/:id/announcements/:annId/edit', async (req, res) => {
   try {
-    const { supervisorId } = req.body; // In an axios delete, we pass this in the 'data' object
-    const requestor = await User.findById(supervisorId);
-    if (!requestor || requestor.role !== 'supervisor') {
+    const { title, content, userId } = req.body;
+    const club = await Club.findById(req.params.id);
+
+    // Strict RBAC: President, VP, Secretaries
+    const isPres = club.president?.toString() === userId;
+    const isAuthorizedBoard = club.topBoard.some(b => b.user?.toString() === userId && ['Vice President', 'Secretary', 'Assistant Secretary'].includes(b.role));
+
+    if (!isPres && !isAuthorizedBoard) {
       return res.status(403).json({ message: "Access Denied." });
     }
 
+    const announcement = club.announcements.id(req.params.annId);
+    if (!announcement) return res.status(404).json({ message: "Announcement not found." });
+
+    // Update data and reset approval!
+    announcement.title = title;
+    announcement.content = content;
+    announcement.isApproved = false; 
+
+    await club.save();
+    res.status(200).json({ message: "Announcement updated and submitted for re-approval." });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Supervisor OR Exec Board DELETES an announcement
+router.delete('/:clubId/announcements/:annId', async (req, res) => {
+  try {
+    // Check for either supervisorId (from Global Dash) or userId (from Club Hub)
+    const { supervisorId, userId } = req.body; 
+    const requestorId = supervisorId || userId;
+    
     const club = await Club.findById(req.params.clubId);
-    // Mongoose command to remove a sub-document by its ID
+
+    const isSupervisor = club.supervisor?.toString() === requestorId;
+    const isPres = club.president?.toString() === requestorId;
+    const isAuthorizedBoard = club.topBoard.some(b => b.user?.toString() === requestorId && ['Vice President', 'Secretary', 'Assistant Secretary'].includes(b.role));
+
+    if (!isSupervisor && !isPres && !isAuthorizedBoard) {
+      return res.status(403).json({ message: "Access Denied." });
+    }
+
     club.announcements.pull(req.params.annId); 
     await club.save();
     
-    res.status(200).json({ message: "Announcement rejected and removed." });
+    res.status(200).json({ message: "Announcement deleted." });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

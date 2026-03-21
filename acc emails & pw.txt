@@ -4,10 +4,11 @@ backend terminal ----> cd backend
 frontend terminal ----> cd frontend
                         npm start
 
-edit announcement
-generate pdf reports of votes/ club members
+
+generate pdf reports of votes/ club members / announcements / sponsorships
 membership fee 
 member list
+gallery and leaderboard
 
 ClubAdmin@gmail.com
 ClubAdmin
