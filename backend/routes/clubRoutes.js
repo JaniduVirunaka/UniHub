@@ -454,7 +454,7 @@ router.post('/:id/elections/:electionId/candidates', async (req, res) => {
   }
 });
 
-// 3. Supervisor Toggles Election Status (Open Voting / Publish Results)
+// 3. Supervisor Toggles Election Status 
 router.put('/:id/elections/:electionId/status', async (req, res) => {
   try {
     const { isActive, isPublished, supervisorId } = req.body;
@@ -465,11 +465,44 @@ router.put('/:id/elections/:electionId/status', async (req, res) => {
     }
 
     const election = club.elections.id(req.params.electionId);
+    
+    // Update the basic statuses
     if (isActive !== undefined) election.isActive = isActive;
+    
+    // auto assignment
+    // If the Supervisor is publishing the results for the first time...
+    if (isPublished === true && election.isPublished === false) {
+      
+      // 1. Find the candidate with the highest votes
+      let winningCandidate = null;
+      let maxVotes = -1;
+      
+      election.candidates.forEach(candidate => {
+        if (candidate.voteCount > maxVotes) {
+          maxVotes = candidate.voteCount;
+          winningCandidate = candidate.user;
+        }
+      });
+
+      // 2. If we found a winner, automatically promote them to the Top Board!
+      if (winningCandidate) {
+        const alreadyOnBoard = club.topBoard.find(b => b.user?.toString() === winningCandidate.toString());
+        
+        if (!alreadyOnBoard) {
+          // Add them to the board with the title of the election (e.g., "Secretary 2026/2027")
+          club.topBoard.push({ user: winningCandidate, role: election.position });
+        } else {
+          // If they were already on the board in a lesser role, upgrade their title
+          alreadyOnBoard.role = election.position;
+        }
+      }
+    }
+
+    // Set the published status AFTER our logic runs
     if (isPublished !== undefined) election.isPublished = isPublished;
 
     await club.save();
-    res.status(200).json({ message: "Election status updated." });
+    res.status(200).json({ message: "Election status updated and winner processed." });
   } catch (err) {
     console.error("Election Status Error:", err);
     res.status(500).json({ message: err.message });
