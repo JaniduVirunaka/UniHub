@@ -491,16 +491,20 @@ router.post('/:id/elections', async (req, res) => {
   }
 });
 
-// 2. Supervisor Edits Entire Election (BULLETPROOF DIRECT DB VERSION)
+// 2. Supervisor Edits Entire Election (THE NATIVE DB OVERWRITE)
 router.put('/:id/elections/:electionId/edit', async (req, res) => {
   try {
     const { position, candidates, supervisorId } = req.body;
+    
+    // 1. Authenticate Request
     const club = await Club.findById(req.params.id);
+    if (!club) return res.status(404).json({ message: "Club not found." });
 
     if (club.supervisor?.toString() !== supervisorId) {
       return res.status(403).json({ message: "Access Denied." });
     }
 
+    // 2. Validate Election State
     const election = club.elections.id(req.params.electionId);
     if (!election) return res.status(404).json({ message: "Election not found." });
 
@@ -508,16 +512,16 @@ router.put('/:id/elections/:electionId/edit', async (req, res) => {
       return res.status(400).json({ message: "Cannot edit an election after voting has started." });
     }
 
-    // 1. Format the candidates array cleanly
+    // 3. Format Array strictly for DB injection
     const formattedCandidates = candidates.map(c => ({
-      user: c.candidateUserId || c.user?._id || c.user,
+      user: c.candidateUserId || c.user, 
       manifesto: c.manifesto,
       voteCount: 0
     }));
 
-    // 2. THE BULLETPROOF FIX: Native MongoDB $set command
-    // This finds the specific election by ID and forcefully overwrites the position and candidates
-    await Club.findOneAndUpdate(
+    // 4. THE FIX: Force a raw database write, completely bypassing Mongoose's memory cache.
+    // The `$` targets the exact election matched in the query.
+    await Club.updateOne(
       { _id: req.params.id, "elections._id": req.params.electionId },
       { 
         $set: { 

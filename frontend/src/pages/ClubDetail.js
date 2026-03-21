@@ -124,13 +124,20 @@ function ClubDetail() {
     }
   };
 
-  const handleCreateElection = (e) => {
+const handleCreateElection = (e) => {
     e.preventDefault();
     if (!electionData.position) return alert("Please select a position.");
+
+    if (tempCandidate.candidateUserId || tempCandidate.manifesto) {
+      const proceed = window.confirm("Hold on! You entered candidate details but didn't click 'Add to List'. Do you want to create the election WITHOUT adding them?");
+      if (!proceed) return; 
+    }
+
     axios.post(`http://localhost:5000/api/clubs/${id}/elections`, { ...electionData, supervisorId: currentUser?.id })
       .then(res => {
         alert(res.data.message);
         setElectionData({ position: '', candidates: [] }); // Reset form
+        setTempCandidate({ candidateUserId: '', manifesto: '' }); // Clear the forgotten inputs
         fetchClubData();
       })
       .catch(err => alert(err.response?.data?.message || "Error creating election."));
@@ -138,10 +145,17 @@ function ClubDetail() {
 
   const handleUpdateElection = (electionId) => {
     if (!editElectionData.position) return alert("Please select a position.");
+
+    if (editTempCandidate.candidateUserId || editTempCandidate.manifesto) {
+      const proceed = window.confirm("Hold on! You entered candidate details but didn't click the '+' button. Do you want to save changes WITHOUT adding them?");
+      if (!proceed) return; 
+    }
+
     axios.put(`http://localhost:5000/api/clubs/${id}/elections/${electionId}/edit`, { ...editElectionData, supervisorId: currentUser?.id })
       .then(res => {
         alert(res.data.message);
         setEditingElectionId(null);
+        setEditTempCandidate({ candidateUserId: '', manifesto: '' }); // Clear the forgotten inputs
         fetchClubData();
       })
       .catch(err => alert(err.response?.data?.message || "Error updating election."));
@@ -592,37 +606,28 @@ function ClubDetail() {
                       </div>
                     ) : (
                       
-                      /* STANDARD DISPLAY UI */
+                    /* STANDARD DISPLAY UI */
                       <>
+                        {/* 1. Header & Primary Flow Buttons */}
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <h5 style={{ margin: 0, fontSize: '1.2rem', color: '#065f46' }}>{election.position}</h5>
-                            {!election.isActive && !election.isPublished && election.votedUsers.length === 0 && (
-                              <button className="btn" style={{ backgroundColor: '#f59e0b', padding: '2px 8px', fontSize: '0.7rem' }} onClick={() => {
-                                setEditingElectionId(election._id);
-                                // Pre-fill the edit state with the current database data!
-                                setEditElectionData({ position: election.position, candidates: election.candidates.map(c => ({ candidateUserId: c.user, manifesto: c.manifesto })) });
-                              }}>✏️ Edit</button>
-                            )}
-                          </div>
+                          <h5 style={{ margin: 0, fontSize: '1.2rem', color: '#065f46' }}>{election.position}</h5>
 
-                          {/* Action Controls */}
+                          {/* Action Controls (Prominent Top Right) */}
                           <div style={{ display: 'flex', gap: '8px' }}>
-                            <button className="btn" style={{ backgroundColor: election.isActive ? '#ef4444' : '#10b981', padding: '5px 10px', fontSize: '0.8rem' }} onClick={() => handleToggleElection(election._id, !election.isActive, election.isPublished)}>
+                            <button className="btn" style={{ backgroundColor: election.isActive ? '#ef4444' : '#10b981', padding: '6px 12px', fontSize: '0.85rem', fontWeight: 'bold' }} onClick={() => handleToggleElection(election._id, !election.isActive, election.isPublished)}>
                               {election.isActive ? '🛑 Close Voting' : '🟢 Open Voting'}
                             </button>
-                            <button className="btn" style={{ backgroundColor: election.isPublished ? '#6b7280' : '#8b5cf6', padding: '5px 10px', fontSize: '0.8rem' }} onClick={() => handleToggleElection(election._id, false, !election.isPublished)}>
+                            <button className="btn" style={{ backgroundColor: election.isPublished ? '#6b7280' : '#8b5cf6', padding: '6px 12px', fontSize: '0.85rem', fontWeight: 'bold' }} onClick={() => handleToggleElection(election._id, false, !election.isPublished)}>
                               {election.isPublished ? 'Hide Results' : '📢 Publish Results'}
                             </button>
-                            <button className="btn" style={{ backgroundColor: '#dc2626', padding: '5px 10px', fontSize: '0.8rem' }} onClick={() => handleDeleteElection(election._id)}>🗑️ Delete</button>
                           </div>
                         </div>
 
                         <hr style={{ border: 'none', borderTop: '1px solid #e5e7eb', margin: '15px 0' }} />
 
-                        {/* Clean Tally Display */}
+                        {/* 2. Clean Tally Display */}
                         <p style={{ margin: '0 0 10px 0', fontWeight: 'bold', color: '#374151' }}>Live Tally ({election.votedUsers?.length || 0} votes cast)</p>
-                        <ul style={{ margin: 0, paddingLeft: '20px', color: '#4b5563' }}>
+                        <ul style={{ margin: '0 0 15px 0', paddingLeft: '20px', color: '#4b5563' }}>
                           {election.candidates?.map(c => {
                             const candidateName = club.members?.find(m => m._id === c.user)?.name || 'Unknown User';
                             return (
@@ -633,6 +638,26 @@ function ClubDetail() {
                           })}
                           {election.candidates?.length === 0 && <li style={{ fontStyle: 'italic', color: '#9ca3af' }}>No candidates added.</li>}
                         </ul>
+
+                        {/* 3. Administrative Controls (Tucked Bottom Right) */}
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px', borderTop: '1px dashed #e5e7eb', paddingTop: '12px' }}>
+                          
+                          {/* Edit Button (Soft Yellow, Smaller) */}
+                          {!election.isActive && !election.isPublished && election.votedUsers.length === 0 && (
+                            <button className="btn" style={{ backgroundColor: '#fef3c7', color: '#d97706', border: '1px solid #fde68a', padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => {
+                              setEditingElectionId(election._id);
+                              // Pre-fill the edit state with the current database data!
+                              setEditElectionData({ position: election.position, candidates: election.candidates.map(c => ({ candidateUserId: c.user, manifesto: c.manifesto })) });
+                            }}>
+                              ✏️ Edit Election
+                            </button>
+                          )}
+                          
+                          {/* Delete Button (Soft Red, Smaller) */}
+                          <button className="btn" style={{ backgroundColor: '#fee2e2', color: '#dc2626', border: '1px solid #fca5a5', padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => handleDeleteElection(election._id)}>
+                            🗑️ Delete
+                          </button>
+                        </div>
                       </>
                     )}
                   </div>
