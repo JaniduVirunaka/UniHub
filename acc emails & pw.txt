@@ -4,7 +4,7 @@ backend terminal ----> cd backend
 frontend terminal ----> cd frontend
                         npm start
 
-sponsorship forms creating and excepting only possible to the exco
+edit announcement
 generate pdf reports of votes/ club members
 membership fee 
 member list

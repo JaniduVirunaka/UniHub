@@ -371,24 +371,23 @@ router.delete('/:id/board/:userId', async (req, res) => {
   }
 });
 
-// 1. Top Board publishes a new Proposal (BULLETPROOF DB VERSION)
+// 1. Exec & Treasury publishes a new Proposal (BULLETPROOF DB VERSION)
 router.post('/:id/proposals', async (req, res) => {
   try {
     const { title, description, targetAmount, proposalDocumentUrl, userId } = req.body;
     
-    // 1. Fetch the club just to verify permissions
     const club = await Club.findById(req.params.id);
     if (!club) return res.status(404).json({ message: "Club not found." });
 
-    const isPresident = club.president?.toString() === userId;
-    const isBoardMember = club.topBoard && club.topBoard.some(b => b.user?.toString() === userId);
+    // Strict RBAC: Only President, VP, Secretaries, and Treasurers
+    const isPres = club.president?.toString() === userId;
+    const allowedRoles = ['Vice President', 'Secretary', 'Assistant Secretary', 'Treasurer', 'Assistant Treasurer'];
+    const isAuthorizedBoard = club.topBoard && club.topBoard.some(b => b.user?.toString() === userId && allowedRoles.includes(b.role));
     
-    if (!isPresident && !isBoardMember) {
-      return res.status(403).json({ message: "Only the Top Board can publish proposals." });
+    if (!isPres && !isAuthorizedBoard) {
+      return res.status(403).json({ message: "Access Denied: Only Executive Officers and Treasurers can publish proposals." });
     }
 
-    // 2. The Native MongoDB $push command!
-    // This forcefully injects the data into the database, ignoring local memory issues.
     await Club.findByIdAndUpdate(req.params.id, {
       $push: {
         proposals: {
@@ -396,7 +395,7 @@ router.post('/:id/proposals', async (req, res) => {
           description,
           targetAmount,
           proposalDocumentUrl,
-          isActive: true, // Explicitly forcing this to true so the frontend sees it
+          isActive: true, 
           pledges: []
         }
       }
@@ -431,17 +430,19 @@ router.post('/:clubId/proposals/:proposalId/pledge', async (req, res) => {
   }
 });
 
-// 3. Top Board Accepts/Rejects a Pledge
+// 3. Exec & Treasury Accepts/Rejects a Pledge
 router.put('/:clubId/proposals/:proposalId/pledge/:pledgeId', async (req, res) => {
   try {
     const { status, userId } = req.body; 
     const club = await Club.findById(req.params.clubId);
 
-    const isPresident = club.president?.toString() === userId;
-    const isBoardMember = club.topBoard && club.topBoard.some(b => b.user?.toString() === userId);
+    // Strict RBAC: Only President, VP, Secretaries, and Treasurers
+    const isPres = club.president?.toString() === userId;
+    const allowedRoles = ['Vice President', 'Secretary', 'Assistant Secretary', 'Treasurer', 'Assistant Treasurer'];
+    const isAuthorizedBoard = club.topBoard && club.topBoard.some(b => b.user?.toString() === userId && allowedRoles.includes(b.role));
     
-    if (!isPresident && !isBoardMember) {
-      return res.status(403).json({ message: "Access Denied." });
+    if (!isPres && !isAuthorizedBoard) {
+      return res.status(403).json({ message: "Access Denied: You do not have permission to manage financial pledges." });
     }
 
     const proposal = club.proposals.id(req.params.proposalId);

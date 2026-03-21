@@ -201,6 +201,10 @@ const handleCreateElection = (e) => {
   const isSecretary = club.topBoard?.some(b => b.user?._id === currentUser?.id && ['Secretary', 'Assistant Secretary'].includes(b.role));
   const canManageAnnouncements = isPresident || isSecretary; // Grants comms access
 
+  //treasury roles that can manage sponsorships
+  const allowedSponsorshipRoles = ['Vice President', 'Secretary', 'Assistant Secretary', 'Treasurer', 'Assistant Treasurer'];
+  const canManageSponsorships = isPresident || club.topBoard?.some(b => b.user?._id === currentUser?.id && allowedSponsorshipRoles.includes(b.role));
+
   const isSupervisor = currentUser?.role === 'supervisor';
   const isTopBoard = isPresident || club.topBoard?.some(b => b.user?._id === currentUser?.id);
   const isMember = club.members?.some(member => member._id === currentUser?.id);
@@ -273,8 +277,6 @@ const handleCreateElection = (e) => {
       </div>
 
       {/* 2. PUBLIC SECTIONS (Everyone sees this) */}
-
-      {/* 2. PUBLIC SECTIONS (Everyone sees this) */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', marginBottom: '20px' }}>
         <div className="card" style={{ marginBottom: '0', textAlign: 'center', backgroundColor: '#f5f3ff', border: '1px solid #ddd6fe' }}>
           <h3 style={{ color: '#8b5cf6', marginTop: 0 }}>🏢 Corporate Partnerships</h3>
@@ -324,7 +326,7 @@ const handleCreateElection = (e) => {
                 <h4 style={{ margin: 0, color: '#6d28d9' }}>🤝 Active Funding Campaigns</h4>
 
                 {/* Quick link for the Top Board to jump into the CRM */}
-                {isTopBoard && (
+                {canManageSponsorships && (
                   <button className="btn" style={{ padding: '5px 15px', backgroundColor: '#8b5cf6', fontSize: '0.85rem' }} onClick={() => navigate(`/clubs/${id}/sponsorships`)}>
                     Manage in Corporate Portal
                   </button>
