@@ -458,45 +458,43 @@ router.put('/:clubId/proposals/:proposalId/pledge/:pledgeId', async (req, res) =
 
 
 // Voting Functionality
-// 1. Supervisor Creates a New Election 
+// 1. Supervisor Creates Election & Ballot ALL AT ONCE
 router.post('/:id/elections', async (req, res) => {
   try {
-    const { position, supervisorId } = req.body;
-    
+    const { position, candidates, supervisorId } = req.body;
     const club = await Club.findById(req.params.id);
-    if (!club) return res.status(404).json({ message: "Club not found." });
 
-    // Self-Healing: Assign supervisor if missing
-    if (!club.supervisor) {
-      club.supervisor = supervisorId;
-    } else if (club.supervisor.toString() !== supervisorId) {
-      return res.status(403).json({ message: "Access Denied: Only the assigned Club Supervisor can initiate elections." });
+    if (club.supervisor?.toString() !== supervisorId) {
+      return res.status(403).json({ message: "Access Denied." });
     }
-
-    // Initialize array if it doesn't exist
     if (!club.elections) club.elections = [];
 
-    // Use Mongoose to push so it automatically generates an _id!
+    // Map the incoming candidates to ensure voteCount starts securely at 0
+    const formattedCandidates = candidates.map(c => ({
+      user: c.candidateUserId,
+      manifesto: c.manifesto,
+      voteCount: 0
+    }));
+
     club.elections.push({
       position,
       isActive: false,
       isPublished: false,
-      candidates: [],
+      candidates: formattedCandidates,
       votedUsers: []
     });
 
     await club.save();
-    res.status(200).json({ message: "Election initialized successfully." });
+    res.status(200).json({ message: "Election and Ballot initialized successfully." });
   } catch (err) {
-    console.error("Election Creation Error:", err);
     res.status(500).json({ message: err.message });
   }
 });
 
-// 2. Supervisor Adds a Candidate to the Ballot
-router.post('/:id/elections/:electionId/candidates', async (req, res) => {
+// 2. Supervisor Edits Entire Election (BULLETPROOF DIRECT DB VERSION)
+router.put('/:id/elections/:electionId/edit', async (req, res) => {
   try {
-    const { candidateUserId, manifesto, supervisorId } = req.body;
+    const { position, candidates, supervisorId } = req.body;
     const club = await Club.findById(req.params.id);
 
     if (club.supervisor?.toString() !== supervisorId) {
@@ -506,16 +504,32 @@ router.post('/:id/elections/:electionId/candidates', async (req, res) => {
     const election = club.elections.id(req.params.electionId);
     if (!election) return res.status(404).json({ message: "Election not found." });
 
-    // Ensure the candidate isn't already on the ballot
-    const alreadyNominated = election.candidates.find(c => c.user?.toString() === candidateUserId);
-    if (alreadyNominated) return res.status(400).json({ message: "This student is already on the ballot." });
+    if (election.isActive || election.isPublished || election.votedUsers.length > 0) {
+      return res.status(400).json({ message: "Cannot edit an election after voting has started." });
+    }
 
-    election.candidates.push({ user: candidateUserId, manifesto, voteCount: 0 });
-    await club.save();
+    // 1. Format the candidates array cleanly
+    const formattedCandidates = candidates.map(c => ({
+      user: c.candidateUserId || c.user?._id || c.user,
+      manifesto: c.manifesto,
+      voteCount: 0
+    }));
 
-    res.status(200).json({ message: "Candidate added to the ballot." });
+    // 2. THE BULLETPROOF FIX: Native MongoDB $set command
+    // This finds the specific election by ID and forcefully overwrites the position and candidates
+    await Club.findOneAndUpdate(
+      { _id: req.params.id, "elections._id": req.params.electionId },
+      { 
+        $set: { 
+          "elections.$.position": position,
+          "elections.$.candidates": formattedCandidates
+        } 
+      }
+    );
+
+    res.status(200).json({ message: "Election updated successfully." });
   } catch (err) {
-    console.error("Candidate Error:", err);
+    console.error("Election Edit Error:", err);
     res.status(500).json({ message: err.message });
   }
 });
@@ -616,5 +630,27 @@ router.post('/:id/elections/:electionId/vote', async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
+
+// 5. Supervisor Deletes an Old Election
+router.delete('/:id/elections/:electionId', async (req, res) => {
+  try {
+    const { supervisorId } = req.body; // Sent via axios data payload
+    const club = await Club.findById(req.params.id);
+
+    if (club.supervisor?.toString() !== supervisorId) {
+      return res.status(403).json({ message: "Access Denied." });
+    }
+
+    // Mongoose command to safely remove a sub-document
+    club.elections.pull(req.params.electionId);
+    await club.save();
+
+    res.status(200).json({ message: "Election permanently deleted." });
+  } catch (err) {
+    console.error("Election Delete Error:", err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
 
 module.exports = router;
