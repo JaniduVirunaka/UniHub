@@ -8,7 +8,8 @@ function ClubDetail() {
   const [club, setClub] = useState(null);
   const [announcementData, setAnnouncementData] = useState({ title: '', content: '' });
   const [boardData, setBoardData] = useState({ userId: '', role: '' });
-  
+  const [sponsorData, setSponsorData] = useState({ sponsorName: '', description: '', targetAmount: '' });
+
   const currentUser = JSON.parse(localStorage.getItem('user'));
 
   useEffect(() => {
@@ -53,6 +54,24 @@ function ClubDetail() {
       })
       .catch(err => alert(err.response?.data?.message || "Error posting announcement."));
   };
+
+  // --- SPONSORSHIP ACTIONS ---
+const handleAddSponsorship = (e) => {
+  e.preventDefault();
+  axios.post(`http://localhost:5000/api/clubs/${id}/sponsorships`, { ...sponsorData, presidentId: currentUser.id })
+    .then(res => {
+      alert(res.data.message);
+      setSponsorData({ sponsorName: '', description: '', targetAmount: '' }); 
+      fetchClubData(); 
+    })
+    .catch(err => alert(err.response?.data?.message || "Error adding sponsorship."));
+};
+
+const handleUpdateFunds = (sponsorId, newAmount) => {
+  axios.put(`http://localhost:5000/api/clubs/${id}/sponsorships/${sponsorId}`, { currentAmount: newAmount, presidentId: currentUser.id })
+    .then(res => fetchClubData())
+    .catch(err => alert("Error updating funds."));
+};
 
   const handleAssignBoard = (e) => {
     e.preventDefault();
@@ -174,9 +193,65 @@ function ClubDetail() {
             </div>
 
             {/* Sponsorships & Voting */}
-            <div style={{ backgroundColor: '#f9fafb', padding: '15px', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
-              <h4 style={{ marginTop: '0' }}>🤝 Sponsorships</h4>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>[Sponsorship Tracking Coming Soon]</p>
+            {/* Sponsorships & Funding */}
+            <div style={{ backgroundColor: '#f9fafb', padding: '15px', borderRadius: '8px', border: '1px solid #e5e7eb', gridColumn: '1 / -1' }}>
+              <h4 style={{ marginTop: '0', borderBottom: '2px solid #e5e7eb', paddingBottom: '10px' }}>🤝 Funding & Sponsorships</h4>
+              
+              {club.sponsorships?.length === 0 ? (
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>No active funding targets.</p>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '15px', marginTop: '15px' }}>
+                  {club.sponsorships.map((sponsor) => {
+                    // Calculate the percentage for the progress bar
+                    const percent = Math.min((sponsor.currentAmount / sponsor.targetAmount) * 100, 100).toFixed(0);
+                    
+                    return (
+                      <div key={sponsor._id} style={{ backgroundColor: '#fff', border: '1px solid #d1d5db', borderRadius: '8px', padding: '15px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                          <h5 style={{ margin: '0 0 5px 0', color: 'var(--primary-color)' }}>{sponsor.sponsorName}</h5>
+                          <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '12px', backgroundColor: sponsor.status === 'Completed' ? '#d1fae5' : '#dbeafe', color: sponsor.status === 'Completed' ? '#065f46' : '#1e40af' }}>
+                            {sponsor.status}
+                          </span>
+                        </div>
+                        <p style={{ margin: '0 0 15px 0', fontSize: '0.9rem', color: '#6b7280' }}>{sponsor.description}</p>
+                        
+                        {/* Progress Bar UI */}
+                        <div style={{ width: '100%', backgroundColor: '#e5e7eb', borderRadius: '4px', height: '10px', marginBottom: '5px', overflow: 'hidden' }}>
+                          <div style={{ width: `${percent}%`, backgroundColor: percent >= 100 ? '#10b981' : '#3b82f6', height: '100%', transition: 'width 0.5s ease-in-out' }}></div>
+                        </div>
+                        
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', fontWeight: 'bold' }}>
+                          <span style={{ color: '#374151' }}>Rs. {sponsor.currentAmount}</span>
+                          <span style={{ color: '#9ca3af' }}>Goal: Rs. {sponsor.targetAmount}</span>
+                        </div>
+
+                        {/* Quick Update Button (President Only) */}
+                        {isPresident && (
+                          <div style={{ marginTop: '15px', display: 'flex', gap: '5px' }}>
+                            <input 
+                              type="number" 
+                              id={`fund-${sponsor._id}`} 
+                              className="form-control" 
+                              placeholder="New Total" 
+                              style={{ padding: '5px', fontSize: '0.85rem' }} 
+                            />
+                            <button 
+                              className="btn" 
+                              style={{ padding: '5px 10px', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
+                              onClick={() => {
+                                const val = document.getElementById(`fund-${sponsor._id}`).value;
+                                if(val) handleUpdateFunds(sponsor._id, Number(val));
+                              }}
+                            >
+                              Update
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
             
             <div style={{ backgroundColor: '#f9fafb', padding: '15px', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
@@ -249,6 +324,15 @@ function ClubDetail() {
                  <input type="text" className="form-control" placeholder="Announcement Title" value={announcementData.title} onChange={(e) => setAnnouncementData({...announcementData, title: e.target.value})} required style={{ marginBottom: '10px' }}/>
                  <textarea className="form-control" placeholder="What do you want to tell your members?" value={announcementData.content} onChange={(e) => setAnnouncementData({...announcementData, content: e.target.value})} required style={{ marginBottom: '10px', minHeight: '120px' }}/>
                  <button type="submit" className="btn" style={{ width: '100%', backgroundColor: '#3b82f6' }}>Submit for Supervisor Approval</button>
+               </form>
+
+               <hr style={{ borderColor: '#bfdbfe', margin: '20px 0' }} />
+               <h4 style={{ color: '#1e40af', marginTop: 0 }}>🤝 Setup Sponsorship Target</h4>
+               <form onSubmit={handleAddSponsorship}>
+                 <input type="text" className="form-control" placeholder="Target/Campaign Name (e.g., Annual Tech Hackathon)" value={sponsorData.sponsorName} onChange={(e) => setSponsorData({...sponsorData, sponsorName: e.target.value})} required style={{ marginBottom: '10px' }}/>
+                 <input type="text" className="form-control" placeholder="Short Description" value={sponsorData.description} onChange={(e) => setSponsorData({...sponsorData, description: e.target.value})} required style={{ marginBottom: '10px' }}/>
+                 <input type="number" className="form-control" placeholder="Target Amount (Rs.)" value={sponsorData.targetAmount} onChange={(e) => setSponsorData({...sponsorData, targetAmount: e.target.value})} required style={{ marginBottom: '10px' }} min="1" />
+                 <button type="submit" className="btn" style={{ width: '100%', backgroundColor: '#10b981' }}>Create Funding Target</button>
                </form>
             </div>
             

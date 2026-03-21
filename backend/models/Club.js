@@ -8,6 +8,15 @@ const announcementSchema = new mongoose.Schema({
   isApproved: { type: Boolean, default: false } // Requires Supervisor approval before students see it
 });
 
+// Sub-schema for tracking financial targets and sponsors
+const sponsorshipSchema = new mongoose.Schema({
+  sponsorName: { type: String, required: true },
+  description: { type: String, required: true },
+  targetAmount: { type: Number, required: true },
+  currentAmount: { type: Number, default: 0 },
+  status: { type: String, enum: ['Seeking', 'Secured', 'Completed'], default: 'Seeking' }
+});
+
 const clubSchema = new mongoose.Schema({
   // Basic Info
   name: { type: String, required: true },
@@ -28,7 +37,9 @@ const clubSchema = new mongoose.Schema({
   pendingMembers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], // Students waiting for approval
   
   // Club Operations
-  announcements: [announcementSchema] // Uses the sub-schema defined above
+  announcements: [announcementSchema],
+  sponsorships: [sponsorshipSchema] // Uses the sub-schema defined above
 });
+
 
 module.exports = mongoose.model('Club', clubSchema);

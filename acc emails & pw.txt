@@ -1,5 +1,21 @@
+backend terminal ----> cd backend
+                       node server.js
+
+frontend terminal ----> cd frontend
+                        npm start
+
+
 ClubAdmin@gmail.com
 ClubAdmin
 
 janidu@gmail.com
 1234
+
+bob@gmail.com
+bob
+
+jack@gmail.com
+jack
+
+john@gmail.com
+john

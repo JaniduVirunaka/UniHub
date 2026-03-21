@@ -304,4 +304,47 @@ router.delete('/:id/board/:userId', async (req, res) => {
   }
 });
 
+// President adds a new Sponsorship Target
+router.post('/:id/sponsorships', async (req, res) => {
+  try {
+    const { sponsorName, description, targetAmount, presidentId } = req.body;
+    const club = await Club.findById(req.params.id);
+
+    if (club.president?.toString() !== presidentId) {
+      return res.status(403).json({ message: "Only the president can manage sponsorships." });
+    }
+
+    club.sponsorships.push({ sponsorName, description, targetAmount });
+    await club.save();
+
+    res.status(200).json({ message: "Sponsorship target created successfully!" });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// President updates the funds received for a sponsorship
+router.put('/:clubId/sponsorships/:sponsorId', async (req, res) => {
+  try {
+    const { currentAmount, status, presidentId } = req.body;
+    const club = await Club.findById(req.params.clubId);
+
+    if (club.president?.toString() !== presidentId) {
+      return res.status(403).json({ message: "Access Denied." });
+    }
+
+    const sponsorship = club.sponsorships.id(req.params.sponsorId);
+    if (!sponsorship) return res.status(404).json({ message: "Sponsorship not found." });
+
+    // Update the values
+    if (currentAmount !== undefined) sponsorship.currentAmount = currentAmount;
+    if (status) sponsorship.status = status;
+
+    await club.save();
+    res.status(200).json({ message: "Sponsorship updated successfully!" });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 module.exports = router;
