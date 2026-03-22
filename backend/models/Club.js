@@ -5,7 +5,9 @@ const announcementSchema = new mongoose.Schema({
   title: { type: String, required: true },
   content: { type: String, required: true },
   date: { type: Date, default: Date.now },
-  isApproved: { type: Boolean, default: false } 
+  isApproved: { type: Boolean, default: false },
+  isDeleted: { type: Boolean, default: false },
+  createdAt: { type: Date, default: Date.now }
 });
 
 // 2. Incoming Company Offers (NEW)

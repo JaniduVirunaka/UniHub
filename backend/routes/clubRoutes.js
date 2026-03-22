@@ -227,7 +227,7 @@ router.post('/:id/announcements', async (req, res) => {
       return res.status(403).json({ message: "Access Denied: You do not have permission to post announcements." });
     }
 
-    club.announcements.push({ title, content });
+    club.announcements.push({ title, content , createdAt: new Date(), isDeleted: false });
     await club.save();
     res.status(200).json({ message: "Announcement submitted and pending Supervisor approval!" });
   } catch (err) {
@@ -259,30 +259,38 @@ router.put('/:clubId/announcements/:annId/approve', async (req, res) => {
   }
 });
 
-// Exec Board EDITS an announcement (Resets approval status)
+// Supervisor OR Exec Board EDITS an announcement
 router.put('/:id/announcements/:annId/edit', async (req, res) => {
   try {
-    const { title, content, userId } = req.body;
+    // Look for userId (from students) OR supervisorId (from admins)
+    const { title, content, userId, supervisorId } = req.body;
+    const requestorId = userId || supervisorId; 
+
     const club = await Club.findById(req.params.id);
 
-    // Strict RBAC: President, VP, Secretaries
-    const isPres = club.president?.toString() === userId;
-    const isAuthorizedBoard = club.topBoard.some(b => b.user?.toString() === userId && ['Vice President', 'Secretary', 'Assistant Secretary'].includes(b.role));
+    // Strict RBAC: Supervisor, President, VP, Secretaries
+    const isSupervisor = club.supervisor?.toString() === requestorId;
+    const isPres = club.president?.toString() === requestorId;
+    const isAuthorizedBoard = club.topBoard.some(b => b.user?.toString() === requestorId && ['Vice President', 'Secretary', 'Assistant Secretary'].includes(b.role));
 
-    if (!isPres && !isAuthorizedBoard) {
+    if (!isSupervisor && !isPres && !isAuthorizedBoard) {
       return res.status(403).json({ message: "Access Denied." });
     }
 
     const announcement = club.announcements.id(req.params.annId);
     if (!announcement) return res.status(404).json({ message: "Announcement not found." });
 
-    // Update data and reset approval!
+    // Update data
     announcement.title = title;
     announcement.content = content;
-    announcement.isApproved = false; 
+    
+    // If a student edits it, it needs re-approval. If the Supervisor edits it, it stays approved!
+    if (!isSupervisor) {
+      announcement.isApproved = false; 
+    }
 
     await club.save();
-    res.status(200).json({ message: "Announcement updated and submitted for re-approval." });
+    res.status(200).json({ message: "Announcement updated successfully." });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -305,7 +313,10 @@ router.delete('/:clubId/announcements/:annId', async (req, res) => {
       return res.status(403).json({ message: "Access Denied." });
     }
 
-    club.announcements.pull(req.params.annId); 
+    const announcement = club.announcements.id(req.params.annId);
+    if (!announcement) return res.status(404).json({ message: "Announcement not found." });
+    
+    announcement.isDeleted = true; // Hides it from the UI but keeps the record
     await club.save();
     
     res.status(200).json({ message: "Announcement deleted." });

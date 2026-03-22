@@ -8,7 +8,7 @@ function ClubDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [club, setClub] = useState(null);
-  
+
   // Announcement States
   const [announcementData, setAnnouncementData] = useState({ title: '', content: '' });
   const [editingAnnId, setEditingAnnId] = useState(null);
@@ -17,10 +17,10 @@ function ClubDetail() {
 
   // Election States
   const [electionData, setElectionData] = useState({ position: '', candidates: [] });
-  const [tempCandidate, setTempCandidate] = useState({ candidateUserId: '', manifesto: '' }); 
+  const [tempCandidate, setTempCandidate] = useState({ candidateUserId: '', manifesto: '' });
   const [editingElectionId, setEditingElectionId] = useState(null);
   const [editElectionData, setEditElectionData] = useState({ position: '', candidates: [] });
-  const [editTempCandidate, setEditTempCandidate] = useState({ candidateUserId: '', manifesto: '' }); 
+  const [editTempCandidate, setEditTempCandidate] = useState({ candidateUserId: '', manifesto: '' });
 
   const currentUser = JSON.parse(localStorage.getItem('user'));
   const availableRoles = [
@@ -53,7 +53,7 @@ function ClubDetail() {
     axios.post(`http://localhost:5000/api/clubs/${id}/approve`, { studentId, presidentId: currentUser.id })
       .then(res => {
         alert(res.data.message);
-        fetchClubData(); 
+        fetchClubData();
       })
       .catch(err => alert("Error approving member."));
   };
@@ -127,7 +127,7 @@ function ClubDetail() {
     doc.setFontSize(22);
     doc.setTextColor(40, 40, 40);
     doc.text(`${club.name} - Official Member Roster`, 14, 20);
-    
+
     doc.setFontSize(11);
     doc.setTextColor(100, 100, 100);
     doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 28);
@@ -152,13 +152,13 @@ function ClubDetail() {
       tableRows.push(rowData);
     });
 
-  // 4. Generate the AutoTable (UPDATED SYNTAX)
+    // 4. Generate the AutoTable (UPDATED SYNTAX)
     autoTable(doc, {
       head: [tableColumn],
       body: tableRows,
-      startY: 40, 
+      startY: 40,
       styles: { fontSize: 10, cellPadding: 3 },
-      headStyles: { fillColor: [16, 185, 129] }, 
+      headStyles: { fillColor: [16, 185, 129] },
       alternateRowStyles: { fillColor: [249, 250, 251] }
     });
 
@@ -183,7 +183,7 @@ function ClubDetail() {
     doc.setFontSize(22);
     doc.setTextColor(40, 40, 40);
     doc.text(`${club.name} - Official Election Results`, 14, 20);
-    
+
     doc.setFontSize(11);
     doc.setTextColor(100, 100, 100);
     doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 28);
@@ -192,7 +192,7 @@ function ClubDetail() {
 
     // 2. Loop through every published election and build a table for it
     publishedElections.forEach((election) => {
-      
+
       // Check if we need to add a new page so tables don't get cut off
       if (currentY > 250) {
         doc.addPage();
@@ -221,10 +221,10 @@ function ClubDetail() {
         // Safely extract user name
         const userId = c.user?._id || c.user;
         const name = club.members?.find(m => m._id === userId)?.name || 'Unknown Member';
-        
+
         // Calculate Math
         const percent = totalVotes > 0 ? ((c.voteCount / totalVotes) * 100).toFixed(1) + '%' : '0%';
-        
+
         // Mark the winner (the first person in our sorted list)
         const winnerTag = (index === 0 && c.voteCount > 0) ? " (WINNER)" : "";
 
@@ -246,7 +246,7 @@ function ClubDetail() {
         alternateRowStyles: { fillColor: [249, 250, 251] },
         didDrawPage: (data) => {
           // Push the Y tracker down so the NEXT election table starts below this one
-          currentY = data.cursor.y + 15; 
+          currentY = data.cursor.y + 15;
         }
       });
     });
@@ -254,7 +254,146 @@ function ClubDetail() {
     doc.save(`${club.name.replace(/\s+/g, '_')}_Election_Results.pdf`);
   };
 
-  
+  const generateSponsorshipReportPDF = () => {
+    if (!club || !club.proposals || club.proposals.length === 0) {
+      alert("No sponsorship data available to generate a report.");
+      return;
+    }
+
+    const doc = new jsPDF();
+
+    // 1. Header Text
+    doc.setFontSize(22);
+    doc.setTextColor(40, 40, 40);
+    doc.text(`${club.name} - Financial & Sponsorship Report`, 14, 20);
+
+    doc.setFontSize(11);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 28);
+
+    let currentY = 40;
+    let totalClubRaised = 0; // We will track the grand total across ALL campaigns
+
+    // 2. Loop through every proposal
+    club.proposals.forEach((prop) => {
+      if (currentY > 250) { doc.addPage(); currentY = 20; }
+
+      // Calculate how much this specific campaign made
+      const raisedForProp = prop.pledges?.filter(p => p.status === 'Accepted').reduce((sum, p) => sum + p.amount, 0) || 0;
+      totalClubRaised += raisedForProp;
+
+      doc.setFontSize(14);
+      doc.setTextColor(3, 105, 161); // Corporate Blue color
+      doc.text(`Campaign: ${prop.title} (${prop.isActive ? 'Active' : 'Closed'})`, 14, currentY);
+      currentY += 6;
+
+      doc.setFontSize(10);
+      doc.setTextColor(100, 100, 100);
+      doc.text(`Target: Rs. ${prop.targetAmount.toLocaleString()} | Raised: Rs. ${raisedForProp.toLocaleString()}`, 14, currentY);
+      currentY += 6;
+
+      const tableColumn = ["Company", "Contact", "Amount (Rs.)", "Status"];
+      const tableRows = [];
+
+      if (prop.pledges && prop.pledges.length > 0) {
+        prop.pledges.forEach(pledge => {
+          tableRows.push([
+            pledge.companyName,
+            pledge.contactEmail,
+            pledge.amount.toLocaleString(),
+            pledge.status
+          ]);
+        });
+
+        autoTable(doc, {
+          head: [tableColumn],
+          body: tableRows,
+          startY: currentY,
+          styles: { fontSize: 9, cellPadding: 3 },
+          headStyles: { fillColor: [14, 165, 233] }, // Blue theme
+          alternateRowStyles: { fillColor: [240, 249, 255] },
+          didDrawPage: (data) => { currentY = data.cursor.y + 15; }
+        });
+      } else {
+        doc.setFontSize(10);
+        doc.setTextColor(150, 150, 150);
+        doc.text("No pledges received for this campaign yet.", 14, currentY);
+        currentY += 15;
+      }
+    });
+
+    // 3. Print the Grand Total at the bottom!
+    if (currentY > 260) { doc.addPage(); currentY = 20; }
+    doc.setFontSize(16);
+    doc.setTextColor(16, 185, 129); // Green for money
+    doc.text(`Grand Total Raised (Accepted): Rs. ${totalClubRaised.toLocaleString()}`, 14, currentY + 10);
+
+    doc.save(`${club.name.replace(/\s+/g, '_')}_Financial_Report.pdf`);
+  };
+
+  const generateAnnouncementsPDF = () => {
+    if (!club || !club.announcements || club.announcements.length === 0) {
+      alert("No announcements available to generate a report.");
+      return;
+    }
+
+    const doc = new jsPDF();
+
+    doc.setFontSize(22);
+    doc.setTextColor(40, 40, 40);
+    doc.text(`${club.name} - Official Communications Log`, 14, 20);
+
+    doc.setFontSize(11);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 28);
+    doc.text(`Total Records (Including Archives): ${club.announcements.length}`, 14, 34);
+
+    // Added "Date" to the columns
+    const tableColumn = ["Date", "Title", "Message Content", "Status"];
+    const tableRows = [];
+
+    // Sort announcements so the newest ones are at the top of the PDF!
+    const sortedAnnouncements = [...club.announcements].reverse();
+
+    sortedAnnouncements.forEach((ann) => {
+      // MAGIC: If it has a createdAt date, use it. If it's an old record from yesterday, 
+      // extract the timestamp hidden inside the first 8 characters of the MongoDB ObjectID!
+      const dateStr = ann.createdAt
+        ? new Date(ann.createdAt).toLocaleDateString()
+        : new Date(parseInt(ann._id.substring(0, 8), 16) * 1000).toLocaleDateString();
+
+      let statusLabel = "Pending Review";
+      if (ann.isDeleted) statusLabel = "DELETED (Archived)";
+      else if (ann.isApproved) statusLabel = "Approved & Published";
+
+      tableRows.push([
+        dateStr,
+        ann.title,
+        ann.content,
+        statusLabel
+      ]);
+    });
+
+    autoTable(doc, {
+      head: [tableColumn],
+      body: tableRows,
+      startY: 40,
+      styles: { fontSize: 9, cellPadding: 3, overflow: 'linebreak' },
+      columnStyles: { 2: { cellWidth: 80 } }, // Give the message content plenty of room
+      headStyles: { fillColor: [59, 130, 246] },
+      alternateRowStyles: { fillColor: [239, 246, 255] },
+      // Make Deleted rows stand out in red text!
+      didParseCell: function (data) {
+        if (data.row.raw[3] === "DELETED (Archived)") {
+          data.cell.styles.textColor = [220, 38, 38]; // Red
+        }
+      }
+    });
+
+    doc.save(`${club.name.replace(/\s+/g, '_')}_Communications_Log.pdf`);
+  };
+
+
   // --- ELECTION ACTIONS ---
   const handleAddTempCandidate = (e, isEdit = false) => {
     e.preventDefault();
@@ -294,7 +433,7 @@ function ClubDetail() {
     axios.post(`http://localhost:5000/api/clubs/${id}/elections`, { ...electionData, supervisorId: currentUser?.id })
       .then(res => {
         alert(res.data.message);
-        setElectionData({ position: '', candidates: [] }); 
+        setElectionData({ position: '', candidates: [] });
         setTempCandidate({ candidateUserId: '', manifesto: '' });
         fetchClubData();
       })
@@ -354,7 +493,7 @@ function ClubDetail() {
   const isPresident = isActualPresident || isVP;
 
   const isSecretary = club.topBoard?.some(b => b.user?._id === currentUser?.id && ['Secretary', 'Assistant Secretary'].includes(b.role));
-  const canManageAnnouncements = isPresident || isSecretary; 
+  const canManageAnnouncements = isPresident || isSecretary;
 
   const allowedSponsorshipRoles = ['Vice President', 'Secretary', 'Assistant Secretary', 'Treasurer', 'Assistant Treasurer'];
   const canManageSponsorships = isPresident || club.topBoard?.some(b => b.user?._id === currentUser?.id && allowedSponsorshipRoles.includes(b.role));
@@ -448,14 +587,19 @@ function ClubDetail() {
             {/* Announcements */}
             <div style={{ backgroundColor: '#f9fafb', padding: '15px', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
               <h4 style={{ marginTop: '0' }}>📢 Official Announcements</h4>
-              {club.announcements?.filter(a => a.isApproved || canManageAnnouncements || isSupervisor).length === 0 ? (
+              
+              {/* Added the isDeleted filter to the empty state check so it doesn't say "0" if there are only deleted ones! */}
+              {club.announcements?.filter(a => !a.isDeleted && (a.isApproved || canManageAnnouncements || isSupervisor)).length === 0 ? (
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>No announcements yet.</p>
               ) : (
                 club.announcements?.map((ann) => {
-                  if (ann.isApproved || canManageAnnouncements || isSupervisor) {
+                  // THE FIX: Only show if it is NOT deleted!
+                  if (!ann.isDeleted && (ann.isApproved || canManageAnnouncements || isSupervisor)) {
                     return (
-                      <div key={ann._id} style={{ padding: '15px', backgroundColor: '#fff', border: '1px solid #e5e7eb', marginBottom: '10px', borderRadius: '6px' }}>
+                      <div key={ann._id} style={{ padding: '15px', backgroundColor: '#fff', border: '1px solid #e5e7eb', marginBottom: '10px', borderRadius: '6px', position: 'relative' }}>
+
                         {editingAnnId === ann._id ? (
+                          /* EDIT MODE */
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             <input type="text" className="form-control" value={editAnnData.title} onChange={(e) => setEditAnnData({ ...editAnnData, title: e.target.value })} style={{ margin: 0 }} />
                             <textarea className="form-control" value={editAnnData.content} onChange={(e) => setEditAnnData({ ...editAnnData, content: e.target.value })} style={{ margin: 0, minHeight: '80px' }} />
@@ -465,13 +609,16 @@ function ClubDetail() {
                             </div>
                           </div>
                         ) : (
+                          /* DISPLAY MODE */
                           <>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                               <div>
                                 <strong style={{ display: 'block', fontSize: '1.05rem', color: '#111827' }}>{ann.title}</strong>
                                 <span style={{ fontSize: '0.9rem', color: '#4b5563', whiteSpace: 'pre-wrap' }}>{ann.content}</span>
                               </div>
-                              {canManageAnnouncements && (
+
+                              {/* UPGRADE: Show Edit/Delete buttons to Authorized Execs AND the Supervisor! */}
+                              {(canManageAnnouncements || isSupervisor) && (
                                 <div style={{ display: 'flex', gap: '5px', marginLeft: '10px' }}>
                                   <button className="btn" style={{ padding: '4px 8px', fontSize: '0.75rem', backgroundColor: '#fef3c7', color: '#d97706', border: '1px solid #fde68a' }} onClick={() => {
                                     setEditingAnnId(ann._id);
@@ -481,6 +628,8 @@ function ClubDetail() {
                                 </div>
                               )}
                             </div>
+
+                            {/* Status Badge */}
                             {!ann.isApproved && (
                               <span style={{ display: 'inline-block', backgroundColor: '#fef3c7', color: '#d97706', padding: '2px 8px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 'bold', marginTop: '10px' }}>
                                 ⏳ Pending Supervisor Approval
@@ -491,7 +640,7 @@ function ClubDetail() {
                       </div>
                     );
                   }
-                  return null;
+                  return null; // Ensure we return null if the item doesn't match the condition
                 })
               )}
             </div>
@@ -599,7 +748,7 @@ function ClubDetail() {
         </div>
       )}
 
-     {/* 4. EXECUTIVE ADMIN PANEL (All Top Board Members) */}
+      {/* 4. EXECUTIVE ADMIN PANEL (All Top Board Members) */}
       {isTopBoard && (
         <div className="card" style={{ borderLeft: '4px solid #3b82f6', marginTop: '20px' }}>
           <h2 style={{ color: '#3b82f6', marginTop: 0, marginBottom: '20px' }}>
@@ -609,13 +758,29 @@ function ClubDetail() {
           {/* 📊 REPORTING HUB (Visible to ALL Top Board Members) */}
           <div style={{ backgroundColor: '#f0fdf4', padding: '15px', borderRadius: '8px', border: '1px solid #bbf7d0', marginBottom: '20px' }}>
             <h4 style={{ color: '#166534', marginTop: 0, marginBottom: '10px' }}>📊 Reporting Hub</h4>
-            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-              <button className="btn" style={{ backgroundColor: '#10b981', padding: '8px 15px', fontSize: '0.85rem' }} onClick={generateMemberListPDF}>
-                📄 Download Member List
+            <p style={{ fontSize: '0.85rem', color: '#15803d', marginBottom: '15px', marginTop: 0 }}>Generate official PDF documents for university records.</p>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <button className="btn" style={{ backgroundColor: '#10b981', padding: '8px', fontSize: '0.85rem' }} onClick={generateMemberListPDF}>
+                👥 Member List
               </button>
-              <button className="btn" style={{ backgroundColor: '#8b5cf6', padding: '8px 15px', fontSize: '0.85rem' }} onClick={generateElectionResultsPDF}>
-                🗳️ Download Election Results
+              <button className="btn" style={{ backgroundColor: '#8b5cf6', padding: '8px', fontSize: '0.85rem' }} onClick={generateElectionResultsPDF}>
+                🗳️ Election Results
               </button>
+
+              {/* Financial Report (Execs & Treasury) */}
+              {canManageSponsorships && (
+                <button className="btn" style={{ backgroundColor: '#0ea5e9', padding: '8px', fontSize: '0.85rem' }} onClick={generateSponsorshipReportPDF}>
+                  📈 Financials & Pledges
+                </button>
+              )}
+
+              {/* Announcements Report (Execs & Secretaries) */}
+              {canManageAnnouncements && (
+                <button className="btn" style={{ backgroundColor: '#3b82f6', padding: '8px', fontSize: '0.85rem' }} onClick={generateAnnouncementsPDF}>
+                  📢 Communications Log
+                </button>
+              )}
             </div>
           </div>
 
@@ -735,7 +900,7 @@ function ClubDetail() {
               <div style={{ display: 'grid', gap: '20px' }}>
                 {club.elections?.map(election => (
                   <div key={election._id} style={{ backgroundColor: '#fff', border: '1px solid #d1d5db', padding: '15px', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-                    
+
                     {editingElectionId === election._id ? (
                       <div style={{ backgroundColor: '#fef3c7', padding: '15px', borderRadius: '5px', border: '1px solid #fde68a' }}>
                         <h6 style={{ margin: '0 0 10px 0', color: '#d97706' }}>✏️ Edit Election Details</h6>
