@@ -5,7 +5,7 @@ frontend terminal ----> cd frontend
                         npm start
 
 
-generate pdf reports of votes/ club members / announcements / sponsorships
+generate pdf reports of votes/ club members / announcements / sponsorships / membership fee
 membership fee 
 member list
 gallery and leaderboard
