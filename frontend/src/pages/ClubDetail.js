@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 function ClubDetail() {
   const { id } = useParams();
@@ -114,6 +116,146 @@ function ClubDetail() {
     }
   };
 
+  // --- REPORT GENERATION ACTIONS ---
+  const generateMemberListPDF = () => {
+    if (!club || !club.members) return;
+
+    // 1. Initialize a new PDF document (A4 size, portrait)
+    const doc = new jsPDF();
+
+    // 2. Add Header Text
+    doc.setFontSize(22);
+    doc.setTextColor(40, 40, 40);
+    doc.text(`${club.name} - Official Member Roster`, 14, 20);
+    
+    doc.setFontSize(11);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 28);
+    doc.text(`Total Approved Members: ${club.members.length}`, 14, 34);
+
+    // 3. Format the data for the table
+    const tableColumn = ["#", "Name", "Email", "Status/Role"];
+    const tableRows = [];
+
+    club.members.forEach((member, index) => {
+      // Check if this member is on the Top Board to highlight their role
+      const boardRole = club.topBoard?.find(b => b.user?._id === member._id)?.role;
+      const roleText = boardRole ? `Top Board: ${boardRole}` : "General Member";
+      const isPres = club.president?._id === member._id;
+
+      const rowData = [
+        index + 1,
+        member.name,
+        member.email,
+        isPres ? "President" : roleText
+      ];
+      tableRows.push(rowData);
+    });
+
+  // 4. Generate the AutoTable (UPDATED SYNTAX)
+    autoTable(doc, {
+      head: [tableColumn],
+      body: tableRows,
+      startY: 40, 
+      styles: { fontSize: 10, cellPadding: 3 },
+      headStyles: { fillColor: [16, 185, 129] }, 
+      alternateRowStyles: { fillColor: [249, 250, 251] }
+    });
+
+    // 5. Trigger the download!
+    doc.save(`${club.name.replace(/\s+/g, '_')}_Members_Report.pdf`);
+  };
+
+  const generateElectionResultsPDF = () => {
+    if (!club || !club.elections) return;
+
+    // Filter for only elections that have finished and published their results
+    const publishedElections = club.elections.filter(e => e.isPublished);
+
+    if (publishedElections.length === 0) {
+      alert("There are no published election results to generate a report for.");
+      return;
+    }
+
+    const doc = new jsPDF();
+
+    // 1. Header Text
+    doc.setFontSize(22);
+    doc.setTextColor(40, 40, 40);
+    doc.text(`${club.name} - Official Election Results`, 14, 20);
+    
+    doc.setFontSize(11);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 28);
+
+    let currentY = 40; // This variable tracks our vertical position on the page!
+
+    // 2. Loop through every published election and build a table for it
+    publishedElections.forEach((election) => {
+      
+      // Check if we need to add a new page so tables don't get cut off
+      if (currentY > 250) {
+        doc.addPage();
+        currentY = 20;
+      }
+
+      // Sub-header for the Position
+      doc.setFontSize(14);
+      doc.setTextColor(109, 40, 217); // Purple color
+      doc.text(`Position: ${election.position}`, 14, currentY);
+      currentY += 6;
+
+      const totalVotes = election.votedUsers.length;
+      doc.setFontSize(10);
+      doc.setTextColor(100, 100, 100);
+      doc.text(`Total Votes Cast: ${totalVotes}`, 14, currentY);
+      currentY += 6;
+
+      const tableColumn = ["Candidate", "Manifesto", "Votes", "Percentage"];
+      const tableRows = [];
+
+      // Sort candidates from highest votes to lowest
+      const sortedCandidates = [...election.candidates].sort((a, b) => b.voteCount - a.voteCount);
+
+      sortedCandidates.forEach((c, index) => {
+        // Safely extract user name
+        const userId = c.user?._id || c.user;
+        const name = club.members?.find(m => m._id === userId)?.name || 'Unknown Member';
+        
+        // Calculate Math
+        const percent = totalVotes > 0 ? ((c.voteCount / totalVotes) * 100).toFixed(1) + '%' : '0%';
+        
+        // Mark the winner (the first person in our sorted list)
+        const winnerTag = (index === 0 && c.voteCount > 0) ? " (WINNER)" : "";
+
+        tableRows.push([
+          name + winnerTag,
+          c.manifesto,
+          c.voteCount.toString(),
+          percent
+        ]);
+      });
+
+      // Draw the table
+      autoTable(doc, {
+        head: [tableColumn],
+        body: tableRows,
+        startY: currentY,
+        styles: { fontSize: 10, cellPadding: 3 },
+        headStyles: { fillColor: [139, 92, 246] }, // Purple theme to match your UI
+        alternateRowStyles: { fillColor: [249, 250, 251] },
+        didDrawPage: (data) => {
+          // Push the Y tracker down so the NEXT election table starts below this one
+          currentY = data.cursor.y + 15; 
+        }
+      });
+    });
+
+    doc.save(`${club.name.replace(/\s+/g, '_')}_Election_Results.pdf`);
+  };
+
+  
+  // --- ELECTION ACTIONS ---
   const handleAddTempCandidate = (e, isEdit = false) => {
     e.preventDefault();
     const targetState = isEdit ? editTempCandidate : tempCandidate;
@@ -457,12 +599,26 @@ function ClubDetail() {
         </div>
       )}
 
-      {/* 4. EXECUTIVE ADMIN PANEL (Pres, VP, Secretaries) */}
-      {(isPresident || canManageAnnouncements) && (
+     {/* 4. EXECUTIVE ADMIN PANEL (All Top Board Members) */}
+      {isTopBoard && (
         <div className="card" style={{ borderLeft: '4px solid #3b82f6', marginTop: '20px' }}>
-          <h2 style={{ color: '#3b82f6', marginTop: 0 }}>
-            {isPresident ? "President's Control Center" : "Executive Communications"}
+          <h2 style={{ color: '#3b82f6', marginTop: 0, marginBottom: '20px' }}>
+            {isPresident ? "President's Control Center" : "Executive Board Panel"}
           </h2>
+
+          {/* 📊 REPORTING HUB (Visible to ALL Top Board Members) */}
+          <div style={{ backgroundColor: '#f0fdf4', padding: '15px', borderRadius: '8px', border: '1px solid #bbf7d0', marginBottom: '20px' }}>
+            <h4 style={{ color: '#166534', marginTop: 0, marginBottom: '10px' }}>📊 Reporting Hub</h4>
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              <button className="btn" style={{ backgroundColor: '#10b981', padding: '8px 15px', fontSize: '0.85rem' }} onClick={generateMemberListPDF}>
+                📄 Download Member List
+              </button>
+              <button className="btn" style={{ backgroundColor: '#8b5cf6', padding: '8px 15px', fontSize: '0.85rem' }} onClick={generateElectionResultsPDF}>
+                🗳️ Download Election Results
+              </button>
+            </div>
+          </div>
+
           <div style={{ display: 'grid', gridTemplateColumns: isPresident ? '1fr 1fr' : '1fr', gap: '20px' }}>
 
             {/* LEFT COLUMN: People Management (ONLY FOR PRES/VP) */}
