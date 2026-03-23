@@ -135,7 +135,7 @@ function MembershipFees() {
         <h1 style={{ color: '#059669', margin: '0 0 10px 0' }}>💳 Membership Fee Portal</h1>
       </div>
 
-      <ClubNavigation clubId={id} />
+      <ClubNavigation club={club} />
 
       <div style={{ display: 'grid', gridTemplateColumns: canManageFees ? '1fr 2fr' : '1fr', gap: '30px' }}>
         

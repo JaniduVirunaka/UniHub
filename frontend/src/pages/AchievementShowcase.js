@@ -148,8 +148,8 @@ function AchievementShowcase() {
       <button className="btn" style={{ backgroundColor: '#6b7280', marginBottom: '20px' }} onClick={() => navigate(`/clubs/${id}`)}>
         &larr; Back to {club.name} Hub
       </button>
-      
-      <ClubNavigation clubId={id} />
+
+      <ClubNavigation club={club} />
 
       <div className="card" style={{ borderTop: '4px solid #f59e0b', textAlign: 'center', backgroundColor: '#fffbeb', marginBottom: '30px' }}>
         <h1 style={{ color: '#d97706', margin: '0 0 10px 0' }}>🏆 Official Trophy Room</h1>

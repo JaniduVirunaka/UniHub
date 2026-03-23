@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate , useLocation } from 'react-router-dom';
 import axios from 'axios';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -8,6 +8,7 @@ import ClubNavigation from '../components/ClubNavigation';
 function ClubDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [club, setClub] = useState(null);
 
   // Announcement States
@@ -39,6 +40,19 @@ function ClubDetail() {
       .then(res => setClub(res.data))
       .catch(err => console.log(err));
   };
+
+  // Automatically scrolls down if the user clicks the Announcements Nav Link
+  useEffect(() => {
+    if (location.hash === '#announcements') {
+      // A tiny delay ensures the page renders before trying to scroll
+      setTimeout(() => {
+        const element = document.getElementById('announcements');
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 100);
+    }
+  }, [location.hash, club]);
 
   // --- ACTIONS ---
   const handleJoinRequest = () => {
@@ -547,7 +561,7 @@ function ClubDetail() {
         </div>
 
         {/* BOTTOM ROW: The Full-Width Navigation Bar */}
-        <ClubNavigation clubId={id} />
+        <ClubNavigation club={club} />
       </div>
 
       {/* 2. PUBLIC SECTIONS (Quick Links) */}
@@ -581,7 +595,7 @@ function ClubDetail() {
 
       {/* 3. PRIVATE SECTIONS (Internal Member Hub) */}
       {hasFullAccess ? (
-        <div className="card" style={{ borderLeft: '4px solid #10b981' }}>
+        <div id="announcements" className="card" style={{ borderLeft: '4px solid #10b981' }}>
           <h2 style={{ color: '#10b981', borderBottom: '1px solid #e5e7eb', paddingBottom: '10px' }}>Internal Member Hub</h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', marginTop: '20px' }}>
 

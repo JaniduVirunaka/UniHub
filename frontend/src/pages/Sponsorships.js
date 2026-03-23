@@ -75,7 +75,7 @@ function Sponsorships() {
           Partner with <strong>{club.name}</strong> to build the future. Review our active initiatives below and submit a corporate pledge to sponsor our students.
         </p>
       </div>
-      <ClubNavigation clubId={id} />
+      <ClubNavigation club={club} />
 
       <div style={{ display: 'grid', gridTemplateColumns: canManageSponsorships ? '2fr 1fr' : '1fr', gap: '30px' }}>
         
