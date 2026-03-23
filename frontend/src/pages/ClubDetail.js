@@ -572,9 +572,13 @@ function ClubDetail() {
             Enter Sponsorship Portal
           </button>
         </div>
-        <div className="card" style={{ marginBottom: '0', textAlign: 'center' }}>
-          <h3 style={{ color: 'var(--primary-color)', marginTop: 0 }}>Leaderboard & Gallery</h3>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>[Achievements & Gallery Module Coming Soon]</p>
+        {/* Trophy Room Portal (Visible to everyone!) */}
+        <div className="card" style={{ marginBottom: '0', textAlign: 'center', backgroundColor: '#fffbeb', border: '1px solid #fde68a' }}>
+          <h3 style={{ color: '#d97706', marginTop: 0 }}>🏆 Trophy Room</h3>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>View our official gallery of achievements, milestones, and awards.</p>
+          <button className="btn" style={{ backgroundColor: '#f59e0b', width: '100%', marginTop: '10px' }} onClick={() => navigate(`/clubs/${id}/achievements`)}>
+            View Showcase
+          </button>
         </div>
         {/* Membership Fee Portal (Only visible if you are an approved member or admin) */}
         {(isMember || isTopBoard || isSupervisor) && (

@@ -1,7 +1,23 @@
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
+const path = require('path');
 const Club = require('../models/Club');
 const User = require('../models/User'); // We need the user model to fetch names
+
+
+// --- MULTER CONFIGURATION ---
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/'); // Saves to the folder we created
+  },
+  filename: function (req, file, cb) {
+    // Gives the file a unique timestamped name
+    cb(null, Date.now() + path.extname(file.originalname)); 
+  }
+});
+const upload = multer({ storage: storage });
+
 
 // Get all clubs 
 router.get('/', async (req, res) => {
@@ -212,8 +228,91 @@ router.post('/:id/reject-request', async (req, res) => {
   }
 });
 
-// --- MEMBERSHIP FEE LEDGER ROUTES ---
+// --- UNIFIED ACHIEVEMENT SHOWCASE ROUTES ---
+// 1. ADD an Achievement + Photo
+router.post('/:id/achievements', upload.single('image'), async (req, res) => {
+  try {
+    const { title, description, dateAwarded, userId } = req.body;
+    const club = await Club.findById(req.params.id);
 
+    // Strict RBAC: President, VP, Secretaries
+    const isPres = club.president?.toString() === userId;
+    const isAuthorizedBoard = club.topBoard?.some(b => b.user?.toString() === userId && ['Vice President', 'Secretary', 'Assistant Secretary'].includes(b.role));
+
+    if (!isPres && !isAuthorizedBoard) {
+      return res.status(403).json({ message: "Access Denied: Only Exco can post achievements." });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ message: "An image file is required for the showcase." });
+    }
+
+    const imageUrl = `/uploads/${req.file.filename}`;
+
+    club.achievements.push({ title, description, dateAwarded, imageUrl, addedBy: userId });
+    await club.save();
+
+    res.status(200).json({ message: "Achievement added to the Trophy Room!" });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 2. EDIT an Achievement (Handles optional new image)
+router.put('/:id/achievements/:achvId', upload.single('image'), async (req, res) => {
+  try {
+    const { title, description, dateAwarded, userId } = req.body;
+    const club = await Club.findById(req.params.id);
+
+    const isPres = club.president?.toString() === userId;
+    const isAuthorizedBoard = club.topBoard?.some(b => b.user?.toString() === userId && ['Vice President', 'Secretary', 'Assistant Secretary'].includes(b.role));
+
+    if (!isPres && !isAuthorizedBoard) {
+      return res.status(403).json({ message: "Access Denied." });
+    }
+
+    const achievement = club.achievements.id(req.params.achvId);
+    if (!achievement) return res.status(404).json({ message: "Achievement not found." });
+
+    achievement.title = title || achievement.title;
+    achievement.description = description || achievement.description;
+    achievement.dateAwarded = dateAwarded || achievement.dateAwarded;
+    
+    // If they uploaded a new photo, update the URL. Otherwise, keep the old one!
+    if (req.file) {
+      achievement.imageUrl = `/uploads/${req.file.filename}`;
+    }
+
+    await club.save();
+    res.status(200).json({ message: "Achievement updated!" });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 3. DELETE an Achievement
+router.delete('/:id/achievements/:achvId', async (req, res) => {
+  try {
+    const { requestorId } = req.body; // Can be Supervisor or Exco
+    const club = await Club.findById(req.params.id);
+
+    const isSupervisor = club.supervisor?.toString() === requestorId;
+    const isPres = club.president?.toString() === requestorId;
+    const isAuthorizedBoard = club.topBoard?.some(b => b.user?.toString() === requestorId && ['Vice President', 'Secretary', 'Assistant Secretary'].includes(b.role));
+    
+    if (!isSupervisor && !isPres && !isAuthorizedBoard) {
+      return res.status(403).json({ message: "Access Denied." });
+    }
+
+    club.achievements.pull(req.params.achvId);
+    await club.save();
+    res.status(200).json({ message: "Achievement permanently deleted." });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// --- MEMBERSHIP FEE LEDGER ROUTES ---
 // 1. Fetch the Fee Ledger & Member List
 router.get('/:id/fees', async (req, res) => {
   try {

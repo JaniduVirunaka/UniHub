@@ -70,6 +70,16 @@ const clubSchema = new mongoose.Schema({
     amountPaid: { type: Number, default: 0 },
     lastUpdated: { type: Date, default: Date.now }
   }],
+
+  // Unified Achievement Showcase (Trophies + Photos)
+  achievements: [{
+    title: { type: String, required: true },
+    description: { type: String },
+    dateAwarded: { type: String }, 
+    imageUrl: { type: String, required: true }, // The path to the uploaded photo
+    addedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    createdAt: { type: Date, default: Date.now }
+  }],
   
   // Club Operations
   announcements: [announcementSchema],

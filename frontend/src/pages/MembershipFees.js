@@ -5,13 +5,16 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 function MembershipFees() {
-  const { id } = useParams(); // Club ID
+  const { id } = useParams();
   const navigate = useNavigate();
   const [club, setClub] = useState(null);
   
-  // States for inline editing the ledger
+  // States for inline editing the ledger (Treasury)
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({ status: 'Pending', amountPaid: 0 });
+
+  // NEW: State for the student's payment input
+  const [paymentAmount, setPaymentAmount] = useState('');
 
   const currentUser = JSON.parse(localStorage.getItem('user'));
 
@@ -30,21 +33,25 @@ function MembershipFees() {
   const isVP = club?.topBoard?.some(b => b.user?._id === currentUser?.id && b.role === 'Vice President');
   const isPresident = isActualPresident || isVP;
 
-  // ONLY Treasurer and Assistant Treasurer get access to the ledger!
   const isTreasury = club?.topBoard?.some(b => b.user?._id === currentUser?.id && ['Treasurer', 'Assistant Treasurer'].includes(b.role));
   const canManageFees = isPresident || isTreasury;
 
   // --- ACTIONS ---
-  const handleSimulatePayment = () => {
-    if (!window.confirm(`Are you sure you want to submit a payment of Rs. ${club.membershipFee}?`)) return;
+
+  // UPGRADED: Now takes the amount from the input box!
+  const handleSubmitPayment = (e) => {
+    e.preventDefault(); // Prevents the page from refreshing
+    if (!paymentAmount || paymentAmount <= 0) return alert("Please enter a valid amount.");
+    if (!window.confirm(`Are you sure you want to log a payment of Rs. ${paymentAmount} for verification?`)) return;
     
     axios.post(`http://localhost:5000/api/clubs/${id}/fees/pay`, {
       userId: currentUser?.id,
-      amount: club.membershipFee
+      amount: Number(paymentAmount) // Sends the custom amount to the backend
     })
     .then(res => {
       alert(res.data.message);
-      fetchClubData(); // Refresh UI
+      setPaymentAmount(''); // Clear the input box
+      fetchClubData(); // Refresh UI to show "Pending Verification"
     })
     .catch(err => alert("Error processing payment."));
   };
@@ -125,9 +132,6 @@ function MembershipFees() {
       {/* HEADER */}
       <div className="card" style={{ borderTop: '4px solid #10b981', textAlign: 'center', backgroundColor: '#ecfdf5' }}>
         <h1 style={{ color: '#059669', margin: '0 0 10px 0' }}>💳 Membership Fee Portal</h1>
-        <p style={{ fontSize: '1.1rem', color: '#047857', margin: 0 }}>
-          Standard Club Fee: <strong>Rs. {standardFee.toLocaleString()}</strong>
-        </p>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: canManageFees ? '1fr 2fr' : '1fr', gap: '30px' }}>
@@ -148,15 +152,28 @@ function MembershipFees() {
               
               <h4 style={{ margin: '0 0 5px 0', color: '#374151' }}>Amount Logged: Rs. {myAmount.toLocaleString()}</h4>
               
-              {/* PAYMENT GATEWAY SIMULATOR */}
-              {myStatus === 'Pending' && standardFee > 0 && (
-                <div style={{ marginTop: '20px', borderTop: '1px dashed #d1d5db', paddingTop: '15px' }}>
+              {/* UPGRADED: PAYMENT ENTRY FORM */}
+              {myStatus === 'Pending' && (
+                <div style={{ marginTop: '20px', borderTop: '1px dashed #d1d5db', paddingTop: '15px', textAlign: 'left' }}>
                   <p style={{ color: '#4b5563', fontSize: '0.9rem', marginBottom: '10px' }}>
-                    Pay via Secure Bank Transfer
+                    <strong>Submit Bank Transfer Details</strong><br/>
+                    Transfer funds to the club account, then enter the amount you paid below.
                   </p>
-                  <button className="btn" style={{ backgroundColor: '#10b981', width: '100%', fontSize: '1.05rem', fontWeight: 'bold' }} onClick={handleSimulatePayment}>
-                    Pay Rs. {standardFee} Now
-                  </button>
+                  <form onSubmit={handleSubmitPayment} style={{ display: 'flex', gap: '10px' }}>
+                    <input 
+                      type="number" 
+                      className="form-control" 
+                      placeholder="Amount (Rs.)" 
+                      value={paymentAmount} 
+                      onChange={(e) => setPaymentAmount(e.target.value)} 
+                      required 
+                      min="1"
+                      style={{ margin: 0, flex: 1 }} 
+                    />
+                    <button type="submit" className="btn" style={{ backgroundColor: '#10b981', margin: 0, fontWeight: 'bold', padding: '8px 15px' }}>
+                      Submit
+                    </button>
+                  </form>
                 </div>
               )}
             </div>
@@ -175,7 +192,6 @@ function MembershipFees() {
                 <strong style={{ color: '#059669' }}>Rs. {totalCollected.toLocaleString()}</strong>
               </div>
               
-              {/* PDF GENERATOR BUTTON */}
               <button className="btn" style={{ width: '100%', backgroundColor: '#0ea5e9', padding: '10px', fontWeight: 'bold' }} onClick={generateLedgerPDF}>
                 📥 Download Master Ledger
               </button>
