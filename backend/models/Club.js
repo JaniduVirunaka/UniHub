@@ -76,7 +76,7 @@ const clubSchema = new mongoose.Schema({
     title: { type: String, required: true },
     description: { type: String },
     dateAwarded: { type: String }, 
-    imageUrl: { type: String, required: true }, // The path to the uploaded photo
+    imageUrls: [{ type: String }],
     addedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     createdAt: { type: Date, default: Date.now }
   }],

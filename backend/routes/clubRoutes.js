@@ -228,14 +228,13 @@ router.post('/:id/reject-request', async (req, res) => {
   }
 });
 
-// --- UNIFIED ACHIEVEMENT SHOWCASE ROUTES ---
-// 1. ADD an Achievement + Photo
-router.post('/:id/achievements', upload.single('image'), async (req, res) => {
+// 1. ADD an Achievement + Multiple Photos
+// CHANGE: upload.single('image') becomes upload.array('images', 10) (Max 10 photos)
+router.post('/:id/achievements', upload.array('images', 10), async (req, res) => {
   try {
     const { title, description, dateAwarded, userId } = req.body;
     const club = await Club.findById(req.params.id);
 
-    // Strict RBAC: President, VP, Secretaries
     const isPres = club.president?.toString() === userId;
     const isAuthorizedBoard = club.topBoard?.some(b => b.user?.toString() === userId && ['Vice President', 'Secretary', 'Assistant Secretary'].includes(b.role));
 
@@ -243,13 +242,14 @@ router.post('/:id/achievements', upload.single('image'), async (req, res) => {
       return res.status(403).json({ message: "Access Denied: Only Exco can post achievements." });
     }
 
-    if (!req.file) {
-      return res.status(400).json({ message: "An image file is required for the showcase." });
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ message: "At least one image file is required." });
     }
 
-    const imageUrl = `/uploads/${req.file.filename}`;
+    // Map through ALL uploaded files and create an array of paths
+    const imageUrls = req.files.map(file => `/uploads/${file.filename}`);
 
-    club.achievements.push({ title, description, dateAwarded, imageUrl, addedBy: userId });
+    club.achievements.push({ title, description, dateAwarded, imageUrls, addedBy: userId });
     await club.save();
 
     res.status(200).json({ message: "Achievement added to the Trophy Room!" });
@@ -258,8 +258,8 @@ router.post('/:id/achievements', upload.single('image'), async (req, res) => {
   }
 });
 
-// 2. EDIT an Achievement (Handles optional new image)
-router.put('/:id/achievements/:achvId', upload.single('image'), async (req, res) => {
+// 2. EDIT an Achievement (Handles optional new images)
+router.put('/:id/achievements/:achvId', upload.array('images', 10), async (req, res) => {
   try {
     const { title, description, dateAwarded, userId } = req.body;
     const club = await Club.findById(req.params.id);
@@ -278,9 +278,9 @@ router.put('/:id/achievements/:achvId', upload.single('image'), async (req, res)
     achievement.description = description || achievement.description;
     achievement.dateAwarded = dateAwarded || achievement.dateAwarded;
     
-    // If they uploaded a new photo, update the URL. Otherwise, keep the old one!
-    if (req.file) {
-      achievement.imageUrl = `/uploads/${req.file.filename}`;
+    // If they uploaded NEW photos, overwrite the old array
+    if (req.files && req.files.length > 0) {
+      achievement.imageUrls = req.files.map(file => `/uploads/${file.filename}`);
     }
 
     await club.save();
