@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import ClubNavigation from '../components/ClubNavigation';
 
 function ClubDetail() {
   const { id } = useParams();
@@ -504,7 +505,7 @@ function ClubDetail() {
   const hasFullAccess = isTopBoard || isMember || isSupervisor;
   const isPending = club.pendingMembers?.some(member => member._id === currentUser?.id);
 
-  return (
+ return (
     <div className="container">
       {/* 1. PUBLIC HEADER */}
       <div className="card" style={{ borderTop: '4px solid var(--primary-color)' }}>
@@ -512,8 +513,20 @@ function ClubDetail() {
           {isPresident ? 'Browse Other Clubs' : 'Back to Directory'}
         </button>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-          <h1 style={{ color: 'var(--primary-color)', margin: 0 }}>{club.name}</h1>
+        {/* TOP ROW: Logo, Title, and Join Buttons */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+            <div style={{ width: '60px', height: '60px', borderRadius: '50%', backgroundColor: '#e5e7eb', overflow: 'hidden', display: 'flex', justifyContent: 'center', alignItems: 'center', border: '2px solid #d1d5db' }}>
+              {club.logoUrl ? (
+                <img src={`http://localhost:5000${club.logoUrl}`} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                <span style={{ fontSize: '1.5rem' }}>🎓</span>
+              )}
+            </div>
+            <h1 style={{ color: 'var(--primary-color)', margin: 0 }}>{club.name}</h1>
+          </div>
+
           <div>
             {currentUser?.role === 'student' && !isMember && !isPending && (
               <button className="btn" style={{ backgroundColor: '#10b981', margin: 0 }} onClick={handleJoinRequest}>
@@ -533,37 +546,11 @@ function ClubDetail() {
           </div>
         </div>
 
-        {/* Executive Board Directory */}
-        <div style={{ backgroundColor: '#f9fafb', padding: '15px', borderRadius: '8px', border: '1px solid #e5e7eb', marginBottom: '15px', width: '100%' }}>
-          <h4 style={{ margin: '0 0 10px 0', color: 'var(--primary-color)' }}>👔 Executive Board</h4>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px' }}>
-            {availableRoles.map(role => {
-              let personName = 'Vacant';
-              if (role === 'President') {
-                personName = club.president?.name || 'Vacant';
-              } else {
-                const boardMember = club.topBoard?.find(b => b.role === role);
-                if (boardMember?.user?.name) personName = boardMember.user.name;
-              }
-              return (
-                <div key={role} style={{ backgroundColor: '#fff', padding: '10px', borderRadius: '5px', border: '1px solid #d1d5db', textAlign: 'center' }}>
-                  <strong style={{ display: 'block', color: '#4b5563', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '4px' }}>{role}</strong>
-                  <span style={{ color: personName === 'Vacant' ? '#9ca3af' : '#111827', fontWeight: personName === 'Vacant' ? 'normal' : 'bold', fontSize: '0.9rem' }}>
-                    {personName}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        <p style={{ fontSize: '1.1rem', color: 'var(--text-muted)' }}>{club.description}</p>
-        <div style={{ backgroundColor: '#f3f4f6', padding: '15px', borderRadius: '5px', marginTop: '15px' }}>
-          <strong>Mission:</strong> {club.mission}
-        </div>
+        {/* BOTTOM ROW: The Full-Width Navigation Bar */}
+        <ClubNavigation clubId={id} />
       </div>
 
-      {/* 2. PUBLIC SECTIONS */}
+      {/* 2. PUBLIC SECTIONS (Quick Links) */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', marginBottom: '20px' }}>
         <div className="card" style={{ marginBottom: '0', textAlign: 'center', backgroundColor: '#f5f3ff', border: '1px solid #ddd6fe' }}>
           <h3 style={{ color: '#8b5cf6', marginTop: 0 }}>🏢 Corporate Partnerships</h3>
@@ -572,7 +559,7 @@ function ClubDetail() {
             Enter Sponsorship Portal
           </button>
         </div>
-        {/* Trophy Room Portal (Visible to everyone!) */}
+        
         <div className="card" style={{ marginBottom: '0', textAlign: 'center', backgroundColor: '#fffbeb', border: '1px solid #fde68a' }}>
           <h3 style={{ color: '#d97706', marginTop: 0 }}>🏆 Trophy Room</h3>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>View our official gallery of achievements, milestones, and awards.</p>
@@ -580,7 +567,7 @@ function ClubDetail() {
             View Showcase
           </button>
         </div>
-        {/* Membership Fee Portal (Only visible if you are an approved member or admin) */}
+        
         {(isMember || isTopBoard || isSupervisor) && (
           <div className="card" style={{ marginBottom: '0', textAlign: 'center', backgroundColor: '#ecfdf5', border: '1px solid #a7f3d0' }}>
             <h3 style={{ color: '#059669', marginTop: 0 }}>💳 Membership Fees</h3>

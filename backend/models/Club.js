@@ -50,7 +50,9 @@ const clubSchema = new mongoose.Schema({
   description: { type: String, required: true },
   mission: { type: String, required: true },
   membershipFee: { type: Number, default: 0 }, 
-  
+  logoUrl: { type: String, default: '' }, 
+  rulesAndRegulations: { type: String, default: 'Standard club guidelines apply.' },
+
   // Leadership & Access Control 
   supervisor: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, 
   president: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, 
@@ -86,5 +88,7 @@ const clubSchema = new mongoose.Schema({
   proposals: [proposalSchema],
   elections: [electionSchema]
 });
+
+
 
 module.exports = mongoose.model('Club', clubSchema);

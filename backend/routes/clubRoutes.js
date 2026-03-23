@@ -48,17 +48,16 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// Create a new club (STRICTLY FOR SUPERVISORS)
-router.post('/', async (req, res) => {
+// 1. Create a new club (SUPERVISOR ONLY - Now supports Logo Upload)
+router.post('/', upload.single('logo'), async (req, res) => {
   try {
-    const { name, description, mission, membershipFee, supervisorId, presidentId } = req.body;
+    const { name, description, mission, membershipFee, supervisorId, presidentId, rulesAndRegulations } = req.body;
 
     const requestor = await User.findById(supervisorId);
     if (!requestor || requestor.role !== 'supervisor') {
       return res.status(403).json({ message: "Access Denied: Only Supervisors can create clubs." });
     }
 
-    // Upgrade the user to president ONLY if a presidentId was actually provided
     if (presidentId) {
       const assignedPresident = await User.findById(presidentId);
       if (assignedPresident && assignedPresident.role === 'student') {
@@ -67,13 +66,21 @@ router.post('/', async (req, res) => {
       }
     }
 
+    // Capture the uploaded image URL if provided
+    let logoUrl = '';
+    if (req.file) {
+      logoUrl = `/uploads/${req.file.filename}`;
+    }
+
     const newClub = new Club({
       name,
       description,
       mission,
       membershipFee: membershipFee || 0,
+      rulesAndRegulations: rulesAndRegulations || 'Standard guidelines apply.',
+      logoUrl,
       supervisor: supervisorId,
-      president: presidentId || null // Leaves it empty if no president is assigned
+      president: presidentId || null
     });
     
     await newClub.save();
@@ -84,10 +91,10 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Update a club (Edit details or change President)
-router.put('/:id', async (req, res) => {
+// 2. Update a club (SUPERVISOR ONLY - Edit details or change Logo)
+router.put('/:id', upload.single('logo'), async (req, res) => {
   try {
-    const { name, description, mission, presidentId, supervisorId } = req.body;
+    const { name, description, mission, presidentId, supervisorId, rulesAndRegulations } = req.body;
     
     const requestor = await User.findById(supervisorId);
     if (!requestor || requestor.role !== 'supervisor') {
@@ -98,21 +105,15 @@ router.put('/:id', async (req, res) => {
     if (!club) return res.status(404).json({ message: "Club not found." });
 
     // Handle President Change Logic
-    if (presidentId !== club.president?.toString()) {
-      // 1. Downgrade the OLD president back to a student
+    if (presidentId !== undefined && presidentId !== club.president?.toString()) {
       if (club.president) {
         const oldPres = await User.findById(club.president);
-        if (oldPres) {
-          oldPres.role = 'student';
-          await oldPres.save();
-        }
+        if (oldPres) { oldPres.role = 'student'; await oldPres.save(); }
       }
-      // 2. Upgrade the NEW president
       if (presidentId) {
         const newPres = await User.findById(presidentId);
         if (newPres && newPres.role === 'student') {
-          newPres.role = 'president';
-          await newPres.save();
+          newPres.role = 'president'; await newPres.save();
         }
       }
       club.president = presidentId || null;
@@ -122,6 +123,12 @@ router.put('/:id', async (req, res) => {
     club.name = name || club.name;
     club.description = description || club.description;
     club.mission = mission || club.mission;
+    club.rulesAndRegulations = rulesAndRegulations || club.rulesAndRegulations;
+
+    // Update the logo only if a new file was uploaded
+    if (req.file) {
+      club.logoUrl = `/uploads/${req.file.filename}`;
+    }
 
     await club.save();
     res.status(200).json({ message: "Club updated successfully!", club });

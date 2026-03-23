@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import ClubNavigation from '../components/ClubNavigation';
 
 function Sponsorships() {
   const { id } = useParams(); // The Club ID
@@ -74,6 +75,7 @@ function Sponsorships() {
           Partner with <strong>{club.name}</strong> to build the future. Review our active initiatives below and submit a corporate pledge to sponsor our students.
         </p>
       </div>
+      <ClubNavigation clubId={id} />
 
       <div style={{ display: 'grid', gridTemplateColumns: canManageSponsorships ? '2fr 1fr' : '1fr', gap: '30px' }}>
         

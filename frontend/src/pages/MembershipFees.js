@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import ClubNavigation from '../components/ClubNavigation';
 
 function MembershipFees() {
   const { id } = useParams();
@@ -133,6 +134,8 @@ function MembershipFees() {
       <div className="card" style={{ borderTop: '4px solid #10b981', textAlign: 'center', backgroundColor: '#ecfdf5' }}>
         <h1 style={{ color: '#059669', margin: '0 0 10px 0' }}>💳 Membership Fee Portal</h1>
       </div>
+
+      <ClubNavigation clubId={id} />
 
       <div style={{ display: 'grid', gridTemplateColumns: canManageFees ? '1fr 2fr' : '1fr', gap: '30px' }}>
         
