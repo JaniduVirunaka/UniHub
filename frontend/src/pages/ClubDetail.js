@@ -576,6 +576,16 @@ function ClubDetail() {
           <h3 style={{ color: 'var(--primary-color)', marginTop: 0 }}>Leaderboard & Gallery</h3>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>[Achievements & Gallery Module Coming Soon]</p>
         </div>
+        {/* Membership Fee Portal (Only visible if you are an approved member or admin) */}
+        {(isMember || isTopBoard || isSupervisor) && (
+          <div className="card" style={{ marginBottom: '0', textAlign: 'center', backgroundColor: '#ecfdf5', border: '1px solid #a7f3d0' }}>
+            <h3 style={{ color: '#059669', marginTop: 0 }}>💳 Membership Fees</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>Check your payment status or access the Treasury Ledger.</p>
+            <button className="btn" style={{ backgroundColor: '#10b981', width: '100%', marginTop: '10px' }} onClick={() => navigate(`/clubs/${id}/fees`)}>
+              Enter Fee Portal
+            </button>
+          </div>
+        )}
       </div>
 
       {/* 3. PRIVATE SECTIONS (Internal Member Hub) */}

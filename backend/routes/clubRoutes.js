@@ -212,6 +212,88 @@ router.post('/:id/reject-request', async (req, res) => {
   }
 });
 
+// --- MEMBERSHIP FEE LEDGER ROUTES ---
+
+// 1. Fetch the Fee Ledger & Member List
+router.get('/:id/fees', async (req, res) => {
+  try {
+    const club = await Club.findById(req.params.id)
+      .populate('members', 'name email')
+      .populate('feeRecords.user', 'name email');
+
+    if (!club) return res.status(404).json({ message: "Club not found." });
+    
+    // Send back the club's required fee, the list of members, and the ledger
+    res.status(200).json({ 
+      membershipFee: club.membershipFee, 
+      members: club.members, 
+      feeRecords: club.feeRecords 
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 2. Student Submits a Payment (Simulated Gateway)
+router.post('/:id/fees/pay', async (req, res) => {
+  try {
+    const { userId, amount } = req.body;
+    const club = await Club.findById(req.params.id);
+
+    // Look for their record
+    const existingRecord = club.feeRecords.find(f => f.user?.toString() === userId);
+
+    if (existingRecord) {
+      existingRecord.status = 'Pending Verification'; // Flips status so Treasury knows to check!
+      existingRecord.amountPaid = amount;
+      existingRecord.lastUpdated = new Date();
+    } else {
+      club.feeRecords.push({
+        user: userId,
+        status: 'Pending Verification',
+        amountPaid: amount,
+        lastUpdated: new Date()
+      });
+    }
+
+    await club.save();
+    res.status(200).json({ message: "Payment submitted successfully! Waiting for Treasury verification." });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 3. Update a Member's Fee Status (STRICTLY Treasury Only)
+router.put('/:id/fees/update', async (req, res) => {
+  try {
+    const { studentId, status, amountPaid, requestorId } = req.body;
+    const club = await Club.findById(req.params.id);
+
+    // STRICT RBAC: Only President and Treasurers! (Secretaries are locked out)
+    const isPres = club.president?.toString() === requestorId;
+    const isTreasury = club.topBoard.some(b => b.user?.toString() === requestorId && ['Treasurer', 'Assistant Treasurer'].includes(b.role));
+
+    if (!isPres && !isTreasury) {
+      return res.status(403).json({ message: "Access Denied: Only the Treasury team can verify payments." });
+    }
+
+    const existingRecord = club.feeRecords.find(f => f.user?.toString() === studentId);
+
+    if (existingRecord) {
+      existingRecord.status = status;
+      existingRecord.amountPaid = amountPaid;
+      existingRecord.lastUpdated = new Date();
+    } else {
+      club.feeRecords.push({ user: studentId, status, amountPaid, lastUpdated: new Date() });
+    }
+
+    await club.save();
+    res.status(200).json({ message: "Treasury verification complete." });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // Exec Board drafts a new announcement (Pres, VP, Sec, Asst Sec)
 router.post('/:id/announcements', async (req, res) => {
   try {

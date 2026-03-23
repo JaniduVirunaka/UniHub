@@ -5,7 +5,6 @@ frontend terminal ----> cd frontend
                         npm start
 
 
-generate pdf reports of votes/ club members / announcements / sponsorships / membership fee
 membership fee 
 member list
 gallery and leaderboard
@@ -33,3 +32,6 @@ jill
 
 sam@gmail.com
 sam
+
+business@gmail.com
+business

@@ -63,6 +63,14 @@ const clubSchema = new mongoose.Schema({
   members: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], 
   pendingMembers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], 
   
+  // Tracks individual student payments
+  feeRecords: [{
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    status: { type: String, enum: ['Pending','Pending Verification', 'Paid', 'Exempt'], default: 'Pending' },
+    amountPaid: { type: Number, default: 0 },
+    lastUpdated: { type: Date, default: Date.now }
+  }],
+  
   // Club Operations
   announcements: [announcementSchema],
   proposals: [proposalSchema],
