@@ -29,30 +29,50 @@ function MembershipFees() {
       .catch(err => console.log(err));
   };
 
-  // --- STRICT TREASURY ACCESS CONTROL ---
-  const isActualPresident = club?.president?._id === currentUser?.id;
-  const isVP = club?.topBoard?.some(b => b.user?._id === currentUser?.id && b.role === 'Vice President');
+  // 1. EARLY RETURN: Stop here if the data hasn't loaded yet!
+  if (!club) return <div style={{ textAlign: 'center', marginTop: '50px' }}>Loading Treasury Ledger...</div>;
+
+  // 2. BUILD THE MASTER MEMBER LIST (Now guaranteed to have club data)
+  let allMembers = [];
+  
+  if (club.members) {
+    allMembers = [...club.members];
+  }
+  
+  if (club.president && !allMembers.some(m => m._id === club.president._id)) {
+    allMembers.push(club.president);
+  }
+  
+  if (club.topBoard) {
+    club.topBoard.forEach(boardMember => {
+      if (boardMember.user && !allMembers.some(m => m._id === boardMember.user._id)) {
+        allMembers.push(boardMember.user);
+      }
+    });
+  }
+
+  // 3. STRICT TREASURY ACCESS CONTROL
+  const isActualPresident = club.president?._id === currentUser?.id;
+  const isVP = club.topBoard?.some(b => b.user?._id === currentUser?.id && b.role === 'Vice President');
   const isPresident = isActualPresident || isVP;
 
-  const isTreasury = club?.topBoard?.some(b => b.user?._id === currentUser?.id && ['Treasurer', 'Assistant Treasurer'].includes(b.role));
+  const isTreasury = club.topBoard?.some(b => b.user?._id === currentUser?.id && ['Treasurer', 'Assistant Treasurer'].includes(b.role));
   const canManageFees = isPresident || isTreasury;
 
-  // --- ACTIONS ---
-
-  // UPGRADED: Now takes the amount from the input box!
+  // 4. ACTIONS (These functions can now safely see the allMembers list!)
   const handleSubmitPayment = (e) => {
-    e.preventDefault(); // Prevents the page from refreshing
+    e.preventDefault(); 
     if (!paymentAmount || paymentAmount <= 0) return alert("Please enter a valid amount.");
     if (!window.confirm(`Are you sure you want to log a payment of Rs. ${paymentAmount} for verification?`)) return;
     
     axios.post(`http://localhost:5000/api/clubs/${id}/fees/pay`, {
       userId: currentUser?.id,
-      amount: Number(paymentAmount) // Sends the custom amount to the backend
+      amount: Number(paymentAmount)
     })
     .then(res => {
       alert(res.data.message);
-      setPaymentAmount(''); // Clear the input box
-      fetchClubData(); // Refresh UI to show "Pending Verification"
+      setPaymentAmount(''); 
+      fetchClubData(); 
     })
     .catch(err => alert("Error processing payment."));
   };
@@ -73,8 +93,6 @@ function MembershipFees() {
   };
 
   const generateLedgerPDF = () => {
-    if (!club || !club.members) return;
-
     const doc = new jsPDF();
     doc.setFontSize(22);
     doc.setTextColor(40, 40, 40);
@@ -84,13 +102,14 @@ function MembershipFees() {
     doc.setTextColor(100, 100, 100);
     doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 28);
 
-    const totalCollected = club.feeRecords?.filter(r => r.status === 'Paid').reduce((sum, record) => sum + record.amountPaid, 0) || 0;
-    doc.text(`Total Verified Funds: Rs. ${totalCollected.toLocaleString()}`, 14, 34);
+    const totalCollectedPDF = club.feeRecords?.filter(r => r.status === 'Paid').reduce((sum, record) => sum + record.amountPaid, 0) || 0;
+    doc.text(`Total Verified Funds: Rs. ${totalCollectedPDF.toLocaleString()}`, 14, 34);
 
     const tableColumn = ["Member Name", "Email", "Status", "Amount Paid", "Last Updated"];
     const tableRows = [];
 
-    club.members.forEach(member => {
+    // Successfully uses our combined list!
+    allMembers.forEach(member => {
       const record = club.feeRecords?.find(f => f.user === member._id) || { status: 'Pending', amountPaid: 0, lastUpdated: 'N/A' };
       const dateStr = record.lastUpdated !== 'N/A' ? new Date(record.lastUpdated).toLocaleDateString() : 'N/A';
       
@@ -115,14 +134,13 @@ function MembershipFees() {
     doc.save(`${club.name.replace(/\s+/g, '_')}_Treasury_Ledger.pdf`);
   };
 
-  if (!club) return <div style={{ textAlign: 'center', marginTop: '50px' }}>Loading Treasury Ledger...</div>;
-
+  // 5. RENDER VARIABLES
   const myRecord = club.feeRecords?.find(f => f.user === currentUser?.id);
   const myStatus = myRecord ? myRecord.status : 'Pending';
   const myAmount = myRecord ? myRecord.amountPaid : 0;
-  const standardFee = club.membershipFee || 0;
   
   const totalCollected = club.feeRecords?.filter(r => r.status === 'Paid').reduce((sum, record) => sum + record.amountPaid, 0) || 0;
+
 
   return (
     <div className="container">
@@ -202,14 +220,15 @@ function MembershipFees() {
           )}
         </div>
 
-        {/* RIGHT COLUMN: Master Ledger (ONLY for Execs & Treasury) */}
+     {/* RIGHT COLUMN: Master Ledger (ONLY for Execs & Treasury) */}
         {canManageFees && (
           <div className="card" style={{ border: '1px solid #d1d5db', padding: '20px' }}>
             <h3 style={{ color: '#111827', marginTop: 0, borderBottom: '2px solid #e5e7eb', paddingBottom: '10px', marginBottom: '20px' }}>
               📖 Official Treasury Ledger
             </h3>
 
-            {club.members?.length === 0 ? (
+            {/* FIX 1: Check if allMembers is empty, not club.members! */}
+            {allMembers.length === 0 ? (
               <p style={{ color: '#6b7280', fontStyle: 'italic' }}>No approved members in this club yet.</p>
             ) : (
               <div style={{ overflowX: 'auto' }}>
@@ -223,7 +242,8 @@ function MembershipFees() {
                     </tr>
                   </thead>
                   <tbody>
-                    {club.members?.map(member => {
+                    {/* FIX 2: Map through allMembers, not club.members! */}
+                    {allMembers.map(member => {
                       const record = club.feeRecords?.find(f => f.user === member._id) || { status: 'Pending', amountPaid: 0 };
                       const isEditing = editingId === member._id;
 

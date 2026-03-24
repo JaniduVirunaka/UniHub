@@ -132,42 +132,74 @@ function ClubDetail() {
   };
 
   // --- REPORT GENERATION ACTIONS ---
-  const generateMemberListPDF = () => {
-    if (!club || !club.members) return;
+ const generateMemberListPDF = () => {
+    // Check if club data exists before trying to generate the PDF
+    if (!club) return;
 
-    // 1. Initialize a new PDF document (A4 size, portrait)
     const doc = new jsPDF();
 
-    // 2. Add Header Text
+    // 1. Add Header Text
     doc.setFontSize(22);
     doc.setTextColor(40, 40, 40);
     doc.text(`${club.name} - Official Member Roster`, 14, 20);
 
+    // --- NEW LOGIC: BUILD AN ORDERED MASTER LIST ---
+    let orderedMembers = [];
+
+    // Step A: Put the President at the very top (Rank 1)
+    if (club.president) {
+      orderedMembers.push({
+        user: club.president,
+        role: "President"
+      });
+    }
+
+    // Step B: Put the Top Board next (Rank 2)
+    if (club.topBoard && club.topBoard.length > 0) {
+      club.topBoard.forEach(boardItem => {
+        // Prevent adding the president twice if they are accidentally in the board array
+        if (boardItem.user && boardItem.user._id !== club.president?._id) {
+          orderedMembers.push({
+            user: boardItem.user,
+            role: `Top Board: ${boardItem.role}`
+          });
+        }
+      });
+    }
+
+    // Step C: Put General Members at the bottom (Rank 3)
+    if (club.members && club.members.length > 0) {
+      club.members.forEach(member => {
+        // Only add them if they aren't already listed as President or Top Board
+        const isAlreadyAdded = orderedMembers.some(item => item.user._id === member._id);
+        if (!isAlreadyAdded) {
+          orderedMembers.push({
+            user: member,
+            role: "General Member"
+          });
+        }
+      });
+    }
+
     doc.setFontSize(11);
     doc.setTextColor(100, 100, 100);
     doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 28);
-    doc.text(`Total Approved Members: ${club.members.length}`, 14, 34);
+    doc.text(`Total Official Roster: ${orderedMembers.length}`, 14, 34);
 
-    // 3. Format the data for the table
+    // 2. Format the data for the table using our new ordered list
     const tableColumn = ["#", "Name", "Email", "Status/Role"];
     const tableRows = [];
 
-    club.members.forEach((member, index) => {
-      // Check if this member is on the Top Board to highlight their role
-      const boardRole = club.topBoard?.find(b => b.user?._id === member._id)?.role;
-      const roleText = boardRole ? `Top Board: ${boardRole}` : "General Member";
-      const isPres = club.president?._id === member._id;
-
-      const rowData = [
+    orderedMembers.forEach((item, index) => {
+      tableRows.push([
         index + 1,
-        member.name,
-        member.email,
-        isPres ? "President" : roleText
-      ];
-      tableRows.push(rowData);
+        item.user.name || 'Unknown',
+        item.user.email || 'N/A',
+        item.role
+      ]);
     });
 
-    // 4. Generate the AutoTable (UPDATED SYNTAX)
+    // 3. Generate the AutoTable
     autoTable(doc, {
       head: [tableColumn],
       body: tableRows,
@@ -177,7 +209,7 @@ function ClubDetail() {
       alternateRowStyles: { fillColor: [249, 250, 251] }
     });
 
-    // 5. Trigger the download!
+    // 4. Trigger the download!
     doc.save(`${club.name.replace(/\s+/g, '_')}_Members_Report.pdf`);
   };
 
@@ -564,37 +596,9 @@ function ClubDetail() {
         <ClubNavigation club={club} />
       </div>
 
-      {/* 2. PUBLIC SECTIONS (Quick Links) */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', marginBottom: '20px' }}>
-        <div className="card" style={{ marginBottom: '0', textAlign: 'center', backgroundColor: '#f5f3ff', border: '1px solid #ddd6fe' }}>
-          <h3 style={{ color: '#8b5cf6', marginTop: 0 }}>🏢 Corporate Partnerships</h3>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>View active funding proposals or submit a pledge on behalf of your company.</p>
-          <button className="btn" style={{ backgroundColor: '#8b5cf6', width: '100%', marginTop: '10px' }} onClick={() => navigate(`/clubs/${id}/sponsorships`)}>
-            Enter Sponsorship Portal
-          </button>
-        </div>
-        
-        <div className="card" style={{ marginBottom: '0', textAlign: 'center', backgroundColor: '#fffbeb', border: '1px solid #fde68a' }}>
-          <h3 style={{ color: '#d97706', marginTop: 0 }}>🏆 Trophy Room</h3>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>View our official gallery of achievements, milestones, and awards.</p>
-          <button className="btn" style={{ backgroundColor: '#f59e0b', width: '100%', marginTop: '10px' }} onClick={() => navigate(`/clubs/${id}/achievements`)}>
-            View Showcase
-          </button>
-        </div>
-        
-        {(isMember || isTopBoard || isSupervisor) && (
-          <div className="card" style={{ marginBottom: '0', textAlign: 'center', backgroundColor: '#ecfdf5', border: '1px solid #a7f3d0' }}>
-            <h3 style={{ color: '#059669', marginTop: 0 }}>💳 Membership Fees</h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>Check your payment status or access the Treasury Ledger.</p>
-            <button className="btn" style={{ backgroundColor: '#10b981', width: '100%', marginTop: '10px' }} onClick={() => navigate(`/clubs/${id}/fees`)}>
-              Enter Fee Portal
-            </button>
-          </div>
-        )}
-      </div>
 
-      {/* 3. PRIVATE SECTIONS (Internal Member Hub) */}
-      {hasFullAccess ? (
+ {/* 3. PRIVATE SECTIONS (Internal Member Hub) */}
+      {hasFullAccess && (
         <div id="announcements" className="card" style={{ borderLeft: '4px solid #10b981' }}>
           <h2 style={{ color: '#10b981', borderBottom: '1px solid #e5e7eb', paddingBottom: '10px' }}>Internal Member Hub</h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', marginTop: '20px' }}>
@@ -700,68 +704,28 @@ function ClubDetail() {
               )}
             </div>
 
-            {/* LIVE VOTING BOOTH */}
-            {club.elections && club.elections.filter(e => e.isActive || e.isPublished).length > 0 && (
-              <div style={{ backgroundColor: '#f0fdf4', padding: '15px', borderRadius: '8px', border: '1px solid #bbf7d0', gridColumn: '1 / -1', marginTop: '15px' }}>
-                <h4 style={{ margin: 0, color: '#166534', borderBottom: '2px solid #bbf7d0', paddingBottom: '10px', marginBottom: '15px' }}>🗳️ Official Club Elections</h4>
-                <div style={{ display: 'grid', gap: '15px' }}>
-                  {club.elections.filter(e => e.isActive || e.isPublished).map((election) => {
-                    const hasVoted = election.votedUsers.includes(currentUser?.id);
-                    const totalVotes = election.votedUsers.length;
-                    return (
-                      <div key={election._id} style={{ backgroundColor: '#fff', border: '1px solid #d1d5db', padding: '15px', borderRadius: '8px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-                          <h5 style={{ margin: 0, color: '#065f46', fontSize: '1.1rem' }}>{election.position}</h5>
-                          <span style={{ fontSize: '0.8rem', padding: '4px 10px', borderRadius: '12px', backgroundColor: election.isActive ? '#dcfce7' : '#f3f4f6', color: election.isActive ? '#166534' : '#4b5563', fontWeight: 'bold' }}>
-                            {election.isPublished ? 'Results Published' : election.isActive ? 'Voting Open' : 'Voting Closed'}
-                          </span>
-                        </div>
-                        <div style={{ display: 'grid', gap: '10px' }}>
-                          {election.candidates.map((c) => {
-                            const candidateName = club.members.find(m => m._id === c.user)?.name || 'Unknown User';
-                            const votePercent = totalVotes > 0 ? ((c.voteCount / totalVotes) * 100).toFixed(0) : 0;
-                            return (
-                              <div key={c._id} style={{ border: '1px solid #e5e7eb', padding: '10px', borderRadius: '5px', backgroundColor: '#f9fafb', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <div style={{ flex: 1 }}>
-                                  <strong style={{ display: 'block', fontSize: '1rem' }}>{candidateName}</strong>
-                                  <span style={{ fontSize: '0.85rem', color: '#6b7280', fontStyle: 'italic' }}>"{c.manifesto}"</span>
-                                  {election.isPublished && (
-                                    <div style={{ marginTop: '8px' }}>
-                                      <div style={{ width: '100%', backgroundColor: '#e5e7eb', borderRadius: '4px', height: '8px', overflow: 'hidden' }}>
-                                        <div style={{ width: `${votePercent}%`, backgroundColor: '#10b981', height: '100%' }}></div>
-                                      </div>
-                                      <small style={{ fontWeight: 'bold', color: '#166534' }}>{c.voteCount} Votes ({votePercent}%)</small>
-                                    </div>
-                                  )}
-                                </div>
-                                {election.isActive && !hasVoted && (
-                                  <button className="btn" style={{ backgroundColor: '#10b981', marginLeft: '15px', padding: '8px 20px' }} onClick={() => handleVote(election._id, c._id)}>
-                                    Vote
-                                  </button>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                        {election.isActive && hasVoted && (
-                          <div style={{ marginTop: '15px', padding: '10px', backgroundColor: '#dcfce7', color: '#166534', textAlign: 'center', borderRadius: '5px', fontWeight: 'bold' }}>
-                            ✅ Your vote has been securely recorded.
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
           </div>
         </div>
-      ) : (
-        <div className="card" style={{ textAlign: 'center', backgroundColor: '#f9fafb' }}>
-          <h3 style={{ color: 'var(--text-muted)' }}>Want to see more?</h3>
-          <p>You must be an approved member to view announcements, sponsorships, and voting details.</p>
-        </div>
       )}
+      
+      {/* 2. PUBLIC SECTIONS (Quick Links) */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', marginBottom: '20px' }}>
+        <div className="card" style={{ marginBottom: '0', textAlign: 'center', backgroundColor: '#f5f3ff', border: '1px solid #ddd6fe' }}>
+          <h3 style={{ color: '#8b5cf6', marginTop: 0 }}>🏢 Corporate Partnerships</h3>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>View active funding proposals or submit a pledge on behalf of your company.</p>
+          <button className="btn" style={{ backgroundColor: '#8b5cf6', width: '100%', marginTop: '10px' }} onClick={() => navigate(`/clubs/${id}/sponsorships`)}>
+            Enter Sponsorship Portal
+          </button>
+        </div>
+        
+        <div className="card" style={{ marginBottom: '0', textAlign: 'center', backgroundColor: '#fffbeb', border: '1px solid #fde68a' }}>
+          <h3 style={{ color: '#d97706', marginTop: 0 }}>🏆 Trophy Room</h3>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>View our official gallery of achievements, milestones, and awards.</p>
+          <button className="btn" style={{ backgroundColor: '#f59e0b', width: '100%', marginTop: '10px' }} onClick={() => navigate(`/clubs/${id}/achievements`)}>
+            View Showcase
+          </button>
+        </div>
+      </div>
 
       {/* 4. EXECUTIVE ADMIN PANEL (All Top Board Members) */}
       {isTopBoard && (

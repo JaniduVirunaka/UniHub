@@ -10,6 +10,7 @@ import Sponsorships from './pages/Sponsorships';
 import MembershipFees from './pages/MembershipFees';
 import AchievementShowcase from './pages/AchievementShowcase';
 import ClubAbout from './pages/ClubAbout';
+import ClubElections from './pages/ClubElections'; 
 import './App.css';
 
 function App() {
@@ -26,6 +27,7 @@ function App() {
           <Route path="/clubs/:id/achievements" element={<AchievementShowcase />} />
           <Route path="/clubs/:id/fees" element={<MembershipFees />} />
           <Route path="/clubs/:id/about" element={<ClubAbout />} />
+          <Route path="/clubs/:id/elections" element={<ClubElections />} />
 
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />

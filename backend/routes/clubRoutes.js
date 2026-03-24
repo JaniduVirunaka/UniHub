@@ -325,6 +325,8 @@ router.get('/:id/fees', async (req, res) => {
   try {
     const club = await Club.findById(req.params.id)
       .populate('members', 'name email')
+      .populate('president', 'name email') 
+      .populate('topBoard.user', 'name email')
       .populate('feeRecords.user', 'name email');
 
     if (!club) return res.status(404).json({ message: "Club not found." });
@@ -333,6 +335,8 @@ router.get('/:id/fees', async (req, res) => {
     res.status(200).json({ 
       membershipFee: club.membershipFee, 
       members: club.members, 
+      president: club.president,
+      topBoard: club.topBoard,
       feeRecords: club.feeRecords 
     });
   } catch (err) {

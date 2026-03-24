@@ -5,9 +5,8 @@ frontend terminal ----> cd frontend
                         npm start
 
 
-membership fee 
+
 member list
-gallery and leaderboard
 
 ClubAdmin@gmail.com
 ClubAdmin
