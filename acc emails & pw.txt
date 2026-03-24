@@ -6,8 +6,6 @@ frontend terminal ----> cd frontend
 
 
 
-member list
-
 ClubAdmin@gmail.com
 ClubAdmin
 

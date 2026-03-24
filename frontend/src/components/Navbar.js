@@ -15,6 +15,11 @@ function Navbar() {
       <div className="navbar-links">
         <Link to="/" className="nav-link">Home</Link>
         <Link to="/clubs" className="nav-link">Clubs</Link>
+        
+        {/* --- NEW TABS FOR TEAMMATES TO DEVELOP --- */}
+        <Link to="/events" className="nav-link">Events</Link>
+        <Link to="/profile" className="nav-link">Profile</Link>
+
         <Link to="/login" className="nav-link" style={{ marginLeft: '40px', fontWeight: 'bold' }}>Login</Link>
         <Link to="/signup" className="btn" style={{ marginLeft: '15px', textDecoration: 'none' }}>Sign Up</Link>
       </div>

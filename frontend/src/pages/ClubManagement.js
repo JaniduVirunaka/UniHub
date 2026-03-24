@@ -102,17 +102,27 @@ function ClubManagement() {
       .catch(err => alert(err.response?.data?.message || "Error updating club."));
   };
 
-    // --- NEW: Filter eligible presidents ---
-  // We only want normal 'students' to appear in the dropdown.
-  // BUT, if we are editing a club, we must also include the CURRENT president of this club in the list.
+// --- UPDATED: Filter eligible presidents ---
   const eligibleUsers = users.filter(user => {
-    // Exclude supervisors entirely from the list
+    // 1. Exclude supervisors entirely from the list
     if (user.role === 'supervisor') return false;
     
-    // If we are editing, and this user is the current president of the club in the form, keep them!
-    if (editingClubId && formData.presidentId === user._id) return true;
+    // 2. If we are editing an existing club:
+    if (editingClubId) {
+      // Find the specific club we are editing from the clubs array
+      const currentClub = clubs.find(c => c._id === editingClubId);
+      
+      // Check if the user is currently in this club's member list
+      const isMember = currentClub?.members?.some(m => m._id === user._id);
+      
+      // Always include the current president in the list so the dropdown doesn't glitch to empty
+      const isCurrentPresident = formData.presidentId === user._id;
+      
+      // Only return true if they are a member OR the current president
+      return isMember || isCurrentPresident;
+    }
     
-    // Otherwise, only include users who are currently normal students
+    // 3. If creating a NEW club (where no members exist yet), allow any normal student
     return user.role === 'student';
   });
 

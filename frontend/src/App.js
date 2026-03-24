@@ -11,6 +11,9 @@ import MembershipFees from './pages/MembershipFees';
 import AchievementShowcase from './pages/AchievementShowcase';
 import ClubAbout from './pages/ClubAbout';
 import ClubElections from './pages/ClubElections'; 
+import Events from './pages/Events';
+import Profile from './pages/Profile';
+
 import './App.css';
 
 function App() {
@@ -31,6 +34,10 @@ function App() {
 
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
+        
+          <Route path="/events" element={<Events />} />
+          <Route path="/profile" element={<Profile />} />
+      
         </Routes>
       </div>
     </Router>
