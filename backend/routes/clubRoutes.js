@@ -1,7 +1,23 @@
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
+const path = require('path');
 const Club = require('../models/Club');
 const User = require('../models/User'); // We need the user model to fetch names
+
+
+// --- MULTER CONFIGURATION ---
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/'); // Saves to the folder we created
+  },
+  filename: function (req, file, cb) {
+    // Gives the file a unique timestamped name
+    cb(null, Date.now() + path.extname(file.originalname)); 
+  }
+});
+const upload = multer({ storage: storage });
+
 
 // Get all clubs 
 router.get('/', async (req, res) => {
@@ -32,17 +48,16 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// Create a new club (STRICTLY FOR SUPERVISORS)
-router.post('/', async (req, res) => {
+// 1. Create a new club (SUPERVISOR ONLY - Now supports Logo Upload)
+router.post('/', upload.single('logo'), async (req, res) => {
   try {
-    const { name, description, mission, membershipFee, supervisorId, presidentId } = req.body;
+    const { name, description, mission, membershipFee, supervisorId, presidentId, rulesAndRegulations } = req.body;
 
     const requestor = await User.findById(supervisorId);
     if (!requestor || requestor.role !== 'supervisor') {
       return res.status(403).json({ message: "Access Denied: Only Supervisors can create clubs." });
     }
 
-    // Upgrade the user to president ONLY if a presidentId was actually provided
     if (presidentId) {
       const assignedPresident = await User.findById(presidentId);
       if (assignedPresident && assignedPresident.role === 'student') {
@@ -51,13 +66,21 @@ router.post('/', async (req, res) => {
       }
     }
 
+    // Capture the uploaded image URL if provided
+    let logoUrl = '';
+    if (req.file) {
+      logoUrl = `/uploads/${req.file.filename}`;
+    }
+
     const newClub = new Club({
       name,
       description,
       mission,
       membershipFee: membershipFee || 0,
+      rulesAndRegulations: rulesAndRegulations || 'Standard guidelines apply.',
+      logoUrl,
       supervisor: supervisorId,
-      president: presidentId || null // Leaves it empty if no president is assigned
+      president: presidentId || null
     });
     
     await newClub.save();
@@ -68,10 +91,10 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Update a club (Edit details or change President)
-router.put('/:id', async (req, res) => {
+// 2. Update a club (SUPERVISOR ONLY - Edit details or change Logo)
+router.put('/:id', upload.single('logo'), async (req, res) => {
   try {
-    const { name, description, mission, presidentId, supervisorId } = req.body;
+    const { name, description, mission, presidentId, supervisorId, rulesAndRegulations } = req.body;
     
     const requestor = await User.findById(supervisorId);
     if (!requestor || requestor.role !== 'supervisor') {
@@ -82,21 +105,15 @@ router.put('/:id', async (req, res) => {
     if (!club) return res.status(404).json({ message: "Club not found." });
 
     // Handle President Change Logic
-    if (presidentId !== club.president?.toString()) {
-      // 1. Downgrade the OLD president back to a student
+    if (presidentId !== undefined && presidentId !== club.president?.toString()) {
       if (club.president) {
         const oldPres = await User.findById(club.president);
-        if (oldPres) {
-          oldPres.role = 'student';
-          await oldPres.save();
-        }
+        if (oldPres) { oldPres.role = 'student'; await oldPres.save(); }
       }
-      // 2. Upgrade the NEW president
       if (presidentId) {
         const newPres = await User.findById(presidentId);
         if (newPres && newPres.role === 'student') {
-          newPres.role = 'president';
-          await newPres.save();
+          newPres.role = 'president'; await newPres.save();
         }
       }
       club.president = presidentId || null;
@@ -106,6 +123,12 @@ router.put('/:id', async (req, res) => {
     club.name = name || club.name;
     club.description = description || club.description;
     club.mission = mission || club.mission;
+    club.rulesAndRegulations = rulesAndRegulations || club.rulesAndRegulations;
+
+    // Update the logo only if a new file was uploaded
+    if (req.file) {
+      club.logoUrl = `/uploads/${req.file.filename}`;
+    }
 
     await club.save();
     res.status(200).json({ message: "Club updated successfully!", club });
@@ -212,6 +235,175 @@ router.post('/:id/reject-request', async (req, res) => {
   }
 });
 
+// 1. ADD an Achievement + Multiple Photos
+// CHANGE: upload.single('image') becomes upload.array('images', 10) (Max 10 photos)
+router.post('/:id/achievements', upload.array('images', 10), async (req, res) => {
+  try {
+    const { title, description, dateAwarded, userId } = req.body;
+    const club = await Club.findById(req.params.id);
+
+    const isPres = club.president?.toString() === userId;
+    const isAuthorizedBoard = club.topBoard?.some(b => b.user?.toString() === userId && ['Vice President', 'Secretary', 'Assistant Secretary'].includes(b.role));
+
+    if (!isPres && !isAuthorizedBoard) {
+      return res.status(403).json({ message: "Access Denied: Only Exco can post achievements." });
+    }
+
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ message: "At least one image file is required." });
+    }
+
+    // Map through ALL uploaded files and create an array of paths
+    const imageUrls = req.files.map(file => `/uploads/${file.filename}`);
+
+    club.achievements.push({ title, description, dateAwarded, imageUrls, addedBy: userId });
+    await club.save();
+
+    res.status(200).json({ message: "Achievement added to the Trophy Room!" });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 2. EDIT an Achievement (Handles optional new images)
+router.put('/:id/achievements/:achvId', upload.array('images', 10), async (req, res) => {
+  try {
+    const { title, description, dateAwarded, userId } = req.body;
+    const club = await Club.findById(req.params.id);
+
+    const isPres = club.president?.toString() === userId;
+    const isAuthorizedBoard = club.topBoard?.some(b => b.user?.toString() === userId && ['Vice President', 'Secretary', 'Assistant Secretary'].includes(b.role));
+
+    if (!isPres && !isAuthorizedBoard) {
+      return res.status(403).json({ message: "Access Denied." });
+    }
+
+    const achievement = club.achievements.id(req.params.achvId);
+    if (!achievement) return res.status(404).json({ message: "Achievement not found." });
+
+    achievement.title = title || achievement.title;
+    achievement.description = description || achievement.description;
+    achievement.dateAwarded = dateAwarded || achievement.dateAwarded;
+    
+    // If they uploaded NEW photos, overwrite the old array
+    if (req.files && req.files.length > 0) {
+      achievement.imageUrls = req.files.map(file => `/uploads/${file.filename}`);
+    }
+
+    await club.save();
+    res.status(200).json({ message: "Achievement updated!" });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 3. DELETE an Achievement
+router.delete('/:id/achievements/:achvId', async (req, res) => {
+  try {
+    const { requestorId } = req.body; // Can be Supervisor or Exco
+    const club = await Club.findById(req.params.id);
+
+    const isSupervisor = club.supervisor?.toString() === requestorId;
+    const isPres = club.president?.toString() === requestorId;
+    const isAuthorizedBoard = club.topBoard?.some(b => b.user?.toString() === requestorId && ['Vice President', 'Secretary', 'Assistant Secretary'].includes(b.role));
+    
+    if (!isSupervisor && !isPres && !isAuthorizedBoard) {
+      return res.status(403).json({ message: "Access Denied." });
+    }
+
+    club.achievements.pull(req.params.achvId);
+    await club.save();
+    res.status(200).json({ message: "Achievement permanently deleted." });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// --- MEMBERSHIP FEE LEDGER ROUTES ---
+// 1. Fetch the Fee Ledger & Member List
+router.get('/:id/fees', async (req, res) => {
+  try {
+    const club = await Club.findById(req.params.id)
+      .populate('members', 'name email')
+      .populate('president', 'name email') 
+      .populate('topBoard.user', 'name email')
+      .populate('feeRecords.user', 'name email');
+
+    if (!club) return res.status(404).json({ message: "Club not found." });
+    
+    // Send back the club's required fee, the list of members, and the ledger
+    res.status(200).json({ 
+      membershipFee: club.membershipFee, 
+      members: club.members, 
+      president: club.president,
+      topBoard: club.topBoard,
+      feeRecords: club.feeRecords 
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 2. Student Submits a Payment (Simulated Gateway)
+router.post('/:id/fees/pay', async (req, res) => {
+  try {
+    const { userId, amount } = req.body;
+    const club = await Club.findById(req.params.id);
+
+    // Look for their record
+    const existingRecord = club.feeRecords.find(f => f.user?.toString() === userId);
+
+    if (existingRecord) {
+      existingRecord.status = 'Pending Verification'; // Flips status so Treasury knows to check!
+      existingRecord.amountPaid = amount;
+      existingRecord.lastUpdated = new Date();
+    } else {
+      club.feeRecords.push({
+        user: userId,
+        status: 'Pending Verification',
+        amountPaid: amount,
+        lastUpdated: new Date()
+      });
+    }
+
+    await club.save();
+    res.status(200).json({ message: "Payment submitted successfully! Waiting for Treasury verification." });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 3. Update a Member's Fee Status (STRICTLY Treasury Only)
+router.put('/:id/fees/update', async (req, res) => {
+  try {
+    const { studentId, status, amountPaid, requestorId } = req.body;
+    const club = await Club.findById(req.params.id);
+
+    // STRICT RBAC: Only President and Treasurers! (Secretaries are locked out)
+    const isPres = club.president?.toString() === requestorId;
+    const isTreasury = club.topBoard.some(b => b.user?.toString() === requestorId && ['Treasurer', 'Assistant Treasurer'].includes(b.role));
+
+    if (!isPres && !isTreasury) {
+      return res.status(403).json({ message: "Access Denied: Only the Treasury team can verify payments." });
+    }
+
+    const existingRecord = club.feeRecords.find(f => f.user?.toString() === studentId);
+
+    if (existingRecord) {
+      existingRecord.status = status;
+      existingRecord.amountPaid = amountPaid;
+      existingRecord.lastUpdated = new Date();
+    } else {
+      club.feeRecords.push({ user: studentId, status, amountPaid, lastUpdated: new Date() });
+    }
+
+    await club.save();
+    res.status(200).json({ message: "Treasury verification complete." });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // Exec Board drafts a new announcement (Pres, VP, Sec, Asst Sec)
 router.post('/:id/announcements', async (req, res) => {
   try {
@@ -227,7 +419,7 @@ router.post('/:id/announcements', async (req, res) => {
       return res.status(403).json({ message: "Access Denied: You do not have permission to post announcements." });
     }
 
-    club.announcements.push({ title, content });
+    club.announcements.push({ title, content , createdAt: new Date(), isDeleted: false });
     await club.save();
     res.status(200).json({ message: "Announcement submitted and pending Supervisor approval!" });
   } catch (err) {
@@ -259,30 +451,38 @@ router.put('/:clubId/announcements/:annId/approve', async (req, res) => {
   }
 });
 
-// Exec Board EDITS an announcement (Resets approval status)
+// Supervisor OR Exec Board EDITS an announcement
 router.put('/:id/announcements/:annId/edit', async (req, res) => {
   try {
-    const { title, content, userId } = req.body;
+    // Look for userId (from students) OR supervisorId (from admins)
+    const { title, content, userId, supervisorId } = req.body;
+    const requestorId = userId || supervisorId; 
+
     const club = await Club.findById(req.params.id);
 
-    // Strict RBAC: President, VP, Secretaries
-    const isPres = club.president?.toString() === userId;
-    const isAuthorizedBoard = club.topBoard.some(b => b.user?.toString() === userId && ['Vice President', 'Secretary', 'Assistant Secretary'].includes(b.role));
+    // Strict RBAC: Supervisor, President, VP, Secretaries
+    const isSupervisor = club.supervisor?.toString() === requestorId;
+    const isPres = club.president?.toString() === requestorId;
+    const isAuthorizedBoard = club.topBoard.some(b => b.user?.toString() === requestorId && ['Vice President', 'Secretary', 'Assistant Secretary'].includes(b.role));
 
-    if (!isPres && !isAuthorizedBoard) {
+    if (!isSupervisor && !isPres && !isAuthorizedBoard) {
       return res.status(403).json({ message: "Access Denied." });
     }
 
     const announcement = club.announcements.id(req.params.annId);
     if (!announcement) return res.status(404).json({ message: "Announcement not found." });
 
-    // Update data and reset approval!
+    // Update data
     announcement.title = title;
     announcement.content = content;
-    announcement.isApproved = false; 
+    
+    // If a student edits it, it needs re-approval. If the Supervisor edits it, it stays approved!
+    if (!isSupervisor) {
+      announcement.isApproved = false; 
+    }
 
     await club.save();
-    res.status(200).json({ message: "Announcement updated and submitted for re-approval." });
+    res.status(200).json({ message: "Announcement updated successfully." });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -305,7 +505,10 @@ router.delete('/:clubId/announcements/:annId', async (req, res) => {
       return res.status(403).json({ message: "Access Denied." });
     }
 
-    club.announcements.pull(req.params.annId); 
+    const announcement = club.announcements.id(req.params.annId);
+    if (!announcement) return res.status(404).json({ message: "Announcement not found." });
+    
+    announcement.isDeleted = true; // Hides it from the UI but keeps the record
     await club.save();
     
     res.status(200).json({ message: "Announcement deleted." });

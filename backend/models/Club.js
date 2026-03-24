@@ -5,7 +5,9 @@ const announcementSchema = new mongoose.Schema({
   title: { type: String, required: true },
   content: { type: String, required: true },
   date: { type: Date, default: Date.now },
-  isApproved: { type: Boolean, default: false } 
+  isApproved: { type: Boolean, default: false },
+  isDeleted: { type: Boolean, default: false },
+  createdAt: { type: Date, default: Date.now }
 });
 
 // 2. Incoming Company Offers (NEW)
@@ -48,7 +50,9 @@ const clubSchema = new mongoose.Schema({
   description: { type: String, required: true },
   mission: { type: String, required: true },
   membershipFee: { type: Number, default: 0 }, 
-  
+  logoUrl: { type: String, default: '' }, 
+  rulesAndRegulations: { type: String, default: 'Standard club guidelines apply.' },
+
   // Leadership & Access Control 
   supervisor: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, 
   president: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, 
@@ -61,10 +65,30 @@ const clubSchema = new mongoose.Schema({
   members: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], 
   pendingMembers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], 
   
+  // Tracks individual student payments
+  feeRecords: [{
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    status: { type: String, enum: ['Pending','Pending Verification', 'Paid', 'Exempt'], default: 'Pending' },
+    amountPaid: { type: Number, default: 0 },
+    lastUpdated: { type: Date, default: Date.now }
+  }],
+
+  // Unified Achievement Showcase (Trophies + Photos)
+  achievements: [{
+    title: { type: String, required: true },
+    description: { type: String },
+    dateAwarded: { type: String }, 
+    imageUrls: [{ type: String }],
+    addedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    createdAt: { type: Date, default: Date.now }
+  }],
+  
   // Club Operations
   announcements: [announcementSchema],
   proposals: [proposalSchema],
   elections: [electionSchema]
 });
+
+
 
 module.exports = mongoose.model('Club', clubSchema);

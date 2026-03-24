@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 function ClubManagement() {
   const [clubs, setClubs] = useState([]);
   const [users, setUsers] = useState([]);
-  const [formData, setFormData] = useState({ name: '', description: '', mission: '' });
+  const [formData, setFormData] = useState({ name: '', description: '', mission: '', presidentId: '', rulesAndRegulations: '', logoFile: null });
   const [editingClubId, setEditingClubId] = useState(null);
   const [announcementData, setAnnouncementData] = useState({ title: '', content: '' });
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -41,14 +41,24 @@ function ClubManagement() {
     );
   }
 
-  // Handle Creating a Club
+// Handle Creating a Club (Upgraded for File Upload)
   const handleCreateClub = (e) => {
     e.preventDefault();
-    // Send the form data, plus the supervisor's ID
-    axios.post('http://localhost:5000/api/clubs', { ...formData, supervisorId: currentUser.id })
+    
+    const data = new FormData();
+    data.append('supervisorId', currentUser.id);
+    data.append('name', formData.name);
+    data.append('description', formData.description);
+    data.append('mission', formData.mission);
+    data.append('rulesAndRegulations', formData.rulesAndRegulations);
+    if (formData.presidentId) data.append('presidentId', formData.presidentId);
+    if (formData.logoFile) data.append('logo', formData.logoFile); // Appends the file!
+
+    axios.post('http://localhost:5000/api/clubs', data, { headers: { 'Content-Type': 'multipart/form-data' } })
       .then(() => {
         fetchClubs();
-        setFormData({ name: '', description: '', mission: '', presidentId: '' });
+        setFormData({ name: '', description: '', mission: '', presidentId: '', rulesAndRegulations: '', logoFile: null });
+        setShowCreateForm(false);
         alert("Club created successfully!");
       })
       .catch(err => alert(err.response?.data?.message || "Error creating club."));
@@ -61,19 +71,32 @@ function ClubManagement() {
       name: club.name,
       description: club.description,
       mission: club.mission,
-      presidentId: club.president?._id || ''
+      rulesAndRegulations: club.rulesAndRegulations || '', // Pulls existing rules
+      presidentId: club.president?._id || '',
+      logoFile: null
     });
-    window.scrollTo(0, 0); // Scroll to top to see the form
+    window.scrollTo(0, 0); 
   };
 
-  // Submits the updated data
+  // Submits the updated data (Upgraded for File Upload)
   const handleUpdateClub = (e) => {
     e.preventDefault();
-    axios.put(`http://localhost:5000/api/clubs/${editingClubId}`, { ...formData, supervisorId: currentUser.id })
+    
+    const data = new FormData();
+    data.append('supervisorId', currentUser.id);
+    data.append('name', formData.name);
+    data.append('description', formData.description);
+    data.append('mission', formData.mission);
+    data.append('rulesAndRegulations', formData.rulesAndRegulations);
+    data.append('presidentId', formData.presidentId);
+    if (formData.logoFile) data.append('logo', formData.logoFile);
+
+    axios.put(`http://localhost:5000/api/clubs/${editingClubId}`, data, { headers: { 'Content-Type': 'multipart/form-data' } })
       .then(() => {
         fetchClubs();
         setEditingClubId(null);
-        setFormData({ name: '', description: '', mission: '', presidentId: '' });
+        setFormData({ name: '', description: '', mission: '', presidentId: '', rulesAndRegulations: '', logoFile: null });
+        setShowCreateForm(false);
         alert("Club updated successfully!");
       })
       .catch(err => alert(err.response?.data?.message || "Error updating club."));
@@ -225,6 +248,16 @@ const pendingAnnouncements = clubs.flatMap(club =>
                 <div className="form-group">
                   <textarea className="form-control" placeholder="Mission Statement" value={formData.mission} onChange={(e) => setFormData({...formData, mission: e.target.value})} required />
                 </div>
+                <div className="form-group">
+                  <textarea className="form-control" placeholder="Rules & Regulations (e.g., Attendance policies, code of conduct...)" value={formData.rulesAndRegulations} onChange={(e) => setFormData({...formData, rulesAndRegulations: e.target.value})} rows="4" required />
+                </div>
+                
+                <div className="form-group">
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '5px' }}>Club Logo (Optional)</label>
+                  <input type="file" className="form-control" accept="image/*" onChange={(e) => setFormData({...formData, logoFile: e.target.files[0]})} />
+                  <small style={{ color: 'var(--text-muted)' }}>Upload a transparent PNG or square JPG for best results.</small>
+                </div>
+                
                 <div className="form-group">
                   <select className="form-control" value={formData.presidentId} onChange={(e) => setFormData({...formData, presidentId: e.target.value})}>
                     <option value="">-- No President Assigned --</option>
