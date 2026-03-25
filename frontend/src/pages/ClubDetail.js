@@ -143,43 +143,43 @@ function ClubDetail() {
     doc.setTextColor(40, 40, 40);
     doc.text(`${club.name} - Official Member Roster`, 14, 20);
 
-    // --- NEW LOGIC: BUILD AN ORDERED MASTER LIST ---
-    let orderedMembers = [];
+ // --- NEW LOGIC: BUILD A SORTED MASTER LIST ---
+    let excoMembers = [];
+    let normalMembers = [];
+    const excoIds = new Set();
 
-    // Step A: Put the President at the very top (Rank 1)
+    // Step A: Get the President
     if (club.president) {
-      orderedMembers.push({
-        user: club.president,
-        role: "President"
-      });
+      excoIds.add(club.president._id);
+      excoMembers.push({ user: club.president, role: "President" });
     }
 
-    // Step B: Put the Top Board next (Rank 2)
+    // Step B: Get the Top Board
     if (club.topBoard && club.topBoard.length > 0) {
       club.topBoard.forEach(boardItem => {
-        // Prevent adding the president twice if they are accidentally in the board array
-        if (boardItem.user && boardItem.user._id !== club.president?._id) {
-          orderedMembers.push({
-            user: boardItem.user,
-            role: `Top Board: ${boardItem.role}`
-          });
+        if (boardItem.user && !excoIds.has(boardItem.user._id)) {
+          excoIds.add(boardItem.user._id);
+          excoMembers.push({ user: boardItem.user, role: `Top Board: ${boardItem.role}` });
         }
       });
     }
 
-    // Step C: Put General Members at the bottom (Rank 3)
+    // Step C: Get General Members
     if (club.members && club.members.length > 0) {
       club.members.forEach(member => {
-        // Only add them if they aren't already listed as President or Top Board
-        const isAlreadyAdded = orderedMembers.some(item => item.user._id === member._id);
-        if (!isAlreadyAdded) {
-          orderedMembers.push({
-            user: member,
-            role: "General Member"
-          });
+        if (!excoIds.has(member._id)) {
+          normalMembers.push({ user: member, role: "General Member" });
         }
       });
     }
+
+    // Step D: Sort both arrays alphabetically by name
+    const sortAlphabetically = (a, b) => (a.user.name || '').localeCompare(b.user.name || '');
+    excoMembers.sort(sortAlphabetically);
+    normalMembers.sort(sortAlphabetically);
+
+    // Step E: Combine them! ExCo on top, normal members below.
+    const orderedMembers = [...excoMembers, ...normalMembers];
 
     doc.setFontSize(11);
     doc.setTextColor(100, 100, 100);

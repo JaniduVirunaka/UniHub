@@ -32,24 +32,42 @@ function MembershipFees() {
   // 1. EARLY RETURN: Stop here if the data hasn't loaded yet!
   if (!club) return <div style={{ textAlign: 'center', marginTop: '50px' }}>Loading Treasury Ledger...</div>;
 
-  // 2. BUILD THE MASTER MEMBER LIST (Now guaranteed to have club data)
-  let allMembers = [];
-  
-  if (club.members) {
-    allMembers = [...club.members];
+ // 2. BUILD THE MASTER MEMBER LIST (Sorted: ExCo alphabetically, then Normal alphabetically)
+  let excoMembers = [];
+  let normalMembers = [];
+  const excoIds = new Set();
+
+  // Step A: Grab ExCo Members
+  if (club.president) {
+    excoIds.add(club.president._id);
+    excoMembers.push(club.president);
   }
-  
-  if (club.president && !allMembers.some(m => m._id === club.president._id)) {
-    allMembers.push(club.president);
-  }
-  
+
   if (club.topBoard) {
-    club.topBoard.forEach(boardMember => {
-      if (boardMember.user && !allMembers.some(m => m._id === boardMember.user._id)) {
-        allMembers.push(boardMember.user);
+    club.topBoard.forEach(b => {
+      if (b.user && !excoIds.has(b.user._id)) {
+        excoIds.add(b.user._id);
+        excoMembers.push(b.user);
       }
     });
   }
+
+  // Step B: Grab Normal Members
+  if (club.members) {
+    club.members.forEach(m => {
+      if (!excoIds.has(m._id)) {
+        normalMembers.push(m);
+      }
+    });
+  }
+
+  // Step C: Sort both arrays alphabetically
+  const sortByName = (a, b) => (a.name || '').localeCompare(b.name || '');
+  excoMembers.sort(sortByName);
+  normalMembers.sort(sortByName);
+
+  // Step D: Combine. This variable automatically powers the PDF and the on-screen table!
+  const allMembers = [...excoMembers, ...normalMembers];
 
   // 3. STRICT TREASURY ACCESS CONTROL
   const isSupervisor = currentUser?.role === 'supervisor';

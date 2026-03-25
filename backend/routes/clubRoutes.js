@@ -646,6 +646,54 @@ router.post('/:id/proposals', async (req, res) => {
   }
 });
 
+// PUT: Edit a published proposal
+router.put('/:id/proposals/:proposalId/edit', async (req, res) => {
+  try {
+    const { title, description, targetAmount, proposalDocumentUrl, isActive } = req.body;
+    const club = await Club.findById(req.params.id);
+    
+    if (!club) return res.status(404).json({ message: "Club not found" });
+
+    // Find the specific proposal inside the club's array
+    const proposal = club.proposals.id(req.params.proposalId);
+    if (!proposal) return res.status(404).json({ message: "Proposal not found" });
+
+    // Update the fields
+    proposal.title = title || proposal.title;
+    proposal.description = description || proposal.description;
+    proposal.targetAmount = targetAmount || proposal.targetAmount;
+    proposal.proposalDocumentUrl = proposalDocumentUrl || proposal.proposalDocumentUrl;
+    
+    // We explicitly check for undefined because isActive is a boolean (false is a valid state)
+    if (isActive !== undefined) {
+      proposal.isActive = isActive;
+    }
+
+    await club.save();
+    res.json({ message: "Proposal updated successfully!" });
+  } catch (error) {
+    console.error("Error updating proposal:", error);
+    res.status(500).json({ message: "Internal server error while updating proposal" });
+  }
+});
+
+// DELETE: Permanently delete a proposal
+router.delete('/:id/proposals/:proposalId', async (req, res) => {
+  try {
+    const club = await Club.findById(req.params.id);
+    if (!club) return res.status(404).json({ message: "Club not found" });
+
+    // Remove the proposal from the array using Mongoose's .pull() method
+    club.proposals.pull(req.params.proposalId);
+    
+    await club.save();
+    res.json({ message: "Proposal deleted successfully." });
+  } catch (error) {
+    console.error("Error deleting proposal:", error);
+    res.status(500).json({ message: "Internal server error while deleting proposal" });
+  }
+});
+
 // 2. Company submits a Pledge to a Proposal (Public Route)
 router.post('/:clubId/proposals/:proposalId/pledge', async (req, res) => {
   try {

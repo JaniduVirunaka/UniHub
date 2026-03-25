@@ -13,6 +13,9 @@ function Sponsorships() {
   const [pledgeData, setPledgeData] = useState({ companyName: '', contactEmail: '', amount: '', message: '' });
   const [activePledgeForm, setActivePledgeForm] = useState(null);
 
+  const [editingProposalId, setEditingProposalId] = useState(null);
+  const [editProposalData, setEditProposalData] = useState({ title: '', description: '', targetAmount: '', proposalDocumentUrl: '', isActive: true });
+
   const currentUser = JSON.parse(localStorage.getItem('user'));
 
   useEffect(() => {
@@ -28,9 +31,10 @@ function Sponsorships() {
   if (!club) return <div style={{ textAlign: 'center', marginTop: '50px' }}>Loading Corporate Portal...</div>;
 
   // --- STRICT ACCESS CONTROL (Execs & Treasury Only) ---
+  const isSupervisor = currentUser?.role === 'supervisor';
   const isPresident = club.president?._id === currentUser?.id;
   const allowedSponsorshipRoles = ['Vice President', 'Secretary', 'Assistant Secretary', 'Treasurer', 'Assistant Treasurer'];
-  const canManageSponsorships = isPresident || club.topBoard?.some(b => b.user?._id === currentUser?.id && allowedSponsorshipRoles.includes(b.role));
+  const canManageSponsorships = isPresident || isSupervisor || club.topBoard?.some(b => b.user?._id === currentUser?.id && allowedSponsorshipRoles.includes(b.role));
 
   // --- ACTIONS ---
   const handlePublishProposal = (e) => {
@@ -42,6 +46,24 @@ function Sponsorships() {
         fetchClubData(); 
       })
       .catch(err => alert(err.response?.data?.message || "Error publishing proposal."));
+  };
+
+  const handleUpdateProposal = (proposalId) => {
+    if (!editProposalData.title || !editProposalData.targetAmount) return alert("Title and Target Amount are required.");
+    axios.put(`http://localhost:5000/api/clubs/${id}/proposals/${proposalId}/edit`, { ...editProposalData, userId: currentUser?.id })
+      .then(res => {
+        alert(res.data.message || "Proposal updated successfully!");
+        setEditingProposalId(null);
+        fetchClubData();
+      })
+      .catch(err => alert("Error updating proposal."));
+  };
+
+  const handleDeleteProposal = (proposalId) => {
+    if (!window.confirm("Are you sure you want to permanently delete this proposal and all associated pledges?")) return;
+    axios.delete(`http://localhost:5000/api/clubs/${id}/proposals/${proposalId}`, { data: { userId: currentUser?.id } })
+      .then(res => fetchClubData())
+      .catch(err => alert("Error deleting proposal."));
   };
 
   const handleSubmitPledge = (e, proposalId) => {
@@ -79,66 +101,115 @@ function Sponsorships() {
 
       <div style={{ display: 'grid', gridTemplateColumns: canManageSponsorships ? '2fr 1fr' : '1fr', gap: '30px' }}>
         
-        {/* LEFT/MAIN COLUMN: Public Proposals */}
+       {/* LEFT/MAIN COLUMN: Public Proposals */}
         <div>
-          <h3 style={{ color: '#6d28d9', borderBottom: '2px solid #e5e7eb', paddingBottom: '10px', marginTop: 0 }}>Active Funding Initiatives</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #e5e7eb', paddingBottom: '10px', marginBottom: '20px' }}>
+            <h3 style={{ color: '#6d28d9', margin: 0 }}>Active Funding Initiatives</h3>
+          </div>
           
-          {club.proposals?.filter(p => p.isActive).length === 0 ? (
+          {/* UPGRADE: Show inactive proposals to admins so they can edit/re-open them */}
+          {club.proposals?.filter(p => p.isActive || canManageSponsorships).length === 0 ? (
             <div className="card" style={{ textAlign: 'center', padding: '40px 20px' }}>
               <h4 style={{ color: '#9ca3af' }}>No active proposals at this time.</h4>
               <p style={{ color: '#6b7280' }}>Please check back later for new partnership opportunities!</p>
             </div>
           ) : (
             <div style={{ display: 'grid', gap: '20px' }}>
-              {club.proposals?.filter(p => p.isActive).map(proposal => {
-                // Calculate funding progress
+              {club.proposals?.filter(p => p.isActive || canManageSponsorships).map(proposal => {
                 const totalRaised = proposal.pledges?.filter(p => p.status === 'Accepted').reduce((sum, p) => sum + p.amount, 0) || 0;
                 const percent = Math.min((totalRaised / proposal.targetAmount) * 100, 100).toFixed(0);
 
                 return (
-                  <div key={proposal._id} className="card" style={{ border: '1px solid #d8b4fe', marginBottom: 0, boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <h4 style={{ margin: '0 0 10px 0', color: '#6d28d9', fontSize: '1.4rem' }}>{proposal.title}</h4>
-                      {proposal.proposalDocumentUrl && (
-                        <a href={proposal.proposalDocumentUrl} target="_blank" rel="noreferrer" className="btn" style={{ backgroundColor: '#f3e8ff', color: '#7e22ce', padding: '5px 12px', fontSize: '0.85rem', textDecoration: 'none' }}>
-                          📄 View PDF
-                        </a>
-                      )}
-                    </div>
+                  <div key={proposal._id} className="card" style={{ border: '1px solid #d8b4fe', marginBottom: 0, boxShadow: '0 4px 6px rgba(0,0,0,0.05)', opacity: proposal.isActive ? 1 : 0.6 }}>
                     
-                    <p style={{ fontSize: '1rem', marginBottom: '20px', color: '#4b5563', lineHeight: '1.5' }}>{proposal.description}</p>
-                    
-                    {/* Progress Bar */}
-                    <div style={{ backgroundColor: '#f9fafb', padding: '15px', borderRadius: '8px', border: '1px solid #e5e7eb', marginBottom: '20px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', fontWeight: 'bold', marginBottom: '8px' }}>
-                        <span style={{ color: '#10b981' }}>Raised: Rs. {totalRaised.toLocaleString()}</span>
-                        <span style={{ color: '#6b7280' }}>Goal: Rs. {proposal.targetAmount.toLocaleString()}</span>
-                      </div>
-                      <div style={{ width: '100%', backgroundColor: '#e5e7eb', borderRadius: '6px', height: '12px', overflow: 'hidden' }}>
-                        <div style={{ width: `${percent}%`, backgroundColor: percent >= 100 ? '#10b981' : '#8b5cf6', height: '100%', transition: 'width 0.5s ease-in-out' }}></div>
-                      </div>
-                    </div>
-
-                    {/* Pledge Form Toggle */}
-                    {activePledgeForm === proposal._id ? (
-                      <form onSubmit={(e) => handleSubmitPledge(e, proposal._id)} style={{ backgroundColor: '#faf5ff', padding: '20px', border: '1px solid #d8b4fe', borderRadius: '8px' }}>
-                        <h5 style={{ margin: '0 0 15px 0', color: '#7e22ce' }}>🤝 Submit Corporate Pledge</h5>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
-                          <input type="text" className="form-control" placeholder="Company Name" required onChange={(e) => setPledgeData({...pledgeData, companyName: e.target.value})} style={{ margin: 0 }}/>
-                          <input type="email" className="form-control" placeholder="Contact Email" required onChange={(e) => setPledgeData({...pledgeData, contactEmail: e.target.value})} style={{ margin: 0 }}/>
-                        </div>
-                        <input type="number" className="form-control" placeholder="Pledge Amount (Rs.)" required onChange={(e) => setPledgeData({...pledgeData, amount: e.target.value})} style={{ marginBottom: '10px' }}/>
-                        <textarea className="form-control" placeholder="Optional Message or Conditions" onChange={(e) => setPledgeData({...pledgeData, message: e.target.value})} style={{ marginBottom: '15px' }}/>
+                    {/* --- EDIT MODE UI --- */}
+                    {editingProposalId === proposal._id ? (
+                      <div style={{ backgroundColor: '#faf5ff', padding: '15px', borderRadius: '8px', border: '1px dashed #c084fc' }}>
+                        <h4 style={{ color: '#7e22ce', margin: '0 0 15px 0' }}>✏️ Edit Proposal</h4>
+                        <input type="text" className="form-control" value={editProposalData.title} onChange={(e) => setEditProposalData({...editProposalData, title: e.target.value})} style={{ marginBottom: '10px' }}/>
+                        <textarea className="form-control" value={editProposalData.description} onChange={(e) => setEditProposalData({...editProposalData, description: e.target.value})} style={{ marginBottom: '10px', minHeight: '80px' }}/>
                         
-                        <div style={{ display: 'flex', gap: '10px' }}>
-                          <button type="submit" className="btn" style={{ flex: 2, backgroundColor: '#8b5cf6', padding: '10px', fontSize: '1rem' }}>Submit Official Offer</button>
-                          <button type="button" className="btn" style={{ flex: 1, backgroundColor: '#9ca3af', padding: '10px' }} onClick={() => setActivePledgeForm(null)}>Cancel</button>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                          <input type="number" className="form-control" placeholder="Target (Rs.)" value={editProposalData.targetAmount} onChange={(e) => setEditProposalData({...editProposalData, targetAmount: e.target.value})} style={{ margin: 0 }}/>
+                          <input type="text" className="form-control" placeholder="Document URL" value={editProposalData.proposalDocumentUrl} onChange={(e) => setEditProposalData({...editProposalData, proposalDocumentUrl: e.target.value})} style={{ margin: 0 }}/>
                         </div>
-                      </form>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '15px' }}>
+                          <input type="checkbox" id={`active-${proposal._id}`} checked={editProposalData.isActive} onChange={(e) => setEditProposalData({...editProposalData, isActive: e.target.checked})} style={{ width: '18px', height: '18px' }}/>
+                          <label htmlFor={`active-${proposal._id}`} style={{ fontWeight: 'bold', color: '#4b5563' }}>Campaign is Active (Visible to Public)</label>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                          <button className="btn" style={{ flex: 1, backgroundColor: '#10b981', padding: '8px' }} onClick={() => handleUpdateProposal(proposal._id)}>Save Changes</button>
+                          <button className="btn" style={{ flex: 1, backgroundColor: '#6b7280', padding: '8px' }} onClick={() => setEditingProposalId(null)}>Cancel</button>
+                        </div>
+                      </div>
                     ) : (
-                      <button className="btn" style={{ width: '100%', backgroundColor: '#8b5cf6', padding: '12px', fontSize: '1.05rem', fontWeight: 'bold' }} onClick={() => setActivePledgeForm(proposal._id)}>
-                        Sponsor This Initiative
-                      </button>
+                      /* --- DISPLAY MODE UI --- */
+                      <>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                          <div>
+                            <h4 style={{ margin: '0 0 5px 0', color: '#6d28d9', fontSize: '1.4rem' }}>{proposal.title}</h4>
+                            {!proposal.isActive && <span style={{ backgroundColor: '#f3f4f6', color: '#4b5563', padding: '2px 8px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 'bold' }}>Closed / Inactive</span>}
+                          </div>
+                          
+                          <div style={{ display: 'flex', gap: '10px' }}>
+                            {proposal.proposalDocumentUrl && (
+                              <a href={proposal.proposalDocumentUrl} target="_blank" rel="noreferrer" className="btn" style={{ backgroundColor: '#f3e8ff', color: '#7e22ce', padding: '5px 12px', fontSize: '0.85rem', textDecoration: 'none' }}>
+                                📄 View PDF
+                              </a>
+                            )}
+                            
+                            {/* NEW: Admin Edit/Delete Controls */}
+                            {canManageSponsorships && (
+                              <div style={{ display: 'flex', gap: '5px' }}>
+                                <button className="btn" style={{ padding: '5px 10px', fontSize: '0.85rem', backgroundColor: '#fef3c7', color: '#d97706', border: '1px solid #fde68a' }} onClick={() => {
+                                  setEditingProposalId(proposal._id);
+                                  setEditProposalData({ title: proposal.title, description: proposal.description, targetAmount: proposal.targetAmount, proposalDocumentUrl: proposal.proposalDocumentUrl || '', isActive: proposal.isActive });
+                                }}>✏️ Edit</button>
+                                <button className="btn" style={{ padding: '5px 10px', fontSize: '0.85rem', backgroundColor: '#fee2e2', color: '#dc2626', border: '1px solid #fca5a5' }} onClick={() => handleDeleteProposal(proposal._id)}>🗑️</button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <p style={{ fontSize: '1rem', margin: '15px 0', color: '#4b5563', lineHeight: '1.5' }}>{proposal.description}</p>
+                        
+                        {/* Progress Bar */}
+                        <div style={{ backgroundColor: '#f9fafb', padding: '15px', borderRadius: '8px', border: '1px solid #e5e7eb', marginBottom: '20px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', fontWeight: 'bold', marginBottom: '8px' }}>
+                            <span style={{ color: '#10b981' }}>Raised: Rs. {totalRaised.toLocaleString()}</span>
+                            <span style={{ color: '#6b7280' }}>Goal: Rs. {proposal.targetAmount.toLocaleString()}</span>
+                          </div>
+                          <div style={{ width: '100%', backgroundColor: '#e5e7eb', borderRadius: '6px', height: '12px', overflow: 'hidden' }}>
+                            <div style={{ width: `${percent}%`, backgroundColor: percent >= 100 ? '#10b981' : '#8b5cf6', height: '100%', transition: 'width 0.5s ease-in-out' }}></div>
+                          </div>
+                        </div>
+
+                        {/* Pledge Form Toggle */}
+                        {activePledgeForm === proposal._id ? (
+                          <form onSubmit={(e) => handleSubmitPledge(e, proposal._id)} style={{ backgroundColor: '#faf5ff', padding: '20px', border: '1px solid #d8b4fe', borderRadius: '8px' }}>
+                            <h5 style={{ margin: '0 0 15px 0', color: '#7e22ce' }}>🤝 Submit Corporate Pledge</h5>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                              <input type="text" className="form-control" placeholder="Company Name" required onChange={(e) => setPledgeData({...pledgeData, companyName: e.target.value})} style={{ margin: 0 }}/>
+                              <input type="email" className="form-control" placeholder="Contact Email" required onChange={(e) => setPledgeData({...pledgeData, contactEmail: e.target.value})} style={{ margin: 0 }}/>
+                            </div>
+                            <input type="number" className="form-control" placeholder="Pledge Amount (Rs.)" required onChange={(e) => setPledgeData({...pledgeData, amount: e.target.value})} style={{ marginBottom: '10px' }}/>
+                            <textarea className="form-control" placeholder="Optional Message or Conditions" onChange={(e) => setPledgeData({...pledgeData, message: e.target.value})} style={{ marginBottom: '15px' }}/>
+                            
+                            <div style={{ display: 'flex', gap: '10px' }}>
+                              <button type="submit" className="btn" style={{ flex: 2, backgroundColor: '#8b5cf6', padding: '10px', fontSize: '1rem' }}>Submit Official Offer</button>
+                              <button type="button" className="btn" style={{ flex: 1, backgroundColor: '#9ca3af', padding: '10px' }} onClick={() => setActivePledgeForm(null)}>Cancel</button>
+                            </div>
+                          </form>
+                        ) : (
+                          proposal.isActive && (
+                            <button className="btn" style={{ width: '100%', backgroundColor: '#8b5cf6', padding: '12px', fontSize: '1.05rem', fontWeight: 'bold' }} onClick={() => setActivePledgeForm(proposal._id)}>
+                              Sponsor This Initiative
+                            </button>
+                          )
+                        )}
+                      </>
                     )}
                   </div>
                 );
