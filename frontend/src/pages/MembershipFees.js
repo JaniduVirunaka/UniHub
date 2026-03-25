@@ -242,7 +242,7 @@ function MembershipFees() {
               <h4 style={{ color: '#374151', margin: '0 0 15px 0' }}>📈 Treasury Overview</h4>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
                 <span style={{ color: '#6b7280' }}>Total Members:</span>
-                <strong style={{ color: '#111827' }}>{club.members?.length || 0}</strong>
+                <strong style={{ color: '#111827' }}>{allMembers?.length || 0}</strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.1rem', marginBottom: '20px' }}>
                 <span style={{ color: '#059669', fontWeight: 'bold' }}>Verified Funds:</span>
