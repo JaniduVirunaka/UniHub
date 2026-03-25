@@ -9,36 +9,36 @@ frontend terminal ----> cd frontend
 ClubAdmin@gmail.com
 ClubAdmin
 
-janidu@gmail.com
-1234
-
-bob@gmail.com
-bob
-
-jack@gmail.com
-jack
-
-john@gmail.com
-john
-
-sath@gmail.com
-sath
-
-jill@gmail.com
-jill
-
-sam@gmail.com
-sam
-
 business@gmail.com
 business
 
-alex@gmail.com
-alex
+bob@gmail.com   --> rotract president
+bob
 
-maya@gmail.com
+jack@gmail.com  --> rotract secretary
+jack
+
+jill@gmail.com  --> rotract vp
+jill
+
+sam@gmail.com  --> rotract treasurer
+sam
+
+john@gmail.com  --> rotract member
+john
+
+maya@gmail.com   --> rotaract member
 maya
 
-jordan@gmail.com
+sath@gmail.com  --> member of all clubs
+sath
+
+alex@gmail.com  --> photography president
+alex
+
+jordan@gmail.com  --> gaming president
 jordan
+
+janidu@gmail.com  ---> robotics president
+1234
 

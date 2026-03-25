@@ -603,64 +603,84 @@ function ClubDetail() {
           <h2 style={{ color: '#10b981', borderBottom: '1px solid #e5e7eb', paddingBottom: '10px' }}>Internal Member Hub</h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', marginTop: '20px' }}>
 
-            {/* Announcements */}
-            <div style={{ backgroundColor: '#f9fafb', padding: '15px', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
-              <h4 style={{ marginTop: '0' }}>📢 Official Announcements</h4>
+           {/* Announcements */}
+            <div style={{ backgroundColor: '#f9fafb', padding: '20px', borderRadius: '8px', border: '1px solid #e5e7eb', gridColumn: '1 / -1' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #e5e7eb', paddingBottom: '10px', marginBottom: '15px' }}>
+                <h4 style={{ margin: 0, color: '#1f2937' }}>📢 Official Announcements</h4>
+              </div>
               
-              {/* Added the isDeleted filter to the empty state check so it doesn't say "0" if there are only deleted ones! */}
               {club.announcements?.filter(a => !a.isDeleted && (a.isApproved || canManageAnnouncements || isSupervisor)).length === 0 ? (
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>No announcements yet.</p>
               ) : (
-                club.announcements?.map((ann) => {
-                  // THE FIX: Only show if it is NOT deleted!
-                  if (!ann.isDeleted && (ann.isApproved || canManageAnnouncements || isSupervisor)) {
-                    return (
-                      <div key={ann._id} style={{ padding: '15px', backgroundColor: '#fff', border: '1px solid #e5e7eb', marginBottom: '10px', borderRadius: '6px', position: 'relative' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '15px' }}>
+                  
+                  {/* Reverse the array so the newest announcements show up first! */}
+                  {[...club.announcements].reverse().map((ann) => {
+                    
+                    if (!ann.isDeleted && (ann.isApproved || canManageAnnouncements || isSupervisor)) {
+                      
+                      // Extract Date from createdAt OR the MongoDB ObjectID
+                      const dateStr = ann.createdAt
+                        ? new Date(ann.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+                        : new Date(parseInt(ann._id.substring(0, 8), 16) * 1000).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 
-                        {editingAnnId === ann._id ? (
-                          /* EDIT MODE */
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            <input type="text" className="form-control" value={editAnnData.title} onChange={(e) => setEditAnnData({ ...editAnnData, title: e.target.value })} style={{ margin: 0 }} />
-                            <textarea className="form-control" value={editAnnData.content} onChange={(e) => setEditAnnData({ ...editAnnData, content: e.target.value })} style={{ margin: 0, minHeight: '80px' }} />
-                            <div style={{ display: 'flex', gap: '8px', marginTop: '5px' }}>
-                              <button className="btn" style={{ padding: '4px 12px', fontSize: '0.8rem', backgroundColor: '#10b981' }} onClick={() => handleEditAnnouncement(ann._id)}>Save Changes</button>
-                              <button className="btn" style={{ padding: '4px 12px', fontSize: '0.8rem', backgroundColor: '#6b7280' }} onClick={() => setEditingAnnId(null)}>Cancel</button>
+                      return (
+                        <div key={ann._id} style={{ padding: '15px', backgroundColor: '#fff', border: '1px solid #d1d5db', borderRadius: '8px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+
+                          {editingAnnId === ann._id ? (
+                            /* EDIT MODE */
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                              <input type="text" className="form-control" value={editAnnData.title} onChange={(e) => setEditAnnData({ ...editAnnData, title: e.target.value })} style={{ margin: 0 }} />
+                              <textarea className="form-control" value={editAnnData.content} onChange={(e) => setEditAnnData({ ...editAnnData, content: e.target.value })} style={{ margin: 0, minHeight: '80px' }} />
+                              <div style={{ display: 'flex', gap: '8px', marginTop: '5px' }}>
+                                <button className="btn" style={{ padding: '6px 12px', fontSize: '0.8rem', backgroundColor: '#10b981', flex: 1 }} onClick={() => handleEditAnnouncement(ann._id)}>Save</button>
+                                <button className="btn" style={{ padding: '6px 12px', fontSize: '0.8rem', backgroundColor: '#6b7280', flex: 1 }} onClick={() => setEditingAnnId(null)}>Cancel</button>
+                              </div>
                             </div>
-                          </div>
-                        ) : (
-                          /* DISPLAY MODE */
-                          <>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                          ) : (
+                            /* DISPLAY MODE */
+                            <>
                               <div>
-                                <strong style={{ display: 'block', fontSize: '1.05rem', color: '#111827' }}>{ann.title}</strong>
-                                <span style={{ fontSize: '0.9rem', color: '#4b5563', whiteSpace: 'pre-wrap' }}>{ann.content}</span>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                                  <strong style={{ fontSize: '1.1rem', color: '#111827' }}>{ann.title}</strong>
+                                  <span style={{ fontSize: '0.75rem', color: '#6b7280', backgroundColor: '#f3f4f6', padding: '2px 8px', borderRadius: '12px', whiteSpace: 'nowrap', marginLeft: '10px' }}>
+                                    {dateStr}
+                                  </span>
+                                </div>
+                                <p style={{ fontSize: '0.9rem', color: '#4b5563', whiteSpace: 'pre-wrap', margin: '0 0 15px 0', lineHeight: '1.5' }}>{ann.content}</p>
                               </div>
 
-                              {/* UPGRADE: Show Edit/Delete buttons to Authorized Execs AND the Supervisor! */}
-                              {(canManageAnnouncements || isSupervisor) && (
-                                <div style={{ display: 'flex', gap: '5px', marginLeft: '10px' }}>
-                                  <button className="btn" style={{ padding: '4px 8px', fontSize: '0.75rem', backgroundColor: '#fef3c7', color: '#d97706', border: '1px solid #fde68a' }} onClick={() => {
-                                    setEditingAnnId(ann._id);
-                                    setEditAnnData({ title: ann.title, content: ann.content });
-                                  }}>✏️</button>
-                                  <button className="btn" style={{ padding: '4px 8px', fontSize: '0.75rem', backgroundColor: '#fee2e2', color: '#dc2626', border: '1px solid #fca5a5' }} onClick={() => handleDeleteAnnouncement(ann._id)}>🗑️</button>
-                                </div>
-                              )}
-                            </div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px dashed #e5e7eb', paddingTop: '10px' }}>
+                                {/* Status Badge */}
+                                {!ann.isApproved ? (
+                                  <span style={{ display: 'inline-block', backgroundColor: '#fef3c7', color: '#d97706', padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold' }}>
+                                    ⏳ Pending Approval
+                                  </span>
+                                ) : (
+                                  <span style={{ display: 'inline-block', color: '#10b981', fontSize: '0.75rem', fontWeight: 'bold' }}>
+                                    ✓ Published
+                                  </span>
+                                )}
 
-                            {/* Status Badge */}
-                            {!ann.isApproved && (
-                              <span style={{ display: 'inline-block', backgroundColor: '#fef3c7', color: '#d97706', padding: '2px 8px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 'bold', marginTop: '10px' }}>
-                                ⏳ Pending Supervisor Approval
-                              </span>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    );
-                  }
-                  return null; // Ensure we return null if the item doesn't match the condition
-                })
+                                {/* Admin Controls */}
+                                {(canManageAnnouncements || isSupervisor) && (
+                                  <div style={{ display: 'flex', gap: '5px' }}>
+                                    <button className="btn" style={{ padding: '4px 8px', fontSize: '0.75rem', backgroundColor: '#fef3c7', color: '#d97706', border: '1px solid #fde68a' }} onClick={() => {
+                                      setEditingAnnId(ann._id);
+                                      setEditAnnData({ title: ann.title, content: ann.content });
+                                    }}>✏️ Edit</button>
+                                    <button className="btn" style={{ padding: '4px 8px', fontSize: '0.75rem', backgroundColor: '#fee2e2', color: '#dc2626', border: '1px solid #fca5a5' }} onClick={() => handleDeleteAnnouncement(ann._id)}>🗑️</button>
+                                  </div>
+                                )}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      );
+                    }
+                    return null;
+                  })}
+                </div>
               )}
             </div>
 
