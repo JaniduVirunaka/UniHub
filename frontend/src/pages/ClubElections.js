@@ -116,6 +116,36 @@ function ClubElections() {
       .catch(err => alert("Error deleting election."));
   };
 
+  // --- CANDIDATE SORTING & GROUPING LOGIC ---
+  let normalMembers = [];
+  let excoMembers = [];
+
+  if (club?.members) {
+    // 1. Gather the IDs of anyone currently holding an ExCo/Board position
+    const boardIds = new Set();
+    if (club.president?._id) boardIds.add(club.president._id);
+
+    club.topBoard?.forEach(b => {
+      // Handle both populated objects and raw ID strings just in case
+      if (b.user?._id) boardIds.add(b.user._id);
+      else if (b.user) boardIds.add(b.user);
+    });
+
+    // 2. Split the club members into two separate arrays
+    club.members.forEach(member => {
+      if (boardIds.has(member._id)) {
+        excoMembers.push(member);
+      } else {
+        normalMembers.push(member);
+      }
+    });
+
+    // 3. Sort both arrays alphabetically by name
+    const sortAlphabetically = (a, b) => a.name.localeCompare(b.name);
+    normalMembers.sort(sortAlphabetically);
+    excoMembers.sort(sortAlphabetically);
+  }
+
   if (!club) return <div style={{ textAlign: 'center', marginTop: '50px' }}>Loading Election Data...</div>;
 
   // --- ROLES & ACCESS CONTROL ---
@@ -123,8 +153,8 @@ function ClubElections() {
   const isMember = club.members?.some(member => member._id === currentUser?.id);
   const isTopBoard = club.topBoard?.some(b => b.user?._id === currentUser?.id) || club.president?._id === currentUser?.id;
   const hasFullAccess = isSupervisor || isTopBoard || isMember;
-  
-  const userFeeRecord = club.feeRecords?.find(record => 
+
+  const userFeeRecord = club.feeRecords?.find(record =>
     (record.user?._id || record.user) === currentUser?.id
   );
   const hasPaidFees = (userFeeRecord && ['Paid', 'Exempt'].includes(userFeeRecord.status));
@@ -155,13 +185,13 @@ function ClubElections() {
       {/* --- 1. MEMBER VIEW: LIVE VOTING BOOTH --- */}
       <div className="card" style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0' }}>
         <h2 style={{ color: '#166534', margin: '0 0 15px 0', borderBottom: '2px solid #bbf7d0', paddingBottom: '10px' }}>🗳️ Official Club Elections</h2>
-        
+
         {club.elections && club.elections.filter(e => e.isActive || e.isPublished).length > 0 ? (
           <div style={{ display: 'grid', gap: '15px' }}>
             {club.elections.filter(e => e.isActive || e.isPublished).map((election) => {
               const hasVoted = election.votedUsers.includes(currentUser?.id);
               const totalVotes = election.votedUsers.length;
-              
+
               return (
                 <div key={election._id} style={{ backgroundColor: '#fff', border: '1px solid #d1d5db', padding: '15px', borderRadius: '8px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
@@ -175,7 +205,7 @@ function ClubElections() {
                     {election.candidates.map((c) => {
                       const candidateName = club.members?.find(m => m._id === c.user)?.name || 'Unknown User';
                       const votePercent = totalVotes > 0 ? ((c.voteCount / totalVotes) * 100).toFixed(0) : 0;
-                      
+
                       return (
                         <div key={c._id} style={{ border: '1px solid #e5e7eb', padding: '10px', borderRadius: '5px', backgroundColor: '#f9fafb', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <div style={{ flex: 1 }}>
@@ -231,7 +261,7 @@ function ClubElections() {
           {/* Create Election Form */}
           <div style={{ backgroundColor: '#fff', border: '1px solid #d1d5db', padding: '15px', borderRadius: '8px', marginBottom: '30px' }}>
             <h5 style={{ margin: '0 0 15px 0', color: '#374151', borderBottom: '1px solid #e5e7eb', paddingBottom: '10px' }}>➕ Create New Election</h5>
-            
+
             <div style={{ marginBottom: '15px' }}>
               <select className="form-control" value={electionData.position} onChange={(e) => setElectionData({ ...electionData, position: e.target.value })}>
                 <option value="">-- Select Position to Elect --</option>
@@ -257,7 +287,18 @@ function ClubElections() {
               <div style={{ display: 'flex', gap: '10px' }}>
                 <select className="form-control" value={tempCandidate.candidateUserId} onChange={(e) => setTempCandidate({ ...tempCandidate, candidateUserId: e.target.value })} style={{ margin: 0, flex: 1 }}>
                   <option value="">-- Select Member --</option>
-                  {club.members?.map(m => <option key={m._id} value={m._id}>{m.name}</option>)}
+
+                  {normalMembers.length > 0 && (
+                    <optgroup label="Regular Members">
+                      {normalMembers.map(m => <option key={m._id} value={m._id}>{m.name}</option>)}
+                    </optgroup>
+                  )}
+
+                  {excoMembers.length > 0 && (
+                    <optgroup label="Current Top Board (ExCo)">
+                      {excoMembers.map(m => <option key={m._id} value={m._id}>{m.name}</option>)}
+                    </optgroup>
+                  )}
                 </select>
                 <input type="text" className="form-control" placeholder="Short Manifesto" value={tempCandidate.manifesto} onChange={(e) => setTempCandidate({ ...tempCandidate, manifesto: e.target.value })} style={{ margin: 0, flex: 2 }} />
                 <button type="button" className="btn" style={{ backgroundColor: '#059669', margin: 0 }} onClick={(e) => handleAddTempCandidate(e, false)}>Add</button>
@@ -274,72 +315,83 @@ function ClubElections() {
             <div style={{ display: 'grid', gap: '20px' }}>
               {club.elections?.map(election => (
                 <div key={election._id} style={{ backgroundColor: '#fff', border: '1px solid #d1d5db', padding: '15px', borderRadius: '8px' }}>
-                  
+
                   {/* Edit Mode vs Display Mode handled here (kept identical to your previous code) */}
                   {editingElectionId === election._id ? (
-                      <div style={{ backgroundColor: '#fef3c7', padding: '15px', borderRadius: '5px', border: '1px solid #fde68a' }}>
-                        <h6 style={{ margin: '0 0 10px 0', color: '#d97706' }}>✏️ Edit Election Details</h6>
-                        <select className="form-control" value={editElectionData.position} onChange={(e) => setEditElectionData({ ...editElectionData, position: e.target.value })} style={{ marginBottom: '10px' }}>
-                          <option value="">-- Select Position --</option>
-                          {availableRoles.map(r => <option key={r} value={r}>{r}</option>)}
+                    <div style={{ backgroundColor: '#fef3c7', padding: '15px', borderRadius: '5px', border: '1px solid #fde68a' }}>
+                      <h6 style={{ margin: '0 0 10px 0', color: '#d97706' }}>✏️ Edit Election Details</h6>
+                      <select className="form-control" value={editElectionData.position} onChange={(e) => setEditElectionData({ ...editElectionData, position: e.target.value })} style={{ marginBottom: '10px' }}>
+                        <option value="">-- Select Position --</option>
+                        {availableRoles.map(r => <option key={r} value={r}>{r}</option>)}
+                      </select>
+                      <ul style={{ paddingLeft: '20px', fontSize: '0.9rem', marginBottom: '10px' }}>
+                        {editElectionData.candidates.map((c, idx) => {
+                          const name = club.members?.find(m => m._id === (c.candidateUserId || c.user))?.name || 'Unknown User';
+                          return (
+                            <li key={idx}><strong>{name}</strong> <em>("{c.manifesto}")</em>
+                              <button type="button" onClick={() => handleRemoveTempCandidate(idx, true)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', marginLeft: '5px' }}>[X]</button>
+                            </li>
+                          )
+                        })}
+                      </ul>
+                      <div style={{ display: 'flex', gap: '5px', marginBottom: '15px' }}>
+                        <select className="form-control" value={editTempCandidate.candidateUserId} onChange={(e) => setEditTempCandidate({ ...editTempCandidate, candidateUserId: e.target.value })} style={{ margin: 0, flex: 1 }}>
+                          <option value="">-- Add Member --</option>
+
+                          {normalMembers.length > 0 && (
+                            <optgroup label="Regular Members">
+                              {normalMembers.map(m => <option key={m._id} value={m._id}>{m.name}</option>)}
+                            </optgroup>
+                          )}
+
+                          {excoMembers.length > 0 && (
+                            <optgroup label="Current Top Board (ExCo)">
+                              {excoMembers.map(m => <option key={m._id} value={m._id}>{m.name}</option>)}
+                            </optgroup>
+                          )}
                         </select>
-                        <ul style={{ paddingLeft: '20px', fontSize: '0.9rem', marginBottom: '10px' }}>
-                          {editElectionData.candidates.map((c, idx) => {
-                            const name = club.members?.find(m => m._id === (c.candidateUserId || c.user))?.name || 'Unknown User';
-                            return (
-                              <li key={idx}><strong>{name}</strong> <em>("{c.manifesto}")</em>
-                                <button type="button" onClick={() => handleRemoveTempCandidate(idx, true)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', marginLeft: '5px' }}>[X]</button>
-                              </li>
-                            )
-                          })}
-                        </ul>
-                        <div style={{ display: 'flex', gap: '5px', marginBottom: '15px' }}>
-                          <select className="form-control" value={editTempCandidate.candidateUserId} onChange={(e) => setEditTempCandidate({ ...editTempCandidate, candidateUserId: e.target.value })} style={{ margin: 0, flex: 1 }}>
-                            <option value="">-- Add Member --</option>
-                            {club.members?.map(m => <option key={m._id} value={m._id}>{m.name}</option>)}
-                          </select>
-                          <input type="text" className="form-control" placeholder="Manifesto" value={editTempCandidate.manifesto} onChange={(e) => setEditTempCandidate({ ...editTempCandidate, manifesto: e.target.value })} style={{ margin: 0, flex: 2 }} />
-                          <button type="button" className="btn" style={{ backgroundColor: '#059669', margin: 0, padding: '5px 10px' }} onClick={(e) => handleAddTempCandidate(e, true)}>+</button>
-                        </div>
-                        <div style={{ display: 'flex', gap: '10px' }}>
-                          <button className="btn" style={{ backgroundColor: '#10b981', flex: 1 }} onClick={() => handleUpdateElection(election._id)}>Save Changes</button>
-                          <button className="btn" style={{ backgroundColor: '#6b7280', flex: 1 }} onClick={() => setEditingElectionId(null)}>Cancel</button>
+                        <input type="text" className="form-control" placeholder="Manifesto" value={editTempCandidate.manifesto} onChange={(e) => setEditTempCandidate({ ...editTempCandidate, manifesto: e.target.value })} style={{ margin: 0, flex: 2 }} />
+                        <button type="button" className="btn" style={{ backgroundColor: '#059669', margin: 0, padding: '5px 10px' }} onClick={(e) => handleAddTempCandidate(e, true)}>+</button>
+                      </div>
+                      <div style={{ display: 'flex', gap: '10px' }}>
+                        <button className="btn" style={{ backgroundColor: '#10b981', flex: 1 }} onClick={() => handleUpdateElection(election._id)}>Save Changes</button>
+                        <button className="btn" style={{ backgroundColor: '#6b7280', flex: 1 }} onClick={() => setEditingElectionId(null)}>Cancel</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <h5 style={{ margin: 0, fontSize: '1.2rem', color: '#065f46' }}>{election.position}</h5>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button className="btn" style={{ backgroundColor: election.isActive ? '#ef4444' : '#10b981', padding: '6px 12px', fontSize: '0.85rem' }} onClick={() => handleToggleElection(election._id, !election.isActive, election.isPublished)}>
+                            {election.isActive ? '🛑 Close Voting' : '🟢 Open Voting'}
+                          </button>
+                          <button className="btn" style={{ backgroundColor: election.isPublished ? '#6b7280' : '#8b5cf6', padding: '6px 12px', fontSize: '0.85rem' }} onClick={() => handleToggleElection(election._id, false, !election.isPublished)}>
+                            {election.isPublished ? 'Hide Results' : '📢 Publish Results'}
+                          </button>
                         </div>
                       </div>
-                  ) : (
-                      <>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <h5 style={{ margin: 0, fontSize: '1.2rem', color: '#065f46' }}>{election.position}</h5>
-                          <div style={{ display: 'flex', gap: '8px' }}>
-                            <button className="btn" style={{ backgroundColor: election.isActive ? '#ef4444' : '#10b981', padding: '6px 12px', fontSize: '0.85rem' }} onClick={() => handleToggleElection(election._id, !election.isActive, election.isPublished)}>
-                              {election.isActive ? '🛑 Close Voting' : '🟢 Open Voting'}
-                            </button>
-                            <button className="btn" style={{ backgroundColor: election.isPublished ? '#6b7280' : '#8b5cf6', padding: '6px 12px', fontSize: '0.85rem' }} onClick={() => handleToggleElection(election._id, false, !election.isPublished)}>
-                              {election.isPublished ? 'Hide Results' : '📢 Publish Results'}
-                            </button>
-                          </div>
-                        </div>
 
-                        <hr style={{ border: 'none', borderTop: '1px solid #e5e7eb', margin: '15px 0' }} />
-                        <p style={{ margin: '0 0 10px 0', fontWeight: 'bold' }}>Live Tally ({election.votedUsers?.length || 0} votes)</p>
-                        
-                        <ul style={{ margin: '0 0 15px 0', paddingLeft: '20px', color: '#4b5563' }}>
-                          {election.candidates?.map(c => {
-                            const candidateName = club.members?.find(m => m._id === c.user)?.name || 'Unknown User';
-                            return <li key={c._id} style={{ marginBottom: '8px' }}><span>{candidateName}: <strong style={{ color: '#111827' }}>{c.voteCount} votes</strong></span></li>;
-                          })}
-                        </ul>
+                      <hr style={{ border: 'none', borderTop: '1px solid #e5e7eb', margin: '15px 0' }} />
+                      <p style={{ margin: '0 0 10px 0', fontWeight: 'bold' }}>Live Tally ({election.votedUsers?.length || 0} votes)</p>
 
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px', borderTop: '1px dashed #e5e7eb', paddingTop: '12px' }}>
-                          {!election.isActive && !election.isPublished && election.votedUsers.length === 0 && (
-                            <button className="btn" style={{ backgroundColor: '#fef3c7', color: '#d97706', padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => {
-                              setEditingElectionId(election._id);
-                              setEditElectionData({ position: election.position, candidates: election.candidates.map(c => ({ candidateUserId: c.user, manifesto: c.manifesto })) });
-                            }}>✏️ Edit</button>
-                          )}
-                          <button className="btn" style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => handleDeleteElection(election._id)}>🗑️ Delete</button>
-                        </div>
-                      </>
+                      <ul style={{ margin: '0 0 15px 0', paddingLeft: '20px', color: '#4b5563' }}>
+                        {election.candidates?.map(c => {
+                          const candidateName = club.members?.find(m => m._id === c.user)?.name || 'Unknown User';
+                          return <li key={c._id} style={{ marginBottom: '8px' }}><span>{candidateName}: <strong style={{ color: '#111827' }}>{c.voteCount} votes</strong></span></li>;
+                        })}
+                      </ul>
+
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px', borderTop: '1px dashed #e5e7eb', paddingTop: '12px' }}>
+                        {!election.isActive && !election.isPublished && election.votedUsers.length === 0 && (
+                          <button className="btn" style={{ backgroundColor: '#fef3c7', color: '#d97706', padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => {
+                            setEditingElectionId(election._id);
+                            setEditElectionData({ position: election.position, candidates: election.candidates.map(c => ({ candidateUserId: c.user, manifesto: c.manifesto })) });
+                          }}>✏️ Edit</button>
+                        )}
+                        <button className="btn" style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => handleDeleteElection(election._id)}>🗑️ Delete</button>
+                      </div>
+                    </>
                   )}
                 </div>
               ))}

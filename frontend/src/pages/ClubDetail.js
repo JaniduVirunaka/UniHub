@@ -727,41 +727,43 @@ function ClubDetail() {
         </div>
       </div>
 
+      {/* 4. OFFICIAL REPORTING HUB (Visible to ExCo AND Supervisors) */}
+      {(isTopBoard || isSupervisor) && (
+        <div className="card" style={{ borderLeft: '4px solid #10b981', marginTop: '20px', backgroundColor: '#f0fdf4' }}>
+          <h2 style={{ color: '#166534', marginTop: 0, marginBottom: '10px' }}>📊 Official Reporting Hub</h2>
+          <p style={{ fontSize: '0.85rem', color: '#15803d', marginBottom: '15px', marginTop: 0 }}>Generate official PDF documents for university records.</p>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px' }}>
+            <button className="btn" style={{ backgroundColor: '#10b981', padding: '8px', fontSize: '0.85rem' }} onClick={generateMemberListPDF}>
+              👥 Member List
+            </button>
+            <button className="btn" style={{ backgroundColor: '#8b5cf6', padding: '8px', fontSize: '0.85rem' }} onClick={generateElectionResultsPDF}>
+              🗳️ Election Results
+            </button>
+
+            {/* Financial Report (Execs, Treasury & Supervisor) */}
+            {(canManageSponsorships || isSupervisor) && (
+              <button className="btn" style={{ backgroundColor: '#0ea5e9', padding: '8px', fontSize: '0.85rem' }} onClick={generateSponsorshipReportPDF}>
+                📈 Financials & Pledges
+              </button>
+            )}
+
+            {/* Announcements Report (Execs, Secretaries & Supervisor) */}
+            {(canManageAnnouncements || isSupervisor) && (
+              <button className="btn" style={{ backgroundColor: '#3b82f6', padding: '8px', fontSize: '0.85rem' }} onClick={generateAnnouncementsPDF}>
+                📢 Communications Log
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* 4. EXECUTIVE ADMIN PANEL (All Top Board Members) */}
       {isTopBoard && (
         <div className="card" style={{ borderLeft: '4px solid #3b82f6', marginTop: '20px' }}>
           <h2 style={{ color: '#3b82f6', marginTop: 0, marginBottom: '20px' }}>
             {isPresident ? "President's Control Center" : "Executive Board Panel"}
           </h2>
-
-          {/* 📊 REPORTING HUB (Visible to ALL Top Board Members) */}
-          <div style={{ backgroundColor: '#f0fdf4', padding: '15px', borderRadius: '8px', border: '1px solid #bbf7d0', marginBottom: '20px' }}>
-            <h4 style={{ color: '#166534', marginTop: 0, marginBottom: '10px' }}>📊 Reporting Hub</h4>
-            <p style={{ fontSize: '0.85rem', color: '#15803d', marginBottom: '15px', marginTop: 0 }}>Generate official PDF documents for university records.</p>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-              <button className="btn" style={{ backgroundColor: '#10b981', padding: '8px', fontSize: '0.85rem' }} onClick={generateMemberListPDF}>
-                👥 Member List
-              </button>
-              <button className="btn" style={{ backgroundColor: '#8b5cf6', padding: '8px', fontSize: '0.85rem' }} onClick={generateElectionResultsPDF}>
-                🗳️ Election Results
-              </button>
-
-              {/* Financial Report (Execs & Treasury) */}
-              {canManageSponsorships && (
-                <button className="btn" style={{ backgroundColor: '#0ea5e9', padding: '8px', fontSize: '0.85rem' }} onClick={generateSponsorshipReportPDF}>
-                  📈 Financials & Pledges
-                </button>
-              )}
-
-              {/* Announcements Report (Execs & Secretaries) */}
-              {canManageAnnouncements && (
-                <button className="btn" style={{ backgroundColor: '#3b82f6', padding: '8px', fontSize: '0.85rem' }} onClick={generateAnnouncementsPDF}>
-                  📢 Communications Log
-                </button>
-              )}
-            </div>
-          </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: isPresident ? '1fr 1fr' : '1fr', gap: '20px' }}>
 
