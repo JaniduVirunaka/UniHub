@@ -32,33 +32,56 @@ function MembershipFees() {
   // 1. EARLY RETURN: Stop here if the data hasn't loaded yet!
   if (!club) return <div style={{ textAlign: 'center', marginTop: '50px' }}>Loading Treasury Ledger...</div>;
 
-  // 2. BUILD THE MASTER MEMBER LIST (Now guaranteed to have club data)
-  let allMembers = [];
-  
-  if (club.members) {
-    allMembers = [...club.members];
+ // 2. BUILD THE MASTER MEMBER LIST (Sorted: ExCo alphabetically, then Normal alphabetically)
+  let excoMembers = [];
+  let normalMembers = [];
+  const excoIds = new Set();
+
+  // Step A: Grab ExCo Members
+  if (club.president) {
+    excoIds.add(club.president._id);
+    excoMembers.push(club.president);
   }
-  
-  if (club.president && !allMembers.some(m => m._id === club.president._id)) {
-    allMembers.push(club.president);
-  }
-  
+
   if (club.topBoard) {
-    club.topBoard.forEach(boardMember => {
-      if (boardMember.user && !allMembers.some(m => m._id === boardMember.user._id)) {
-        allMembers.push(boardMember.user);
+    club.topBoard.forEach(b => {
+      if (b.user && !excoIds.has(b.user._id)) {
+        excoIds.add(b.user._id);
+        excoMembers.push(b.user);
       }
     });
   }
 
+  // Step B: Grab Normal Members
+  if (club.members) {
+    club.members.forEach(m => {
+      if (!excoIds.has(m._id)) {
+        normalMembers.push(m);
+      }
+    });
+  }
+
+  // Step C: Sort both arrays alphabetically
+  const sortByName = (a, b) => (a.name || '').localeCompare(b.name || '');
+  excoMembers.sort(sortByName);
+  normalMembers.sort(sortByName);
+
+  // Step D: Combine. This variable automatically powers the PDF and the on-screen table!
+  const allMembers = [...excoMembers, ...normalMembers];
+
   // 3. STRICT TREASURY ACCESS CONTROL
+  const isSupervisor = currentUser?.role === 'supervisor';
   const isActualPresident = club.president?._id === currentUser?.id;
   const isVP = club.topBoard?.some(b => b.user?._id === currentUser?.id && b.role === 'Vice President');
   const isPresident = isActualPresident || isVP;
 
   const isTreasury = club.topBoard?.some(b => b.user?._id === currentUser?.id && ['Treasurer', 'Assistant Treasurer'].includes(b.role));
+  
   const canManageFees = isPresident || isTreasury;
-
+  // NEW: A combined permission so the layout knows when to show the ledger
+  const canViewLedger = canManageFees || isSupervisor;
+  
+  
   // 4. ACTIONS (These functions can now safely see the allMembers list!)
   const handleSubmitPayment = (e) => {
     e.preventDefault(); 
@@ -92,7 +115,7 @@ function MembershipFees() {
     .catch(err => alert(err.response?.data?.message || "Error updating fee record."));
   };
 
-  const generateLedgerPDF = () => {
+ const generateLedgerPDF = () => {
     const doc = new jsPDF();
     doc.setFontSize(22);
     doc.setTextColor(40, 40, 40);
@@ -113,8 +136,19 @@ function MembershipFees() {
       const record = club.feeRecords?.find(f => f.user === member._id) || { status: 'Pending', amountPaid: 0, lastUpdated: 'N/A' };
       const dateStr = record.lastUpdated !== 'N/A' ? new Date(record.lastUpdated).toLocaleDateString() : 'N/A';
       
+      // --- NEW LOGIC: Check if they have an ExCo Role ---
+      let roleTag = "";
+      if (club.president?._id === member._id) {
+        roleTag = " (President)";
+      } else {
+        const boardMatch = club.topBoard?.find(b => (b.user?._id || b.user) === member._id);
+        if (boardMatch) {
+          roleTag = ` (${boardMatch.role})`;
+        }
+      }
+      
       tableRows.push([
-        member.name,
+        `${member.name}${roleTag}`, // Appends the role right next to their name!
         member.email,
         record.status,
         `Rs. ${record.amountPaid.toLocaleString()}`,
@@ -155,10 +189,11 @@ function MembershipFees() {
 
       <ClubNavigation club={club} />
 
-      <div style={{ display: 'grid', gridTemplateColumns: canManageFees ? '1fr 2fr' : '1fr', gap: '30px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: canViewLedger ? '1fr 2fr' : '1fr', gap: '30px' }}>
         
         {/* LEFT COLUMN: Personal Status */}
         <div>
+          {!isSupervisor && (
           <div className="card" style={{ border: '1px solid #a7f3d0', backgroundColor: '#fff' }}>
             <h3 style={{ color: '#059669', marginTop: 0, borderBottom: '2px solid #a7f3d0', paddingBottom: '10px' }}>My Payment Status</h3>
             
@@ -199,9 +234,10 @@ function MembershipFees() {
               )}
             </div>
           </div>
+          )}
 
           {/* Quick Stats (Only Treasurers see this) */}
-          {canManageFees && (
+          {canViewLedger && (
             <div className="card" style={{ border: '1px solid #e5e7eb', backgroundColor: '#f9fafb' }}>
               <h4 style={{ color: '#374151', margin: '0 0 15px 0' }}>📈 Treasury Overview</h4>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
@@ -220,14 +256,13 @@ function MembershipFees() {
           )}
         </div>
 
-     {/* RIGHT COLUMN: Master Ledger (ONLY for Execs & Treasury) */}
-        {canManageFees && (
+    {/* RIGHT COLUMN: Master Ledger (For Execs, Treasury & Supervisors) */}
+        {canViewLedger && (
           <div className="card" style={{ border: '1px solid #d1d5db', padding: '20px' }}>
             <h3 style={{ color: '#111827', marginTop: 0, borderBottom: '2px solid #e5e7eb', paddingBottom: '10px', marginBottom: '20px' }}>
               📖 Official Treasury Ledger
             </h3>
 
-            {/* FIX 1: Check if allMembers is empty, not club.members! */}
             {allMembers.length === 0 ? (
               <p style={{ color: '#6b7280', fontStyle: 'italic' }}>No approved members in this club yet.</p>
             ) : (
@@ -238,11 +273,11 @@ function MembershipFees() {
                       <th style={{ padding: '12px', color: '#374151' }}>Member Name</th>
                       <th style={{ padding: '12px', color: '#374151' }}>Status</th>
                       <th style={{ padding: '12px', color: '#374151' }}>Amount (Rs.)</th>
-                      <th style={{ padding: '12px', color: '#374151', textAlign: 'right' }}>Actions</th>
+                      {/* Hide Actions column header if they are a Supervisor */}
+                      {canManageFees && <th style={{ padding: '12px', color: '#374151', textAlign: 'right' }}>Actions</th>}
                     </tr>
                   </thead>
                   <tbody>
-                    {/* FIX 2: Map through allMembers, not club.members! */}
                     {allMembers.map(member => {
                       const record = club.feeRecords?.find(f => f.user === member._id) || { status: 'Pending', amountPaid: 0 };
                       const isEditing = editingId === member._id;
@@ -281,21 +316,24 @@ function MembershipFees() {
                             )}
                           </td>
 
-                          <td style={{ padding: '12px', textAlign: 'right' }}>
-                            {isEditing ? (
-                              <div style={{ display: 'flex', gap: '5px', justifyContent: 'flex-end' }}>
-                                <button className="btn" style={{ backgroundColor: '#10b981', padding: '6px 12px', fontSize: '0.8rem', margin: 0 }} onClick={() => handleUpdateFee(member._id)}>Save</button>
-                                <button className="btn" style={{ backgroundColor: '#6b7280', padding: '6px 12px', fontSize: '0.8rem', margin: 0 }} onClick={() => setEditingId(null)}>Cancel</button>
-                              </div>
-                            ) : (
-                              <button className="btn" style={{ backgroundColor: '#fef3c7', color: '#d97706', border: '1px solid #fde68a', padding: '6px 12px', fontSize: '0.8rem', margin: 0 }} onClick={() => {
-                                setEditingId(member._id);
-                                setEditForm({ status: record.status, amountPaid: record.amountPaid });
-                              }}>
-                                ✏️ Verify
-                              </button>
-                            )}
-                          </td>
+                          {/* Hide Actions buttons if they are a Supervisor */}
+                          {canManageFees && (
+                            <td style={{ padding: '12px', textAlign: 'right' }}>
+                              {isEditing ? (
+                                <div style={{ display: 'flex', gap: '5px', justifyContent: 'flex-end' }}>
+                                  <button className="btn" style={{ backgroundColor: '#10b981', padding: '6px 12px', fontSize: '0.8rem', margin: 0 }} onClick={() => handleUpdateFee(member._id)}>Save</button>
+                                  <button className="btn" style={{ backgroundColor: '#6b7280', padding: '6px 12px', fontSize: '0.8rem', margin: 0 }} onClick={() => setEditingId(null)}>Cancel</button>
+                                </div>
+                              ) : (
+                                <button className="btn" style={{ backgroundColor: '#fef3c7', color: '#d97706', border: '1px solid #fde68a', padding: '6px 12px', fontSize: '0.8rem', margin: 0 }} onClick={() => {
+                                  setEditingId(member._id);
+                                  setEditForm({ status: record.status, amountPaid: record.amountPaid });
+                                }}>
+                                  ✏️ Verify
+                                </button>
+                              )}
+                            </td>
+                          )}
                         </tr>
                       );
                     })}

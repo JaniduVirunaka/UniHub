@@ -143,43 +143,43 @@ function ClubDetail() {
     doc.setTextColor(40, 40, 40);
     doc.text(`${club.name} - Official Member Roster`, 14, 20);
 
-    // --- NEW LOGIC: BUILD AN ORDERED MASTER LIST ---
-    let orderedMembers = [];
+ // --- NEW LOGIC: BUILD A SORTED MASTER LIST ---
+    let excoMembers = [];
+    let normalMembers = [];
+    const excoIds = new Set();
 
-    // Step A: Put the President at the very top (Rank 1)
+    // Step A: Get the President
     if (club.president) {
-      orderedMembers.push({
-        user: club.president,
-        role: "President"
-      });
+      excoIds.add(club.president._id);
+      excoMembers.push({ user: club.president, role: "President" });
     }
 
-    // Step B: Put the Top Board next (Rank 2)
+    // Step B: Get the Top Board
     if (club.topBoard && club.topBoard.length > 0) {
       club.topBoard.forEach(boardItem => {
-        // Prevent adding the president twice if they are accidentally in the board array
-        if (boardItem.user && boardItem.user._id !== club.president?._id) {
-          orderedMembers.push({
-            user: boardItem.user,
-            role: `Top Board: ${boardItem.role}`
-          });
+        if (boardItem.user && !excoIds.has(boardItem.user._id)) {
+          excoIds.add(boardItem.user._id);
+          excoMembers.push({ user: boardItem.user, role: `Top Board: ${boardItem.role}` });
         }
       });
     }
 
-    // Step C: Put General Members at the bottom (Rank 3)
+    // Step C: Get General Members
     if (club.members && club.members.length > 0) {
       club.members.forEach(member => {
-        // Only add them if they aren't already listed as President or Top Board
-        const isAlreadyAdded = orderedMembers.some(item => item.user._id === member._id);
-        if (!isAlreadyAdded) {
-          orderedMembers.push({
-            user: member,
-            role: "General Member"
-          });
+        if (!excoIds.has(member._id)) {
+          normalMembers.push({ user: member, role: "General Member" });
         }
       });
     }
+
+    // Step D: Sort both arrays alphabetically by name
+    const sortAlphabetically = (a, b) => (a.user.name || '').localeCompare(b.user.name || '');
+    excoMembers.sort(sortAlphabetically);
+    normalMembers.sort(sortAlphabetically);
+
+    // Step E: Combine them! ExCo on top, normal members below.
+    const orderedMembers = [...excoMembers, ...normalMembers];
 
     doc.setFontSize(11);
     doc.setTextColor(100, 100, 100);
@@ -603,64 +603,84 @@ function ClubDetail() {
           <h2 style={{ color: '#10b981', borderBottom: '1px solid #e5e7eb', paddingBottom: '10px' }}>Internal Member Hub</h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', marginTop: '20px' }}>
 
-            {/* Announcements */}
-            <div style={{ backgroundColor: '#f9fafb', padding: '15px', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
-              <h4 style={{ marginTop: '0' }}>📢 Official Announcements</h4>
+           {/* Announcements */}
+            <div style={{ backgroundColor: '#f9fafb', padding: '20px', borderRadius: '8px', border: '1px solid #e5e7eb', gridColumn: '1 / -1' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #e5e7eb', paddingBottom: '10px', marginBottom: '15px' }}>
+                <h4 style={{ margin: 0, color: '#1f2937' }}>📢 Official Announcements</h4>
+              </div>
               
-              {/* Added the isDeleted filter to the empty state check so it doesn't say "0" if there are only deleted ones! */}
               {club.announcements?.filter(a => !a.isDeleted && (a.isApproved || canManageAnnouncements || isSupervisor)).length === 0 ? (
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>No announcements yet.</p>
               ) : (
-                club.announcements?.map((ann) => {
-                  // THE FIX: Only show if it is NOT deleted!
-                  if (!ann.isDeleted && (ann.isApproved || canManageAnnouncements || isSupervisor)) {
-                    return (
-                      <div key={ann._id} style={{ padding: '15px', backgroundColor: '#fff', border: '1px solid #e5e7eb', marginBottom: '10px', borderRadius: '6px', position: 'relative' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '15px' }}>
+                  
+                  {/* Reverse the array so the newest announcements show up first! */}
+                  {[...club.announcements].reverse().map((ann) => {
+                    
+                    if (!ann.isDeleted && (ann.isApproved || canManageAnnouncements || isSupervisor)) {
+                      
+                      // Extract Date from createdAt OR the MongoDB ObjectID
+                      const dateStr = ann.createdAt
+                        ? new Date(ann.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+                        : new Date(parseInt(ann._id.substring(0, 8), 16) * 1000).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 
-                        {editingAnnId === ann._id ? (
-                          /* EDIT MODE */
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            <input type="text" className="form-control" value={editAnnData.title} onChange={(e) => setEditAnnData({ ...editAnnData, title: e.target.value })} style={{ margin: 0 }} />
-                            <textarea className="form-control" value={editAnnData.content} onChange={(e) => setEditAnnData({ ...editAnnData, content: e.target.value })} style={{ margin: 0, minHeight: '80px' }} />
-                            <div style={{ display: 'flex', gap: '8px', marginTop: '5px' }}>
-                              <button className="btn" style={{ padding: '4px 12px', fontSize: '0.8rem', backgroundColor: '#10b981' }} onClick={() => handleEditAnnouncement(ann._id)}>Save Changes</button>
-                              <button className="btn" style={{ padding: '4px 12px', fontSize: '0.8rem', backgroundColor: '#6b7280' }} onClick={() => setEditingAnnId(null)}>Cancel</button>
+                      return (
+                        <div key={ann._id} style={{ padding: '15px', backgroundColor: '#fff', border: '1px solid #d1d5db', borderRadius: '8px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+
+                          {editingAnnId === ann._id ? (
+                            /* EDIT MODE */
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                              <input type="text" className="form-control" value={editAnnData.title} onChange={(e) => setEditAnnData({ ...editAnnData, title: e.target.value })} style={{ margin: 0 }} />
+                              <textarea className="form-control" value={editAnnData.content} onChange={(e) => setEditAnnData({ ...editAnnData, content: e.target.value })} style={{ margin: 0, minHeight: '80px' }} />
+                              <div style={{ display: 'flex', gap: '8px', marginTop: '5px' }}>
+                                <button className="btn" style={{ padding: '6px 12px', fontSize: '0.8rem', backgroundColor: '#10b981', flex: 1 }} onClick={() => handleEditAnnouncement(ann._id)}>Save</button>
+                                <button className="btn" style={{ padding: '6px 12px', fontSize: '0.8rem', backgroundColor: '#6b7280', flex: 1 }} onClick={() => setEditingAnnId(null)}>Cancel</button>
+                              </div>
                             </div>
-                          </div>
-                        ) : (
-                          /* DISPLAY MODE */
-                          <>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                          ) : (
+                            /* DISPLAY MODE */
+                            <>
                               <div>
-                                <strong style={{ display: 'block', fontSize: '1.05rem', color: '#111827' }}>{ann.title}</strong>
-                                <span style={{ fontSize: '0.9rem', color: '#4b5563', whiteSpace: 'pre-wrap' }}>{ann.content}</span>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                                  <strong style={{ fontSize: '1.1rem', color: '#111827' }}>{ann.title}</strong>
+                                  <span style={{ fontSize: '0.75rem', color: '#6b7280', backgroundColor: '#f3f4f6', padding: '2px 8px', borderRadius: '12px', whiteSpace: 'nowrap', marginLeft: '10px' }}>
+                                    {dateStr}
+                                  </span>
+                                </div>
+                                <p style={{ fontSize: '0.9rem', color: '#4b5563', whiteSpace: 'pre-wrap', margin: '0 0 15px 0', lineHeight: '1.5' }}>{ann.content}</p>
                               </div>
 
-                              {/* UPGRADE: Show Edit/Delete buttons to Authorized Execs AND the Supervisor! */}
-                              {(canManageAnnouncements || isSupervisor) && (
-                                <div style={{ display: 'flex', gap: '5px', marginLeft: '10px' }}>
-                                  <button className="btn" style={{ padding: '4px 8px', fontSize: '0.75rem', backgroundColor: '#fef3c7', color: '#d97706', border: '1px solid #fde68a' }} onClick={() => {
-                                    setEditingAnnId(ann._id);
-                                    setEditAnnData({ title: ann.title, content: ann.content });
-                                  }}>✏️</button>
-                                  <button className="btn" style={{ padding: '4px 8px', fontSize: '0.75rem', backgroundColor: '#fee2e2', color: '#dc2626', border: '1px solid #fca5a5' }} onClick={() => handleDeleteAnnouncement(ann._id)}>🗑️</button>
-                                </div>
-                              )}
-                            </div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px dashed #e5e7eb', paddingTop: '10px' }}>
+                                {/* Status Badge */}
+                                {!ann.isApproved ? (
+                                  <span style={{ display: 'inline-block', backgroundColor: '#fef3c7', color: '#d97706', padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold' }}>
+                                    ⏳ Pending Approval
+                                  </span>
+                                ) : (
+                                  <span style={{ display: 'inline-block', color: '#10b981', fontSize: '0.75rem', fontWeight: 'bold' }}>
+                                    ✓ Published
+                                  </span>
+                                )}
 
-                            {/* Status Badge */}
-                            {!ann.isApproved && (
-                              <span style={{ display: 'inline-block', backgroundColor: '#fef3c7', color: '#d97706', padding: '2px 8px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 'bold', marginTop: '10px' }}>
-                                ⏳ Pending Supervisor Approval
-                              </span>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    );
-                  }
-                  return null; // Ensure we return null if the item doesn't match the condition
-                })
+                                {/* Admin Controls */}
+                                {(canManageAnnouncements || isSupervisor) && (
+                                  <div style={{ display: 'flex', gap: '5px' }}>
+                                    <button className="btn" style={{ padding: '4px 8px', fontSize: '0.75rem', backgroundColor: '#fef3c7', color: '#d97706', border: '1px solid #fde68a' }} onClick={() => {
+                                      setEditingAnnId(ann._id);
+                                      setEditAnnData({ title: ann.title, content: ann.content });
+                                    }}>✏️ Edit</button>
+                                    <button className="btn" style={{ padding: '4px 8px', fontSize: '0.75rem', backgroundColor: '#fee2e2', color: '#dc2626', border: '1px solid #fca5a5' }} onClick={() => handleDeleteAnnouncement(ann._id)}>🗑️</button>
+                                  </div>
+                                )}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      );
+                    }
+                    return null;
+                  })}
+                </div>
               )}
             </div>
 
@@ -727,41 +747,43 @@ function ClubDetail() {
         </div>
       </div>
 
+      {/* 4. OFFICIAL REPORTING HUB (Visible to ExCo AND Supervisors) */}
+      {(isTopBoard || isSupervisor) && (
+        <div className="card" style={{ borderLeft: '4px solid #10b981', marginTop: '20px', backgroundColor: '#f0fdf4' }}>
+          <h2 style={{ color: '#166534', marginTop: 0, marginBottom: '10px' }}>📊 Official Reporting Hub</h2>
+          <p style={{ fontSize: '0.85rem', color: '#15803d', marginBottom: '15px', marginTop: 0 }}>Generate official PDF documents for university records.</p>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px' }}>
+            <button className="btn" style={{ backgroundColor: '#10b981', padding: '8px', fontSize: '0.85rem' }} onClick={generateMemberListPDF}>
+              👥 Member List
+            </button>
+            <button className="btn" style={{ backgroundColor: '#8b5cf6', padding: '8px', fontSize: '0.85rem' }} onClick={generateElectionResultsPDF}>
+              🗳️ Election Results
+            </button>
+
+            {/* Financial Report (Execs, Treasury & Supervisor) */}
+            {(canManageSponsorships || isSupervisor) && (
+              <button className="btn" style={{ backgroundColor: '#0ea5e9', padding: '8px', fontSize: '0.85rem' }} onClick={generateSponsorshipReportPDF}>
+                📈 Financials & Pledges
+              </button>
+            )}
+
+            {/* Announcements Report (Execs, Secretaries & Supervisor) */}
+            {(canManageAnnouncements || isSupervisor) && (
+              <button className="btn" style={{ backgroundColor: '#3b82f6', padding: '8px', fontSize: '0.85rem' }} onClick={generateAnnouncementsPDF}>
+                📢 Communications Log
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* 4. EXECUTIVE ADMIN PANEL (All Top Board Members) */}
       {isTopBoard && (
         <div className="card" style={{ borderLeft: '4px solid #3b82f6', marginTop: '20px' }}>
           <h2 style={{ color: '#3b82f6', marginTop: 0, marginBottom: '20px' }}>
             {isPresident ? "President's Control Center" : "Executive Board Panel"}
           </h2>
-
-          {/* 📊 REPORTING HUB (Visible to ALL Top Board Members) */}
-          <div style={{ backgroundColor: '#f0fdf4', padding: '15px', borderRadius: '8px', border: '1px solid #bbf7d0', marginBottom: '20px' }}>
-            <h4 style={{ color: '#166534', marginTop: 0, marginBottom: '10px' }}>📊 Reporting Hub</h4>
-            <p style={{ fontSize: '0.85rem', color: '#15803d', marginBottom: '15px', marginTop: 0 }}>Generate official PDF documents for university records.</p>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-              <button className="btn" style={{ backgroundColor: '#10b981', padding: '8px', fontSize: '0.85rem' }} onClick={generateMemberListPDF}>
-                👥 Member List
-              </button>
-              <button className="btn" style={{ backgroundColor: '#8b5cf6', padding: '8px', fontSize: '0.85rem' }} onClick={generateElectionResultsPDF}>
-                🗳️ Election Results
-              </button>
-
-              {/* Financial Report (Execs & Treasury) */}
-              {canManageSponsorships && (
-                <button className="btn" style={{ backgroundColor: '#0ea5e9', padding: '8px', fontSize: '0.85rem' }} onClick={generateSponsorshipReportPDF}>
-                  📈 Financials & Pledges
-                </button>
-              )}
-
-              {/* Announcements Report (Execs & Secretaries) */}
-              {canManageAnnouncements && (
-                <button className="btn" style={{ backgroundColor: '#3b82f6', padding: '8px', fontSize: '0.85rem' }} onClick={generateAnnouncementsPDF}>
-                  📢 Communications Log
-                </button>
-              )}
-            </div>
-          </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: isPresident ? '1fr 1fr' : '1fr', gap: '20px' }}>
 

@@ -102,28 +102,44 @@ function ClubManagement() {
       .catch(err => alert(err.response?.data?.message || "Error updating club."));
   };
 
-// --- UPDATED: Filter eligible presidents ---
+// --- UPDATED: Dynamic President Filter (Empty vs Populated Club) ---
   const eligibleUsers = users.filter(user => {
-    // 1. Exclude supervisors entirely from the list
-    if (user.role === 'supervisor') return false;
+    // 1. Must be a student (no supervisors allowed in dropdown)
+    if (user.role !== 'student') return false;
+
+    // 2. Are they currently a President or VP in ANY OTHER club?
+    const isBusyElsewhere = clubs.some(c => {
+      // Skip checking the club we are currently editing (so we don't lock out our own current President/VP)
+      if (editingClubId && c._id === editingClubId) return false;
+
+      const isPres = (c.president?._id === user._id) || (c.president === user._id);
+      const isVP = c.topBoard?.some(b => 
+        ((b.user?._id === user._id) || (b.user === user._id)) && b.role === 'Vice President'
+      );
+      
+      return isPres || isVP;
+    });
+
+    // If they are busy running another club, they are instantly disqualified.
+    if (isBusyElsewhere) return false;
+
+    // 3. Setup variables to determine our current scenario
+    const currentClub = editingClubId ? clubs.find(c => c._id === editingClubId) : null;
+    const hasMembers = currentClub?.members?.length > 0;
     
-    // 2. If we are editing an existing club:
-    if (editingClubId) {
-      // Find the specific club we are editing from the clubs array
-      const currentClub = clubs.find(c => c._id === editingClubId);
-      
-      // Check if the user is currently in this club's member list
-      const isMember = currentClub?.members?.some(m => m._id === user._id);
-      
-      // Always include the current president in the list so the dropdown doesn't glitch to empty
-      const isCurrentPresident = formData.presidentId === user._id;
-      
-      // Only return true if they are a member OR the current president
+    // Always keep the currently selected president in the list so the UI doesn't glitch
+    const isCurrentPresident = editingClubId && formData.presidentId === user._id;
+
+    // 4. SCENARIO A: The club already has members
+    if (hasMembers) {
+      // Only allow them if they are in the members list OR they are the current president
+      const isMember = currentClub.members.some(m => (m._id === user._id) || (m === user._id));
       return isMember || isCurrentPresident;
     }
-    
-    // 3. If creating a NEW club (where no members exist yet), allow any normal student
-    return user.role === 'student';
+
+    // 5. SCENARIO B: Brand new club OR existing club with 0 members
+    // We already confirmed they aren't a Pres/VP elsewhere, so the whole global roster is available!
+    return true;
   });
 
   // Deletes the club
