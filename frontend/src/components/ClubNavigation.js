@@ -38,14 +38,15 @@ const ClubNavigation = ({ club }) => {
 
   return (
     <div style={{ 
-      backgroundColor: '#fff', 
-      borderBottom: '1px solid #e5e7eb', 
+      backgroundColor: 'var(--surface-color)', /* Fixed from #fff */
+      borderBottom: '1px solid var(--border-color)', /* Fixed from #e5e7eb */
       marginBottom: '25px', 
       display: 'flex', 
       flexWrap: 'wrap', 
       alignItems: 'center',
       gap: '10px', 
-      padding: '10px 15px' 
+      padding: '10px 15px',
+      transition: 'var(--transition)' /* Ensures it fades smoothly when toggling */
     }}>
       
       <Link to={`/clubs/${club._id}`} style={getTabStyle(`/clubs/${club._id}`, '')}>🏠 Main Hub</Link>

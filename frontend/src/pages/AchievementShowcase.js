@@ -4,14 +4,13 @@ import axios from 'axios';
 import ClubNavigation from '../components/ClubNavigation';
 
 // --- NEW: MINI CAROUSEL COMPONENT ---
-// This handles the Next/Prev buttons for each individual achievement card
 const ImageCarousel = ({ images, title }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
 
   if (!images || images.length === 0) {
     return (
-      <div style={{ height: '200px', backgroundColor: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <span style={{ color: '#9ca3af' }}>No Images Available</span>
+      <div style={{ height: '200px', backgroundColor: 'var(--bg-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid var(--border-color)' }}>
+        <span style={{ color: 'var(--text-muted)' }}>No Images Available</span>
       </div>
     );
   }
@@ -33,16 +32,18 @@ const ImageCarousel = ({ images, title }) => {
         <>
           <button onClick={handlePrev} style={{
             position: 'absolute', top: '50%', left: '10px', transform: 'translateY(-50%)',
-            backgroundColor: 'rgba(255,255,255,0.7)', border: 'none', borderRadius: '50%', 
-            width: '35px', height: '35px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1.2rem'
+            backgroundColor: 'var(--surface-color)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '50%', 
+            width: '35px', height: '35px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1.2rem',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-md)'
           }}>
             &larr;
           </button>
           
           <button onClick={handleNext} style={{
             position: 'absolute', top: '50%', right: '10px', transform: 'translateY(-50%)',
-            backgroundColor: 'rgba(255,255,255,0.7)', border: 'none', borderRadius: '50%', 
-            width: '35px', height: '35px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1.2rem'
+            backgroundColor: 'var(--surface-color)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '50%', 
+            width: '35px', height: '35px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1.2rem',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-md)'
           }}>
             &rarr;
           </button>
@@ -50,8 +51,8 @@ const ImageCarousel = ({ images, title }) => {
           {/* Image Counter Badge */}
           <div style={{
             position: 'absolute', bottom: '10px', right: '10px',
-            backgroundColor: 'rgba(0,0,0,0.6)', color: '#fff', padding: '2px 8px', 
-            borderRadius: '12px', fontSize: '0.8rem'
+            backgroundColor: 'rgba(0,0,0,0.7)', color: '#fff', padding: '2px 8px', 
+            borderRadius: 'var(--radius-md)', fontSize: '0.8rem', border: '1px solid rgba(255,255,255,0.2)'
           }}>
             {currentIndex + 1} / {images.length}
           </div>
@@ -159,7 +160,7 @@ function AchievementShowcase() {
       </div>
 
       {canManageAchievements && !showForm && (
-        <button className="btn" style={{ backgroundColor: 'var(--warning)', color: 'white', marginBottom: '20px', fontWeight: 'bold' }} onClick={() => setShowForm(true)}>
+        <button className="btn" style={{ backgroundColor: 'var(--warning)', color: 'black', marginBottom: '20px', fontWeight: 'bold' }} onClick={() => setShowForm(true)}>
           + Post New Achievement
         </button>
       )}
@@ -227,7 +228,7 @@ function AchievementShowcase() {
                   
                   {(canManageAchievements || isSupervisor) && (
                     <div style={{ display: 'flex', gap: '10px', borderTop: '1px solid var(--border-color)', paddingTop: '15px' }}>
-                      <button className="btn" style={{ flex: 1, backgroundColor: 'var(--warning-bg)', color: 'var(--warning)', border: '1px solid transparent', padding: '8px', margin: 0, fontSize: '0.85rem' }} onClick={() => openEditForm(achv)}>
+                      <button className="btn btn-edit" style={{ flex: 1, border: '1px solid transparent', padding: '8px', margin: 0, fontSize: '0.85rem' }} onClick={() => openEditForm(achv)}>
                         ✏️ Edit
                       </button>
                       <button className="btn btn-danger" style={{ flex: 1, padding: '8px', margin: 0, fontSize: '0.85rem' }} onClick={() => handleDelete(achv._id)}>

@@ -222,20 +222,35 @@ const pendingAnnouncements = clubs.flatMap(club =>
               Action Center: Pending Approvals
             </h2>
             
-            {pendingAnnouncements.length === 0 ? (
+          {pendingAnnouncements.length === 0 ? (
               <p style={{ color: 'var(--text-muted)' }}>✅ All caught up! No pending announcements.</p>
             ) : (
               <div style={{ display: 'grid', gap: '15px' }}>
                 {pendingAnnouncements.map((ann) => (
-                  <div key={ann._id} style={{ backgroundColor: '#fef2f2', border: '1px solid #fecaca', padding: '15px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div key={ann._id} className="card-hover" style={{ 
+                    backgroundColor: 'var(--danger-bg)', 
+                    border: '1px solid var(--danger)', 
+                    padding: '20px', 
+                    borderRadius: 'var(--radius-md)', 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center',
+                    transition: 'var(--transition)'
+                  }}>
                     <div>
-                      <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#dc2626', textTransform: 'uppercase' }}>{ann.clubName}</span>
-                      <h4 style={{ margin: '5px 0' }}>{ann.title}</h4>
-                      <p style={{ margin: 0, fontSize: '0.9rem', color: '#4b5563' }}>{ann.content}</p>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--danger)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        {ann.clubName}
+                      </span>
+                      <h4 style={{ margin: '8px 0 4px 0', color: 'var(--text-main)', fontSize: '1.1rem' }}>{ann.title}</h4>
+                      <p style={{ margin: 0, fontSize: '0.95rem', color: 'var(--text-secondary)' }}>{ann.content}</p>
                     </div>
                     <div style={{ display: 'flex', gap: '10px' }}>
-                      <button className="btn" style={{ backgroundColor: '#10b981', padding: '8px 15px' }} onClick={() => handleApproveAnnouncement(ann.clubId, ann._id)}>Approve</button>
-                      <button className="btn" style={{ backgroundColor: '#ef4444', padding: '8px 15px' }} onClick={() => handleRejectAnnouncement(ann.clubId, ann._id)}>Reject</button>
+                      <button className="btn btn-success" style={{ padding: '8px 15px', margin: 0 }} onClick={() => handleApproveAnnouncement(ann.clubId, ann._id)}>
+                        Approve
+                      </button>
+                      <button className="btn btn-danger" style={{ padding: '8px 15px', margin: 0 }} onClick={() => handleRejectAnnouncement(ann.clubId, ann._id)}>
+                        Reject
+                      </button>
                     </div>
                   </div>
                 ))}

@@ -572,7 +572,6 @@ function ClubDetail() {
             </div>
             <div>
               <h1 style={{ color: 'var(--text-main)', margin: '0 0 5px 0', fontSize: '2rem', letterSpacing: '-0.5px' }}>{club.name}</h1>
-              <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.95rem' }}>Official University Chapter</p>
             </div>
           </div>
 
@@ -654,7 +653,7 @@ function ClubDetail() {
 
                                 {(canManageAnnouncements || isSupervisor) && (
                                   <div style={{ display: 'flex', gap: '5px' }}>
-                                    <button className="btn" style={{ padding: '4px 8px', fontSize: '0.75rem', backgroundColor: 'var(--warning-bg)', color: 'var(--warning)', borderColor: 'transparent' }} onClick={() => {
+                                    <button className="btn btn-edit" style={{ padding: '4px 8px', fontSize: '0.75rem', borderColor: 'transparent' }} onClick={() => {
                                       setEditingAnnId(ann._id);
                                       setEditAnnData({ title: ann.title, content: ann.content });
                                     }}>✏️</button>

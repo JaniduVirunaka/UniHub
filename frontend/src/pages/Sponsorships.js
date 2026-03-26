@@ -162,7 +162,7 @@ function Sponsorships() {
                             {/* Admin Edit/Delete Controls */}
                             {canManageSponsorships && (
                               <div style={{ display: 'flex', gap: '5px' }}>
-                                <button className="btn" style={{ padding: '6px 10px', fontSize: '0.85rem', backgroundColor: 'var(--warning-bg)', color: 'var(--warning)', borderColor: 'transparent' }} onClick={() => {
+                                <button className="btn btn-edit" style={{ padding: '6px 10px', fontSize: '0.85rem', backgroundColor: 'var(--warning-bg)', color: 'var(--warning)', borderColor: 'transparent' }} onClick={() => {
                                   setEditingProposalId(proposal._id);
                                   setEditProposalData({ title: proposal.title, description: proposal.description, targetAmount: proposal.targetAmount, proposalDocumentUrl: proposal.proposalDocumentUrl || '', isActive: proposal.isActive });
                                 }}>✏️</button>
