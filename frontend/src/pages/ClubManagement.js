@@ -216,6 +216,17 @@ const pendingAnnouncements = clubs.flatMap(club =>
       {currentUser.role === 'supervisor' && (
         <div style={{ marginBottom: '30px' }}>
           
+          {/* NEW: BIG DATA GLOBAL ANALYTICS BUTTON */}
+          <div className="card" style={{ backgroundColor: 'var(--primary-light)', border: '1px solid var(--primary-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px' }}>
+            <div>
+              <h3 style={{ color: 'var(--primary-color)', margin: '0 0 5px 0' }}>📈 Global Financial Matrix</h3>
+              <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.95rem' }}>View aggregated revenue and expense analytics across all university clubs.</p>
+            </div>
+            <button className="btn" style={{ padding: '12px 20px', fontSize: '1.05rem' }} onClick={() => navigate('/supervisor/analytics')}>
+              Launch Matrix Engine &rarr;
+            </button>
+          </div>
+          
           {/* 1. TOP PRIORITY: PENDING ACTION CENTER */}
           <div className="card" style={{ borderLeft: pendingAnnouncements.length > 0 ? '4px solid #ef4444' : '4px solid #10b981' }}>
             <h2 style={{ marginTop: 0, color: pendingAnnouncements.length > 0 ? '#b91c1c' : '#047857' }}>

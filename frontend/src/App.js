@@ -10,6 +10,7 @@ import Sponsorships from './pages/Sponsorships';
 import MembershipFees from './pages/MembershipFees';
 import FinancialAnalytics from './pages/FinancialAnalytics';
 import ClubFinanceHub from './pages/ClubFinanceHub';
+import GlobalAnalytics from './pages/GlobalAnalytics';
 import AchievementShowcase from './pages/AchievementShowcase';
 import ClubAbout from './pages/ClubAbout';
 import ClubElections from './pages/ClubElections'; 
@@ -35,7 +36,8 @@ function App() {
           <Route path="/clubs/:id/about" element={<ClubAbout />} />
           <Route path="/clubs/:id/elections" element={<ClubElections />} />
           <Route path="/clubs/:id/finance" element={<ClubFinanceHub />} />
-          
+          <Route path="/supervisor/analytics" element={<GlobalAnalytics />} />
+
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
         

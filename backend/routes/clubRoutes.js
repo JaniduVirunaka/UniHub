@@ -33,6 +33,90 @@ router.get('/', async (req, res) => {
   }
 });
 
+// ==========================================
+// THE BIG DATA FLEX: GLOBAL SUPERVISOR MATRIX
+// ==========================================
+router.get('/global/analytics', async (req, res) => {
+  try {
+    // 1. AGGREGATE ALL FEE REVENUE GLOBALLY
+    const globalFees = await Club.aggregate([
+      { $unwind: "$feeRecords" }, 
+      { $match: { "feeRecords.status": "Paid" } },
+      { $group: { _id: { month: { $month: "$feeRecords.lastUpdated" } }, total: { $sum: "$feeRecords.amountPaid" } } }
+    ]);
+
+    // 2. AGGREGATE ALL CORPORATE SPONSORSHIPS GLOBALLY
+    const globalPledges = await Club.aggregate([
+      { $unwind: "$proposals" }, 
+      { $unwind: "$proposals.pledges" }, 
+      { $match: { "proposals.pledges.status": "Accepted" } },
+      { $group: { _id: { month: { $month: "$proposals.pledges.date" } }, total: { $sum: "$proposals.pledges.amount" } } }
+    ]);
+
+    // 3. AGGREGATE ALL EXPENSES GLOBALLY
+    const globalExpenses = await Club.aggregate([
+      { $unwind: "$expenses" },
+      { $group: { _id: { month: { $month: "$expenses.date" } }, total: { $sum: "$expenses.amount" } } }
+    ]);
+
+    // 4. MAP TO A 12-MONTH MASTER ARRAY
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    let masterChart = months.map((month) => ({ 
+      name: month, 
+      monthlyRevenue: 0, 
+      monthlyExpenses: 0 
+    }));
+
+    globalFees.forEach(r => { masterChart[r._id.month - 1].monthlyRevenue += r.total; });
+    globalPledges.forEach(r => { masterChart[r._id.month - 1].monthlyRevenue += r.total; });
+    globalExpenses.forEach(r => { masterChart[r._id.month - 1].monthlyExpenses += r.total; });
+
+    // Calculate Cumulative YTD for the Global Area Chart
+    let ytdRev = 0;
+    let ytdExp = 0;
+    masterChart = masterChart.map(data => {
+      ytdRev += data.monthlyRevenue;
+      ytdExp += data.monthlyExpenses;
+      return { ...data, ytdRevenue: ytdRev, ytdExpenses: ytdExp };
+    });
+
+    // 5. CALCULATE LEADERBOARD (Top Performing Clubs)
+    const allClubs = await Club.find().populate('members');
+    const leaderboard = allClubs.map(club => {
+      let clubRev = 0;
+      let clubExp = 0; // NEW: Track Expenses
+      
+      // Calculate Revenue
+      club.feeRecords.forEach(f => { if (f.status === 'Paid') clubRev += f.amountPaid; });
+      club.proposals.forEach(p => p.pledges.forEach(pl => { if (pl.status === 'Accepted') clubRev += pl.amount; }));
+      
+      // Calculate Expenses
+      if (club.expenses) {
+        club.expenses.forEach(e => { clubExp += e.amount; });
+      }
+      
+      return {
+        id: club._id,
+        name: club.name,
+        totalRevenue: clubRev,
+        totalExpenses: clubExp, // Inject it into the payload
+        memberCount: club.members.length
+      };
+    }).sort((a, b) => b.totalRevenue - a.totalRevenue).slice(0, 5); // Get Top 5
+    
+    res.status(200).json({ 
+      masterChart, 
+      leaderboard, 
+      totalClubs: allClubs.length,
+      totalUniversityMembers: allClubs.reduce((acc, club) => acc + club.members.length, 0)
+    });
+
+  } catch (err) {
+    console.error("Global Analytics Error:", err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // Get a SINGLE club by ID
 router.get('/:id', async (req, res) => {
   try {
