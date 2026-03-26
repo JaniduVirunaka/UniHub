@@ -261,72 +261,9 @@ function MembershipFees() {
           )}
         </div>
 
-    {/* RIGHT COLUMN: Interactive Analytics & Master Ledger (Execs & Supervisors) */}
+    {/* RIGHT COLUMN: Master Ledger (Execs & Supervisors) */}
         {canViewLedger && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
-            
-            {/* --- THE NEW FINANCIAL ANALYTICS DASHBOARD --- */}
-            <div className="card" style={{ border: '1px solid var(--border-color)', padding: '20px', marginBottom: 0 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', borderBottom: '2px solid var(--border-color)', paddingBottom: '10px', marginBottom: '20px', flexWrap: 'wrap', gap: '15px' }}>
-                <h3 style={{ color: 'var(--text-main)', margin: 0 }}>
-                  📊 Year-to-Date (YTD) Trajectory
-                </h3>
-                
-                {/* The New Target Tracker */}
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 'bold', marginBottom: '4px' }}>
-                    ANNUAL TARGET: Rs. {analytics.targets.overallTarget.toLocaleString()}
-                  </div>
-                  <div style={{ width: '200px', backgroundColor: 'var(--bg-color)', borderRadius: '99px', height: '10px', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
-                    <div style={{ 
-                      width: `${Math.min((totalCollected / (analytics.targets.overallTarget || 1)) * 100, 100)}%`, 
-                      backgroundColor: 'var(--success)', height: '100%', transition: 'width 1s ease-in-out' 
-                    }}></div>
-                  </div>
-                </div>
-              </div>
-              
-              <div style={{ width: '100%', height: 320 }}>
-                {analytics.chartData.length === 0 ? (
-                  <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
-                    Crunching numbers...
-                  </div>
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={analytics.chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="colorFees" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="var(--success)" stopOpacity={0.8}/>
-                          <stop offset="95%" stopColor="var(--success)" stopOpacity={0}/>
-                        </linearGradient>
-                        <linearGradient id="colorSponsorships" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="var(--primary-color)" stopOpacity={0.8}/>
-                          <stop offset="95%" stopColor="var(--primary-color)" stopOpacity={0}/>
-                        </linearGradient>
-                      </defs>
-                      <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={12} tickMargin={10} />
-                      <YAxis stroke="var(--text-muted)" fontSize={12} />
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} />
-                      
-                      {/* Upgraded Tooltip showing Percentages! */}
-                      <Tooltip 
-                        contentStyle={{ backgroundColor: 'var(--surface-color)', borderColor: 'var(--border-color)', borderRadius: '8px', color: 'var(--text-main)', boxShadow: 'var(--shadow-md)' }}
-                        itemStyle={{ fontWeight: 'bold' }}
-                        formatter={(value, name) => [`Rs. ${value.toLocaleString()}`, name]}
-                        labelFormatter={(label) => `End of ${label}`}
-                      />
-                      
-                      <Legend verticalAlign="top" height={36} wrapperStyle={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}/>
-                      
-                      {/* We now graph the Cumulative totals! */}
-                      <Area type="monotone" dataKey="cumulativeFees" name="YTD Member Fees" stroke="var(--success)" strokeWidth={3} fillOpacity={1} fill="url(#colorFees)" />
-                      <Area type="monotone" dataKey="cumulativeSponsorships" name="YTD Sponsorships" stroke="var(--primary-color)" strokeWidth={3} fillOpacity={1} fill="url(#colorSponsorships)" />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                )}
-              </div>
-            </div>
-
             {/* MASTER LEDGER */}
             <div className="card" style={{ border: '1px solid var(--border-color)', padding: '20px', marginBottom: 0 }}>
               <h3 style={{ color: 'var(--text-main)', marginTop: 0, borderBottom: '2px solid var(--border-color)', paddingBottom: '10px', marginBottom: '20px' }}>

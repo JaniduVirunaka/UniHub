@@ -947,70 +947,119 @@ router.delete('/:id/elections/:electionId', async (req, res) => {
 
 
 
-// --- ADVANCED ANALYTICS ROUTE (CUMULATIVE YTD & TARGETS) ---
+// ==========================================
+// FINANCIAL & EXPENSE MANAGEMENT MODULE
+// ==========================================
+
+// 1. ADD an Expense (STRICTLY Treasury Only)
+router.post('/:id/expenses', async (req, res) => {
+  try {
+    const { title, amount, description, date, userId } = req.body;
+    const club = await Club.findById(req.params.id);
+
+    // RBAC: Only Treasurer and Assistant Treasurer
+    const isTreasury = club.topBoard?.some(b => b.user?.toString() === userId && ['Treasurer', 'Assistant Treasurer'].includes(b.role));
+    if (!isTreasury) return res.status(403).json({ message: "Access Denied: Only the Treasury team can log expenses." });
+
+    club.expenses.push({ title, amount, description, date: date || new Date(), loggedBy: userId });
+    await club.save();
+
+    res.status(200).json({ message: "Expense logged successfully." });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 2. EDIT an Expense (STRICTLY Treasury Only)
+router.put('/:id/expenses/:expenseId', async (req, res) => {
+  try {
+    const { title, amount, description, date, userId } = req.body;
+    const club = await Club.findById(req.params.id);
+
+    const isTreasury = club.topBoard?.some(b => b.user?.toString() === userId && ['Treasurer', 'Assistant Treasurer'].includes(b.role));
+    if (!isTreasury) return res.status(403).json({ message: "Access Denied." });
+
+    const expense = club.expenses.id(req.params.expenseId);
+    if (!expense) return res.status(404).json({ message: "Expense not found." });
+
+    expense.title = title || expense.title;
+    expense.amount = amount || expense.amount;
+    expense.description = description || expense.description;
+    expense.date = date || expense.date;
+
+    await club.save();
+    res.status(200).json({ message: "Expense updated." });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 3. DELETE an Expense (STRICTLY Treasury Only)
+router.delete('/:id/expenses/:expenseId', async (req, res) => {
+  try {
+    const { userId } = req.body;
+    const club = await Club.findById(req.params.id);
+
+    const isTreasury = club.topBoard?.some(b => b.user?.toString() === userId && ['Treasurer', 'Assistant Treasurer'].includes(b.role));
+    if (!isTreasury) return res.status(403).json({ message: "Access Denied." });
+
+    club.expenses.pull(req.params.expenseId);
+    await club.save();
+
+    res.status(200).json({ message: "Expense deleted." });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 4. THE ULTIMATE FINANCIAL ANALYTICS ALGORITHM (Revenue vs Expenses)
 router.get('/:id/analytics', async (req, res) => {
   try {
     const clubId = new mongoose.Types.ObjectId(req.params.id);
-    
-    // 1. Fetch the club to calculate our Annual Targets
     const club = await Club.findById(clubId);
     if (!club) return res.status(404).json({ message: "Club not found." });
 
-    // Calculate Total Approved Members (President + Board + General)
-    const totalMembers = (club.president ? 1 : 0) + (club.topBoard?.length || 0) + (club.members?.length || 0);
-    
-    // Calculate Financial Targets
-    const feeTarget = (club.membershipFee || 0) * totalMembers;
-    const sponsorshipTarget = club.proposals?.reduce((sum, p) => sum + (p.targetAmount || 0), 0) || 0;
-    const overallTarget = feeTarget + sponsorshipTarget;
-
-    // 2. Aggregate the raw monthly data (Same as before)
+    // A. Fetch All 3 Revenue/Expense Streams
     const feeAnalytics = await Club.aggregate([
-      { $match: { _id: clubId } },
-      { $unwind: "$feeRecords" },
-      { $match: { "feeRecords.status": "Paid" } },
-      { $group: { _id: { month: { $month: "$feeRecords.lastUpdated" } }, monthlyFees: { $sum: "$feeRecords.amountPaid" } } }
+      { $match: { _id: clubId } }, { $unwind: "$feeRecords" }, { $match: { "feeRecords.status": "Paid" } },
+      { $group: { _id: { month: { $month: "$feeRecords.lastUpdated" } }, total: { $sum: "$feeRecords.amountPaid" } } }
     ]);
 
     const pledgeAnalytics = await Club.aggregate([
-      { $match: { _id: clubId } },
-      { $unwind: "$proposals" },
-      { $unwind: "$proposals.pledges" },
-      { $match: { "proposals.pledges.status": "Accepted" } },
-      { $group: { _id: { month: { $month: "$proposals.pledges.date" } }, monthlySponsorships: { $sum: "$proposals.pledges.amount" } } }
+      { $match: { _id: clubId } }, { $unwind: "$proposals" }, { $unwind: "$proposals.pledges" }, { $match: { "proposals.pledges.status": "Accepted" } },
+      { $group: { _id: { month: { $month: "$proposals.pledges.date" } }, total: { $sum: "$proposals.pledges.amount" } } }
     ]);
 
-    // 3. Process into a Cumulative (Running Total) Array
+    const expenseAnalytics = await Club.aggregate([
+      { $match: { _id: clubId } }, { $unwind: "$expenses" },
+      { $group: { _id: { month: { $month: "$expenses.date" } }, total: { $sum: "$expenses.amount" } } }
+    ]);
+
+    // B. Build the 12-Month Array
     const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    let chartData = months.map((month) => ({ name: month, rawFees: 0, rawSponsorships: 0 }));
+    let chartData = months.map((month) => ({ name: month, rawRevenue: 0, rawExpenses: 0 }));
 
-    feeAnalytics.forEach(r => { chartData[r._id.month - 1].rawFees = r.monthlyFees; });
-    pledgeAnalytics.forEach(r => { chartData[r._id.month - 1].rawSponsorships = r.monthlySponsorships; });
+    feeAnalytics.forEach(r => { chartData[r._id.month - 1].rawRevenue += r.total; });
+    pledgeAnalytics.forEach(r => { chartData[r._id.month - 1].rawRevenue += r.total; });
+    expenseAnalytics.forEach(r => { chartData[r._id.month - 1].rawExpenses += r.total; });
 
-    let runningFees = 0;
-    let runningSponsorships = 0;
+    // C. Process Cumulative YTD Totals & Net Balance
+    let runningRevenue = 0;
+    let runningExpenses = 0;
 
-    // Build the Year-to-Date growth trajectory
     chartData = chartData.map(data => {
-      runningFees += data.rawFees;
-      runningSponsorships += data.rawSponsorships;
-      const cumulativeTotal = runningFees + runningSponsorships;
+      runningRevenue += data.rawRevenue;
+      runningExpenses += data.rawExpenses;
       
-      // Prevent division by zero if target is 0
-      const percent = overallTarget > 0 ? Math.round((cumulativeTotal / overallTarget) * 100) : 0;
-
       return {
         name: data.name,
-        cumulativeFees: runningFees,
-        cumulativeSponsorships: runningSponsorships,
-        cumulativeTotal: cumulativeTotal,
-        percentOfTarget: percent
+        ytdRevenue: runningRevenue,
+        ytdExpenses: runningExpenses,
+        netBalance: runningRevenue - runningExpenses
       };
     });
 
-    // Send both the graph data AND the target numbers to the frontend
-    res.status(200).json({ chartData, targets: { feeTarget, sponsorshipTarget, overallTarget } });
-
+    res.status(200).json({ chartData, expenses: club.expenses });
   } catch (err) {
     console.error("Analytics Pipeline Error:", err);
     res.status(500).json({ message: err.message });
