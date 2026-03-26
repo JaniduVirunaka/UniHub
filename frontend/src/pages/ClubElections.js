@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import ClubNavigation from '../components/ClubNavigation'; // Adjust path if needed
+import ClubNavigation from '../components/ClubNavigation'; 
 
 function ClubElections() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [club, setClub] = useState(null);
 
-  // --- Election States ---
   const [electionData, setElectionData] = useState({ position: '', candidates: [] });
   const [tempCandidate, setTempCandidate] = useState({ candidateUserId: '', manifesto: '' });
   const [editingElectionId, setEditingElectionId] = useState(null);
@@ -22,17 +21,13 @@ function ClubElections() {
     "Public Relations", "Editor"
   ];
 
-  useEffect(() => {
-    fetchClubData();
-  }, [id]);
+  useEffect(() => { fetchClubData(); }, [id]);
 
   const fetchClubData = () => {
     axios.get(`http://localhost:5000/api/clubs/${id}`)
-      .then(res => setClub(res.data))
-      .catch(err => console.log(err));
+      .then(res => setClub(res.data)).catch(err => console.log(err));
   };
 
-  // --- ACTIONS ---
   const handleAddTempCandidate = (e, isEdit = false) => {
     e.preventDefault();
     const targetState = isEdit ? editTempCandidate : tempCandidate;
@@ -72,8 +67,7 @@ function ClubElections() {
         setElectionData({ position: '', candidates: [] });
         setTempCandidate({ candidateUserId: '', manifesto: '' });
         fetchClubData();
-      })
-      .catch(err => alert(err.response?.data?.message || "Error creating election."));
+      }).catch(err => alert(err.response?.data?.message || "Error creating election."));
   };
 
   const handleUpdateElection = (electionId) => {
@@ -84,63 +78,42 @@ function ClubElections() {
     }
     axios.put(`http://localhost:5000/api/clubs/${id}/elections/${electionId}/edit`, { ...editElectionData, supervisorId: currentUser?.id })
       .then(res => {
-        alert(res.data.message);
-        setEditingElectionId(null);
-        setEditTempCandidate({ candidateUserId: '', manifesto: '' });
-        fetchClubData();
-      })
-      .catch(err => alert(err.response?.data?.message || "Error updating election."));
+        alert(res.data.message); setEditingElectionId(null); setEditTempCandidate({ candidateUserId: '', manifesto: '' }); fetchClubData();
+      }).catch(err => alert(err.response?.data?.message || "Error updating election."));
   };
 
   const handleToggleElection = (electionId, isActive, isPublished) => {
     if (!window.confirm("Are you sure you want to change the election status?")) return;
     axios.put(`http://localhost:5000/api/clubs/${id}/elections/${electionId}/status`, { isActive, isPublished, supervisorId: currentUser?.id })
-      .then(res => fetchClubData())
-      .catch(err => alert("Error updating election status."));
+      .then(res => fetchClubData()).catch(err => alert("Error updating election status."));
   };
 
   const handleVote = (electionId, candidateId) => {
     if (!window.confirm("Are you sure? Your vote is final and anonymous.")) return;
     axios.post(`http://localhost:5000/api/clubs/${id}/elections/${electionId}/vote`, { userId: currentUser?.id, candidateId })
-      .then(res => {
-        alert(res.data.message);
-        fetchClubData();
-      })
+      .then(res => { alert(res.data.message); fetchClubData(); })
       .catch(err => alert(err.response?.data?.message || "Error casting vote."));
   };
 
   const handleDeleteElection = (electionId) => {
     if (!window.confirm("Are you sure you want to permanently delete this election record?")) return;
     axios.delete(`http://localhost:5000/api/clubs/${id}/elections/${electionId}`, { data: { supervisorId: currentUser?.id } })
-      .then(res => fetchClubData())
-      .catch(err => alert("Error deleting election."));
+      .then(res => fetchClubData()).catch(err => alert("Error deleting election."));
   };
 
-  // --- CANDIDATE SORTING & GROUPING LOGIC ---
   let normalMembers = [];
   let excoMembers = [];
 
   if (club?.members) {
-    // 1. Gather the IDs of anyone currently holding an ExCo/Board position
     const boardIds = new Set();
     if (club.president?._id) boardIds.add(club.president._id);
+    club.topBoard?.forEach(b => { if (b.user?._id) boardIds.add(b.user._id); else if (b.user) boardIds.add(b.user); });
 
-    club.topBoard?.forEach(b => {
-      // Handle both populated objects and raw ID strings just in case
-      if (b.user?._id) boardIds.add(b.user._id);
-      else if (b.user) boardIds.add(b.user);
-    });
-
-    // 2. Split the club members into two separate arrays
     club.members.forEach(member => {
-      if (boardIds.has(member._id)) {
-        excoMembers.push(member);
-      } else {
-        normalMembers.push(member);
-      }
+      if (boardIds.has(member._id)) excoMembers.push(member);
+      else normalMembers.push(member);
     });
 
-    // 3. Sort both arrays alphabetically by name
     const sortAlphabetically = (a, b) => a.name.localeCompare(b.name);
     normalMembers.sort(sortAlphabetically);
     excoMembers.sort(sortAlphabetically);
@@ -148,21 +121,18 @@ function ClubElections() {
 
   if (!club) return <div style={{ textAlign: 'center', marginTop: '50px' }}>Loading Election Data...</div>;
 
-  // --- ROLES & ACCESS CONTROL ---
   const isSupervisor = currentUser?.role === 'supervisor';
   const isMember = club.members?.some(member => member._id === currentUser?.id);
   const isTopBoard = club.topBoard?.some(b => b.user?._id === currentUser?.id) || club.president?._id === currentUser?.id;
   const hasFullAccess = isSupervisor || isTopBoard || isMember;
 
-  const userFeeRecord = club.feeRecords?.find(record =>
-    (record.user?._id || record.user) === currentUser?.id
-  );
+  const userFeeRecord = club.feeRecords?.find(record => (record.user?._id || record.user) === currentUser?.id);
   const hasPaidFees = (userFeeRecord && ['Paid', 'Exempt'].includes(userFeeRecord.status));
+
   if (!hasFullAccess) {
     return (
       <div className="container" style={{ textAlign: 'center', marginTop: '50px' }}>
-        <h2>Access Denied</h2>
-        <p>You must be an approved member to access the voting booth.</p>
+        <h2>Access Denied</h2><p>You must be an approved member to access the voting booth.</p>
         <button className="btn" onClick={() => navigate(`/clubs/${id}`)}>Return to Main Hub</button>
       </div>
     );
@@ -170,12 +140,10 @@ function ClubElections() {
 
   return (
     <div className="container">
-      {/* HEADER & NAV */}
       <div className="card" style={{ borderTop: '4px solid var(--primary-color)' }}>
         <button className="btn btn-outline" style={{ marginBottom: '20px' }} onClick={() => navigate(`/clubs/${id}`)}>
           ← Back to Main Hub
         </button>
-
         <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '20px' }}>
           <h1 style={{ color: 'var(--primary-color)', margin: 0 }}>{club.name} - Voting Booth</h1>
         </div>
@@ -194,7 +162,7 @@ function ClubElections() {
 
               return (
                 <div key={election._id} style={{ backgroundColor: 'var(--surface-color)', border: '1px solid var(--border-color)', padding: '20px', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
                     <h5 style={{ margin: 0, color: 'var(--text-main)', fontSize: '1.25rem' }}>{election.position}</h5>
                     <span className="badge" style={{ backgroundColor: election.isActive ? 'var(--success-bg)' : 'var(--bg-color)', color: election.isActive ? 'var(--success)' : 'var(--text-muted)' }}>
                       {election.isPublished ? 'Results Published' : election.isActive ? 'Voting Open' : 'Voting Closed'}
@@ -207,8 +175,8 @@ function ClubElections() {
                       const votePercent = totalVotes > 0 ? ((c.voteCount / totalVotes) * 100).toFixed(0) : 0;
 
                       return (
-                        <div key={c._id} style={{ border: '1px solid var(--border-color)', padding: '15px', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--bg-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <div style={{ flex: 1 }}>
+                        <div key={c._id} className="vote-card-mobile" style={{ border: '1px solid var(--border-color)', padding: '15px', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--bg-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '15px' }}>
+                          <div style={{ flex: 1, width: '100%' }}>
                             <strong style={{ display: 'block', fontSize: '1.1rem', color: 'var(--text-main)', marginBottom: '4px' }}>{candidateName}</strong>
                             <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>"{c.manifesto}"</span>
                             {election.isPublished && (
@@ -221,14 +189,13 @@ function ClubElections() {
                             )}
                           </div>
 
-                          {/* THE NEW RESTRICTED VOTE LOGIC */}
                           {election.isActive && !hasVoted && (
                             hasPaidFees ? (
-                              <button className="btn btn-success" style={{ marginLeft: '15px', padding: '8px 20px' }} onClick={() => handleVote(election._id, c._id)}>
+                              <button className="btn btn-success" style={{ padding: '8px 20px', width: '100%' }} onClick={() => handleVote(election._id, c._id)}>
                                 Vote
                               </button>
                             ) : (
-                              <div style={{ marginLeft: '15px', textAlign: 'right' }}>
+                              <div style={{ textAlign: 'center', width: '100%' }}>
                                 <span style={{ fontSize: '0.85rem', color: 'var(--danger)', fontWeight: 'bold', display: 'block' }}>⚠️ Voting Restricted</span>
                                 <small style={{ color: 'var(--text-muted)' }}>Requires paid membership</small>
                               </div>
@@ -258,7 +225,6 @@ function ClubElections() {
         <div className="card" style={{ marginTop: '30px', borderLeft: '4px solid var(--text-main)' }}>
           <h3 style={{ color: 'var(--text-main)', borderBottom: '2px solid var(--border-color)', paddingBottom: '10px', marginTop: 0 }}>🛡️ Supervisor Electoral Engine</h3>
 
-          {/* Create Election Form */}
           <div style={{ backgroundColor: 'var(--surface-color)', border: '1px solid var(--border-color)', padding: '20px', borderRadius: 'var(--radius-lg)', marginBottom: '30px', boxShadow: 'var(--shadow-sm)' }}>
             <h5 style={{ margin: '0 0 15px 0', color: 'var(--text-main)', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', fontSize: '1.1rem' }}>➕ Create New Election & Ballot</h5>
 
@@ -284,28 +250,21 @@ function ClubElections() {
                   })}
                 </ul>
               )}
-              <div style={{ display: 'flex', gap: '10px' }}>
+              
+              {/* THE FIX: Added .flex-mobile-stack to fix squished form inputs */}
+              <div className="flex-mobile-stack" style={{ display: 'flex', gap: '10px' }}>
                 <select className="form-control" value={tempCandidate.candidateUserId} onChange={(e) => setTempCandidate({ ...tempCandidate, candidateUserId: e.target.value })} style={{ margin: 0, flex: 1 }}>
                   <option value="">-- Select Member --</option>
-                  {normalMembers.length > 0 && (
-                    <optgroup label="Regular Members">
-                      {normalMembers.map(m => <option key={m._id} value={m._id}>{m.name}</option>)}
-                    </optgroup>
-                  )}
-                  {excoMembers.length > 0 && (
-                    <optgroup label="Current Top Board (ExCo)">
-                      {excoMembers.map(m => <option key={m._id} value={m._id}>{m.name}</option>)}
-                    </optgroup>
-                  )}
+                  {normalMembers.length > 0 && <optgroup label="Regular Members">{normalMembers.map(m => <option key={m._id} value={m._id}>{m.name}</option>)}</optgroup>}
+                  {excoMembers.length > 0 && <optgroup label="Current Top Board">{excoMembers.map(m => <option key={m._id} value={m._id}>{m.name}</option>)}</optgroup>}
                 </select>
                 <input type="text" className="form-control" placeholder="Short Manifesto" value={tempCandidate.manifesto} onChange={(e) => setTempCandidate({ ...tempCandidate, manifesto: e.target.value })} style={{ margin: 0, flex: 2 }} />
-                <button type="button" className="btn btn-outline" style={{ margin: 0, backgroundColor: 'var(--surface-color)' }} onClick={(e) => handleAddTempCandidate(e, false)}>Add to List</button>
+                <button type="button" className="btn btn-outline" style={{ margin: 0, backgroundColor: 'var(--surface-color)' }} onClick={(e) => handleAddTempCandidate(e, false)}>Add</button>
               </div>
             </div>
             <button className="btn btn-success" style={{ width: '100%' }} onClick={handleCreateElection}>Initialize Full Election</button>
           </div>
 
-          {/* Manage Active Elections List */}
           <h5 style={{ color: 'var(--text-main)', marginBottom: '15px', fontSize: '1.1rem' }}>📋 Election Records</h5>
           {club.elections?.length === 0 ? (
             <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>No elections on record.</p>
@@ -321,6 +280,7 @@ function ClubElections() {
                         <option value="">-- Select Position --</option>
                         {availableRoles.map(r => <option key={r} value={r}>{r}</option>)}
                       </select>
+                      
                       <ul style={{ paddingLeft: '20px', fontSize: '0.95rem', marginBottom: '15px', color: 'var(--text-main)' }}>
                         {editElectionData.candidates.map((c, idx) => {
                           const name = club.members?.find(m => m._id === (c.candidateUserId || c.user))?.name || 'Unknown User';
@@ -332,33 +292,27 @@ function ClubElections() {
                           )
                         })}
                       </ul>
-                      <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+                      
+                      <div className="flex-mobile-stack" style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
                         <select className="form-control" value={editTempCandidate.candidateUserId} onChange={(e) => setEditTempCandidate({ ...editTempCandidate, candidateUserId: e.target.value })} style={{ margin: 0, flex: 1 }}>
                           <option value="">-- Add Member --</option>
-                          {normalMembers.length > 0 && (
-                            <optgroup label="Regular Members">
-                              {normalMembers.map(m => <option key={m._id} value={m._id}>{m.name}</option>)}
-                            </optgroup>
-                          )}
-                          {excoMembers.length > 0 && (
-                            <optgroup label="Current Top Board (ExCo)">
-                              {excoMembers.map(m => <option key={m._id} value={m._id}>{m.name}</option>)}
-                            </optgroup>
-                          )}
+                          {normalMembers.length > 0 && <optgroup label="Regular Members">{normalMembers.map(m => <option key={m._id} value={m._id}>{m.name}</option>)}</optgroup>}
+                          {excoMembers.length > 0 && <optgroup label="Current Top Board">{excoMembers.map(m => <option key={m._id} value={m._id}>{m.name}</option>)}</optgroup>}
                         </select>
                         <input type="text" className="form-control" placeholder="Manifesto" value={editTempCandidate.manifesto} onChange={(e) => setEditTempCandidate({ ...editTempCandidate, manifesto: e.target.value })} style={{ margin: 0, flex: 2 }} />
                         <button type="button" className="btn btn-outline" style={{ margin: 0, padding: '8px 15px', backgroundColor: 'var(--surface-color)' }} onClick={(e) => handleAddTempCandidate(e, true)}>+</button>
                       </div>
-                      <div style={{ display: 'flex', gap: '10px' }}>
+                      
+                      <div className="flex-mobile-stack" style={{ display: 'flex', gap: '10px' }}>
                         <button className="btn btn-success" style={{ flex: 1 }} onClick={() => handleUpdateElection(election._id)}>Save All Changes</button>
                         <button className="btn btn-outline" style={{ flex: 1, backgroundColor: 'var(--surface-color)' }} onClick={() => setEditingElectionId(null)}>Cancel</button>
                       </div>
                     </div>
                   ) : (
                     <>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                      <div className="flex-mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
                         <h5 style={{ margin: 0, fontSize: '1.3rem', color: 'var(--text-main)' }}>{election.position}</h5>
-                        <div style={{ display: 'flex', gap: '10px' }}>
+                        <div className="flex-mobile-stack" style={{ display: 'flex', gap: '10px' }}>
                           <button className={election.isActive ? "btn btn-danger" : "btn btn-success"} style={{ padding: '8px 15px', fontSize: '0.85rem' }} onClick={() => handleToggleElection(election._id, !election.isActive, election.isPublished)}>
                             {election.isActive ? '🛑 Close Voting' : '🟢 Open Voting'}
                           </button>
@@ -369,7 +323,6 @@ function ClubElections() {
                       </div>
 
                       <hr style={{ border: 'none', borderTop: '1px solid var(--border-color)', margin: '20px 0' }} />
-
                       <p style={{ margin: '0 0 10px 0', fontWeight: 'bold', color: 'var(--text-secondary)' }}>Live Tally ({election.votedUsers?.length || 0} votes cast)</p>
 
                       <ul style={{ margin: '0 0 20px 0', paddingLeft: '20px', color: 'var(--text-main)' }}>
@@ -380,7 +333,7 @@ function ClubElections() {
                         {election.candidates?.length === 0 && <li style={{ fontStyle: 'italic', color: 'var(--text-muted)' }}>No candidates added.</li>}
                       </ul>
 
-                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px', borderTop: '1px dashed var(--border-color)', paddingTop: '15px' }}>
+                      <div className="flex-mobile-stack" style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px', borderTop: '1px dashed var(--border-color)', paddingTop: '15px' }}>
                         {!election.isActive && !election.isPublished && election.votedUsers.length === 0 && (
                           <button className="btn" style={{ backgroundColor: 'var(--warning-bg)', color: 'var(--warning)', padding: '6px 15px', fontSize: '0.85rem' }} onClick={() => {
                             setEditingElectionId(election._id);

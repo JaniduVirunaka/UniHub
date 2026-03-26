@@ -11,40 +11,27 @@ function ClubFinanceHub() {
   const navigate = useNavigate();
   const [club, setClub] = useState(null);
   const [analytics, setAnalytics] = useState({ chartData: [], expenses: [] });
-  const [chartView, setChartView] = useState('YTD'); // 'YTD' or 'Monthly'
+  const [chartView, setChartView] = useState('YTD'); 
 
   const currentUser = JSON.parse(localStorage.getItem('user'));
 
-  // Member Payment States
   const [paymentData, setPaymentData] = useState({ category: 'Membership Fee', amount: '', receipt: null });
-  
-  // Admin Ledger States
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({ status: 'Pending Verification', amountPaid: 0 });
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [receiptModal, setReceiptModal] = useState(null); 
-  
-  // Admin Category Manager State
   const [newCategory, setNewCategory] = useState('');
-
-  // Expense States
   const [showExpenseForm, setShowExpenseForm] = useState(false);
   const [editingExpenseId, setEditingExpenseId] = useState(null);
-  const [expenseData, setExpenseData] = useState({ title: '', amount: '', description: '', date: '' });
+  const [expenseData, setExpenseData] = useState({ title: '', amount: '', description: '', date: '', receipt: null });
 
-  // --- MATH & DERIVED STATE (Must be at the top so PDFs can use them!) ---
   const safeCategories = club?.paymentCategories?.length > 0 ? club.paymentCategories : ['Membership Fee'];
-  
-  const filteredLedger = club?.feeRecords?.filter(record => 
-    categoryFilter === 'All' ? true : record.category === categoryFilter
-  ).reverse() || [];
+  const filteredLedger = club?.feeRecords?.filter(record => categoryFilter === 'All' ? true : record.category === categoryFilter).reverse() || [];
 
-  // YTD Totals (Used for PDFs)
   const ytdRevenue = (analytics.chartData[11]?.ytdFees || 0) + (analytics.chartData[11]?.ytdSponsorships || 0);
   const ytdExpenses = analytics.chartData[11]?.ytdExpenses || 0;
   const ytdBalance = ytdRevenue - ytdExpenses;
 
-  // Dynamic UI Stats (Changes based on Dropdown)
   const currentMonthIndex = new Date().getMonth();
   const displayStats = chartView === 'YTD' 
     ? { label: 'YTD', rev: ytdRevenue, exp: ytdExpenses }
@@ -76,16 +63,13 @@ function ClubFinanceHub() {
 
   if (!club) return <div style={{ textAlign: 'center', marginTop: '50px' }}>Loading Financial Hub...</div>;
 
-  // --- STRICT ACCESS CONTROL (UPDATED) ---
   const isSupervisor = currentUser?.role === 'supervisor';
   const isActualPresident = club.president?._id === currentUser?.id;
   const isVP = club.topBoard?.some(b => b.user?._id === currentUser?.id && b.role === 'Vice President');
   const isPresident = isActualPresident || isVP;
   const isTreasury = club.topBoard?.some(b => b.user?._id === currentUser?.id && ['Treasurer', 'Assistant Treasurer'].includes(b.role));
   
-  // View permissions
   const canViewAdminDashboard = isPresident || isTreasury || isSupervisor;
-  // Edit permissions (ONLY Treasury team)
   const canManageData = isTreasury;
 
   let myRole = "General Member";
@@ -95,7 +79,6 @@ function ClubFinanceHub() {
     if (boardMatch) myRole = boardMatch.role;
   }
 
-  // --- ACTIONS: Member Payments ---
   const handleSubmitPayment = (e) => {
     e.preventDefault(); 
     if (!paymentData.amount || paymentData.amount <= 0) return alert("Please enter a valid amount.");
@@ -112,28 +95,21 @@ function ClubFinanceHub() {
         alert(res.data.message);
         setPaymentData({ category: safeCategories[0], amount: '', receipt: null }); 
         fetchClubData(); 
-      })
-      .catch(err => alert("Error processing payment."));
+      }).catch(err => alert("Error processing payment."));
   };
 
-  // --- ACTIONS: Admin Verify Payments ---
   const handleVerifyPayment = (recordId) => {
     axios.put(`http://localhost:5000/api/clubs/${id}/fees/update`, {
-      recordId: recordId, 
-      status: editForm.status,
-      amountPaid: Number(editForm.amountPaid),
-      requestorId: currentUser?.id
+      recordId: recordId, status: editForm.status, amountPaid: Number(editForm.amountPaid), requestorId: currentUser?.id
     }).then(res => { alert(res.data.message); setEditingId(null); fetchClubData(); fetchAnalytics(); })
       .catch(err => alert(err.response?.data?.message || "Error updating record."));
   };
 
-  // --- ACTIONS: Category Management ---
   const handleAddCategory = (e) => {
     e.preventDefault();
     if(!newCategory) return;
     axios.post(`http://localhost:5000/api/clubs/${id}/categories`, { newCategory, userId: currentUser?.id })
-      .then(res => { setNewCategory(''); fetchClubData(); })
-      .catch(err => alert(err.response?.data?.message || "Error adding category."));
+      .then(res => { setNewCategory(''); fetchClubData(); }).catch(err => alert(err.response?.data?.message || "Error adding category."));
   };
 
   const handleEditCategory = (oldCat) => {
@@ -151,18 +127,22 @@ function ClubFinanceHub() {
       .then(res => fetchClubData()).catch(err => alert(err.response?.data?.message || "Error deleting category."));
   };
 
-  // --- ACTIONS: Expense Management ---
   const handleSubmitExpense = (e) => {
     e.preventDefault();
-    const payload = { ...expenseData, userId: currentUser?.id };
+    const data = new FormData();
+    data.append('userId', currentUser?.id);
+    data.append('title', expenseData.title);
+    data.append('amount', expenseData.amount);
+    data.append('description', expenseData.description || '');
+    if (expenseData.receipt) data.append('receipt', expenseData.receipt);
 
     if (editingExpenseId) {
-      axios.put(`http://localhost:5000/api/clubs/${id}/expenses/${editingExpenseId}`, payload)
+      axios.put(`http://localhost:5000/api/clubs/${id}/expenses/${editingExpenseId}`, data, { headers: { 'Content-Type': 'multipart/form-data' } })
         .then(res => { alert(res.data.message); setEditingExpenseId(null); setShowExpenseForm(false); fetchAnalytics(); })
         .catch(err => alert("Error updating expense."));
     } else {
-      axios.post(`http://localhost:5000/api/clubs/${id}/expenses`, payload)
-        .then(res => { alert(res.data.message); setExpenseData({ title: '', amount: '', description: '', date: '' }); setShowExpenseForm(false); fetchAnalytics(); })
+      axios.post(`http://localhost:5000/api/clubs/${id}/expenses`, data, { headers: { 'Content-Type': 'multipart/form-data' } })
+        .then(res => { alert(res.data.message); setExpenseData({ title: '', amount: '', description: '', date: '', receipt: null }); setShowExpenseForm(false); fetchAnalytics(); })
         .catch(err => alert("Error logging expense."));
     }
   };
@@ -180,8 +160,17 @@ function ClubFinanceHub() {
       .then(res => fetchAnalytics()).catch(err => alert("Error deleting expense."));
   };
 
-  // --- PDF GENERATORS (COMPILER BUGS FIXED) ---
-  const generateFilteredLedgerPDF = () => {
+  const loadImage = (url) => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = 'Anonymous';
+      img.src = url;
+      img.onload = () => resolve(img);
+      img.onerror = () => resolve(null); 
+    });
+  };
+
+  const generateFilteredLedgerPDF = async () => {
     const doc = new jsPDF();
     doc.setFontSize(22);
     doc.setTextColor(40, 40, 40);
@@ -190,63 +179,82 @@ function ClubFinanceHub() {
     doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 28);
     doc.text(`Filter Applied: ${categoryFilter}`, 14, 34);
 
-    const tableColumn = ["Member Name", "Category", "Status", "Amount", "Date"];
-    const tableRows = [];
+    const recordsWithImages = await Promise.all(
+      filteredLedger.map(async (record) => {
+        let imgData = null;
+        if (record.receiptUrl) imgData = await loadImage(`http://localhost:5000${record.receiptUrl}`);
+        return { ...record, imgData };
+      })
+    );
 
-    filteredLedger.forEach(record => {
-      const name = record.user?.name || 'Unknown User';
-      const dateStr = new Date(record.lastUpdated).toLocaleDateString();
-      tableRows.push([ name, record.category, record.status, `Rs. ${record.amountPaid.toLocaleString()}`, dateStr ]);
+    const tableColumn = ["Member Name", "Category", "Status", "Amount", "Receipt"];
+    const tableRows = recordsWithImages.map(record => [
+      record.user?.name || 'Unknown User', record.category, record.status, `Rs. ${record.amountPaid.toLocaleString()}`, record.imgData ? "" : "No File" 
+    ]);
+
+    autoTable(doc, { 
+      head: [tableColumn], body: tableRows, startY: 40, styles: { fontSize: 9, cellPadding: 3, minCellHeight: 15 }, 
+      headStyles: { fillColor: [59, 130, 246] }, alternateRowStyles: { fillColor: [239, 246, 255] },
+      didDrawCell: (data) => {
+        if (data.row.section === 'body' && data.column.index === 4) {
+          const record = recordsWithImages[data.row.index];
+          if (record.imgData) doc.addImage(record.imgData, 'JPEG', data.cell.x + 2, data.cell.y + 2, 10, 10);
+        }
+      }
     });
-
-    autoTable(doc, { head: [tableColumn], body: tableRows, startY: 40, styles: { fontSize: 9, cellPadding: 3 }, headStyles: { fillColor: [59, 130, 246] }, alternateRowStyles: { fillColor: [239, 246, 255] } });
     doc.save(`${club.name.replace(/\s+/g, '_')}_Filtered_Ledger.pdf`);
   };
 
-  const generateExpensesPDF = () => {
+  const generateExpensesPDF = async () => {
     const doc = new jsPDF();
     doc.setFontSize(22);
     doc.setTextColor(40, 40, 40);
     doc.text(`${club.name} - Official Expense Report`, 14, 20);
     doc.setFontSize(11);
     doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 28);
-    doc.text(`YTD Total Expenses: Rs. ${ytdExpenses.toLocaleString()}`, 14, 34); // FIXED
+    doc.text(`YTD Total Active Expenses: Rs. ${ytdExpenses.toLocaleString()}`, 14, 34);
 
-    const tableColumn = ["Date", "Expense Title", "Description", "Amount (Rs.)"];
-    const tableRows = [];
+    const sortedExpenses = [...analytics.expenses].sort((a, b) => new Date(b.date) - new Date(a.date));
+    const expensesWithImages = await Promise.all(
+      sortedExpenses.map(async (exp) => {
+        let imgData = null;
+        if (exp.receiptUrl) imgData = await loadImage(`http://localhost:5000${exp.receiptUrl}`);
+        return { ...exp, imgData };
+      })
+    );
 
-    [...analytics.expenses].sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(exp => {
-      tableRows.push([ new Date(exp.date).toLocaleDateString(), exp.title, exp.description || 'N/A', `Rs. ${exp.amount.toLocaleString()}` ]);
+    const tableColumn = ["Date", "Expense Title", "Amount (Rs.)", "Audit Status", "Receipt"];
+    const tableRows = expensesWithImages.map(exp => {
+      let auditStatus = 'Active';
+      if (exp.isDeleted) auditStatus = 'DELETED';
+      else if (exp.isEdited) auditStatus = 'EDITED';
+      return [ new Date(exp.date).toLocaleDateString(), exp.title, `Rs. ${exp.amount.toLocaleString()}`, auditStatus, exp.imgData ? "" : "No File" ];
     });
 
-    autoTable(doc, { head: [tableColumn], body: tableRows, startY: 40, headStyles: { fillColor: [220, 38, 38] } }); 
+    autoTable(doc, { 
+      head: [tableColumn], body: tableRows, startY: 40, styles: { minCellHeight: 15 }, headStyles: { fillColor: [220, 38, 38] },
+      didDrawCell: (data) => {
+        if (data.row.section === 'body' && data.column.index === 4) {
+          const exp = expensesWithImages[data.row.index];
+          if (exp.imgData) doc.addImage(exp.imgData, 'JPEG', data.cell.x + 2, data.cell.y + 2, 10, 10);
+        }
+      }
+    }); 
     doc.save(`${club.name.replace(/\s+/g, '_')}_Expense_Report.pdf`);
   };
 
   const generateFinancialSummaryPDF = () => {
     const doc = new jsPDF();
-    doc.setFontSize(22);
-    doc.text(`${club.name} - Executive Financial Summary`, 14, 20);
-    doc.setFontSize(11);
-    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 28);
-
-    doc.setFontSize(14);
-    doc.setTextColor(16, 185, 129); // Green
-    doc.text(`YTD Total Revenue: Rs. ${ytdRevenue.toLocaleString()}`, 14, 45); // FIXED
-    doc.setTextColor(220, 38, 38); // Red
-    doc.text(`YTD Total Expenses: Rs. ${ytdExpenses.toLocaleString()}`, 14, 55); // FIXED
-    doc.setTextColor(37, 99, 235); // Blue
-    doc.text(`Net Balance: Rs. ${ytdBalance.toLocaleString()}`, 14, 65); // FIXED
+    doc.setFontSize(22); doc.text(`${club.name} - Executive Financial Summary`, 14, 20); doc.setFontSize(11); doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 28);
+    doc.setFontSize(14); doc.setTextColor(16, 185, 129); doc.text(`YTD Total Revenue: Rs. ${ytdRevenue.toLocaleString()}`, 14, 45); 
+    doc.setTextColor(220, 38, 38); doc.text(`YTD Total Expenses: Rs. ${ytdExpenses.toLocaleString()}`, 14, 55); 
+    doc.setTextColor(37, 99, 235); doc.text(`Net Balance: Rs. ${ytdBalance.toLocaleString()}`, 14, 65);
 
     const tableColumn = ["Month", "Fees (Rs.)", "Sponsorships (Rs.)", "Expenses (Rs.)", "Net (Rs.)"];
     const tableRows = analytics.chartData.map(data => [
-      data.name,
-      data.monthlyFees.toLocaleString(),
-      data.monthlySponsorships.toLocaleString(),
-      data.monthlyExpenses.toLocaleString(),
+      data.name, data.monthlyFees.toLocaleString(), data.monthlySponsorships.toLocaleString(), data.monthlyExpenses.toLocaleString(),
       ((data.monthlyFees + data.monthlySponsorships) - data.monthlyExpenses).toLocaleString()
     ]);
-
     autoTable(doc, { head: [tableColumn], body: tableRows, startY: 75, headStyles: { fillColor: [59, 130, 246] } });
     doc.save(`${club.name.replace(/\s+/g, '_')}_Financial_Summary.pdf`);
   };
@@ -278,8 +286,8 @@ function ClubFinanceHub() {
         <div style={{ marginTop: '20px' }}><ClubNavigation club={club} /></div>
       </div>
 
-      {/* LAYOUT FIX: Dynamic Grid columns based on if the left column is showing */}
-      <div style={{ display: 'grid', gridTemplateColumns: (canViewAdminDashboard && !isSupervisor) ? '1fr 2fr' : '1fr', gap: '30px' }}>
+      {/* LAYOUT FIX: Responsive Split Grid */}
+      <div className={(!isSupervisor && canViewAdminDashboard) ? "dashboard-grid-split" : ""} style={{ display: (!isSupervisor && canViewAdminDashboard) ? '' : 'grid', gap: '30px' }}>     
         
         {/* LEFT COLUMN: MEMBER PAYMENT SUBMISSION (Hidden for Supervisors) */}
         {!isSupervisor && (
@@ -331,10 +339,7 @@ function ClubFinanceHub() {
                         <strong style={{ display: 'block', fontSize: '0.9rem', color: 'var(--text-main)' }}>{record.category}</strong>
                         <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Rs. {record.amountPaid.toLocaleString()}</span>
                       </div>
-                      <span className="badge" style={{ fontSize: '0.65rem', padding: '2px 6px',
-                        backgroundColor: record.status === 'Paid' ? 'var(--success-bg)' : record.status === 'Rejected' ? 'var(--danger-bg)' : 'var(--warning-bg)',
-                        color: record.status === 'Paid' ? 'var(--success)' : record.status === 'Rejected' ? 'var(--danger)' : 'var(--warning)'
-                      }}>
+                      <span className="badge" style={{ fontSize: '0.65rem', padding: '2px 6px', backgroundColor: record.status === 'Paid' ? 'var(--success-bg)' : record.status === 'Rejected' ? 'var(--danger-bg)' : 'var(--warning-bg)', color: record.status === 'Paid' ? 'var(--success)' : record.status === 'Rejected' ? 'var(--danger)' : 'var(--warning)' }}>
                         {record.status === 'Pending Verification' ? 'Pending' : record.status}
                       </span>
                     </div>
@@ -351,23 +356,18 @@ function ClubFinanceHub() {
             
             {/* --- 1. DYNAMIC STATS & CHARTS --- */}
             <div className="card" style={{ border: '1px solid var(--border-color)', padding: '20px', marginBottom: 0 }}>
-              
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '15px' }}>
                 <h3 style={{ margin: 0, color: 'var(--text-main)' }}>📊 Financial Breakdown</h3>
-                
-                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
                   <select className="form-control" style={{ width: 'auto', margin: 0, fontWeight: 'bold', padding: '6px 12px' }} value={chartView} onChange={(e) => setChartView(e.target.value)}>
                     <option value="YTD">Year-to-Date (Cumulative)</option>
                     <option value="Monthly">Month-by-Month (Isolated)</option>
                   </select>
-                  
-                  <button className="btn btn-outline" style={{ padding: '6px 15px', margin: 0 }} onClick={generateFinancialSummaryPDF}>
-                    📥 Export Summary PDF
-                  </button>
+                  <button className="btn btn-outline" style={{ padding: '6px 15px', margin: 0 }} onClick={generateFinancialSummaryPDF}>📥 Export Summary PDF</button>
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '15px', marginBottom: '20px' }}>
+              <div className="quick-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '15px', marginBottom: '20px' }}>
                 <div style={{ padding: '15px', textAlign: 'center', backgroundColor: 'var(--bg-color)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
                   <h5 style={{ margin: '0 0 5px 0', color: 'var(--text-secondary)' }}>{displayStats.label} Revenue</h5>
                   <h3 style={{ margin: 0, color: 'var(--success)' }}>Rs. {displayStats.rev.toLocaleString()}</h3>
@@ -418,22 +418,19 @@ function ClubFinanceHub() {
             <div className="card" style={{ border: '1px solid var(--border-color)', padding: '20px', marginBottom: 0 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid var(--border-color)', paddingBottom: '10px', marginBottom: '20px', flexWrap: 'wrap', gap: '15px' }}>
                 <h3 style={{ color: 'var(--text-main)', margin: 0 }}>📖 Filterable Transaction Ledger</h3>
-                
-                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
                   <select className="form-control" style={{ padding: '6px 12px', width: 'auto', margin: 0, fontWeight: 'bold' }} value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
                     <option value="All">View All Categories</option>
                     {safeCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
                   </select>
-                  <button className="btn btn-outline" style={{ padding: '6px 15px', margin: 0 }} onClick={generateFilteredLedgerPDF}>
-                    📥 Export Filtered PDF
-                  </button>
+                  <button className="btn btn-outline" style={{ padding: '6px 15px', margin: 0 }} onClick={generateFilteredLedgerPDF}>📥 Export Filtered PDF</button>
                 </div>
               </div>
 
               {filteredLedger.length === 0 ? (
                 <p style={{ color: 'var(--text-muted)', fontStyle: 'italic', textAlign: 'center', padding: '20px' }}>No transactions found for this category.</p>
               ) : (
-                <div style={{ overflowX: 'auto' }}>
+                <div className="table-responsive">
                   <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '700px' }}>
                     <thead>
                       <tr style={{ backgroundColor: 'var(--bg-color)', borderBottom: '2px solid var(--border-color)' }}>
@@ -442,7 +439,6 @@ function ClubFinanceHub() {
                         <th style={{ padding: '12px', color: 'var(--text-secondary)' }}>Status</th>
                         <th style={{ padding: '12px', color: 'var(--text-secondary)' }}>Amount (Rs.)</th>
                         <th style={{ padding: '12px', color: 'var(--text-secondary)' }}>Receipt</th>
-                        {/* Only Treasury can Verify */}
                         {canManageData && <th style={{ padding: '12px', color: 'var(--text-secondary)', textAlign: 'right' }}>Verify</th>}
                       </tr>
                     </thead>
@@ -455,9 +451,7 @@ function ClubFinanceHub() {
                               <strong style={{ display: 'block', color: 'var(--text-main)', fontSize: '0.95rem' }}>{record.user?.name || 'Unknown User'}</strong>
                               <small style={{ color: 'var(--text-muted)' }}>{new Date(record.lastUpdated).toLocaleDateString()}</small>
                             </td>
-                            <td style={{ padding: '12px', color: 'var(--text-secondary)', fontWeight: 'bold', fontSize: '0.9rem' }}>
-                              {record.category}
-                            </td>
+                            <td style={{ padding: '12px', color: 'var(--text-secondary)', fontWeight: 'bold', fontSize: '0.9rem' }}>{record.category}</td>
                             <td style={{ padding: '12px' }}>
                               {isEditing ? (
                                 <select className="form-control" value={editForm.status} onChange={(e) => setEditForm({...editForm, status: e.target.value})} style={{ margin: 0, padding: '4px' }}>
@@ -466,10 +460,7 @@ function ClubFinanceHub() {
                                   <option value="Rejected">Rejected / Invalid</option>
                                 </select>
                               ) : (
-                                <span className="badge" style={{ 
-                                  backgroundColor: record.status === 'Paid' ? 'var(--success-bg)' : record.status === 'Rejected' ? 'var(--danger-bg)' : 'var(--warning-bg)',
-                                  color: record.status === 'Paid' ? 'var(--success)' : record.status === 'Rejected' ? 'var(--danger)' : 'var(--warning)'
-                                }}>
+                                <span className="badge" style={{ backgroundColor: record.status === 'Paid' ? 'var(--success-bg)' : record.status === 'Rejected' ? 'var(--danger-bg)' : 'var(--warning-bg)', color: record.status === 'Paid' ? 'var(--success)' : record.status === 'Rejected' ? 'var(--danger)' : 'var(--warning)' }}>
                                   {record.status === 'Pending Verification' ? '⏳ Verification' : record.status}
                                 </span>
                               )}
@@ -483,15 +474,8 @@ function ClubFinanceHub() {
                             </td>
                             <td style={{ padding: '12px' }}>
                               {record.receiptUrl ? (
-                                <img 
-                                  src={`http://localhost:5000${record.receiptUrl}`} 
-                                  alt="Receipt" 
-                                  style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px', cursor: 'pointer', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}
-                                  onClick={() => setReceiptModal(record.receiptUrl)}
-                                />
-                              ) : (
-                                <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontStyle: 'italic' }}>No File</span>
-                              )}
+                                <img src={`http://localhost:5000${record.receiptUrl}`} alt="Receipt" style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px', cursor: 'pointer', border: '1px solid var(--border-color)' }} onClick={() => setReceiptModal(record.receiptUrl)} />
+                              ) : ( <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontStyle: 'italic' }}>No File</span> )}
                             </td>
                             {canManageData && (
                               <td style={{ padding: '12px', textAlign: 'right' }}>
@@ -501,10 +485,7 @@ function ClubFinanceHub() {
                                     <button className="btn btn-outline" style={{ padding: '4px 10px', fontSize: '0.8rem', margin: 0, backgroundColor: 'var(--surface-color)' }} onClick={() => setEditingId(null)}>Cancel</button>
                                   </div>
                                 ) : (
-                                  <button className="btn btn-edit" style={{ padding: '4px 10px', fontSize: '0.85rem', margin: 0 }} onClick={() => {
-                                    setEditingId(record._id);
-                                    setEditForm({ status: record.status, amountPaid: record.amountPaid });
-                                  }}>
+                                  <button className="btn btn-edit" style={{ padding: '4px 10px', fontSize: '0.85rem', margin: 0 }} onClick={() => { setEditingId(record._id); setEditForm({ status: record.status, amountPaid: record.amountPaid }); }}>
                                     ✏️ Verify
                                   </button>
                                 )}
@@ -519,10 +500,8 @@ function ClubFinanceHub() {
               )}
             </div>
 
-            {/* --- 3. CATEGORIES & EXPENSES --- */}
-            <div style={{ display: 'grid', gridTemplateColumns: canManageData ? '1fr 1fr' : '1fr', gap: '20px' }}>
-              
-              {/* Category Manager (ONLY VISIBLE TO TREASURY) */}
+           {/* --- 3. CATEGORIES & EXPENSES --- */}
+            <div className={canManageData ? "dashboard-grid-half" : ""} style={{ display: canManageData ? '' : 'grid', gap: '20px' }}>  
               {canManageData && (
                 <div className="card" style={{ padding: '20px', border: '1px solid var(--primary-color)', backgroundColor: 'var(--primary-light)', marginBottom: 0 }}>
                   <h4 style={{ color: 'var(--primary-color)', marginTop: 0, borderBottom: '1px solid rgba(0, 240, 255, 0.2)', paddingBottom: '10px' }}>⚙️ Payment Categories</h4>
@@ -546,16 +525,12 @@ function ClubFinanceHub() {
                 </div>
               )}
 
-              {/* Expense List (Visible to all Dashboard users, Editable only by Treasury) */}
               <div className="card" style={{ padding: '20px', border: '1px solid var(--danger)', backgroundColor: 'var(--danger-bg)', marginBottom: 0 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255, 0, 60, 0.2)', paddingBottom: '10px', marginBottom: '15px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255, 0, 60, 0.2)', paddingBottom: '10px', marginBottom: '15px', flexWrap: 'wrap', gap: '10px' }}>
                   <h4 style={{ color: 'var(--danger)', margin: 0 }}>💸 Club Expenses</h4>
-                  <button className="btn btn-outline" style={{ margin: 0, padding: '4px 10px', fontSize: '0.8rem', color: 'var(--danger)', borderColor: 'var(--danger)' }} onClick={generateExpensesPDF}>
-                    📥 Export PDF
-                  </button>
+                  <button className="btn btn-outline" style={{ margin: 0, padding: '4px 10px', fontSize: '0.8rem', color: 'var(--danger)', borderColor: 'var(--danger)' }} onClick={generateExpensesPDF}>📥 Export PDF</button>
                 </div>
                 
-                {/* Only Treasury can add new expenses */}
                 {canManageData && (
                   !showExpenseForm ? (
                     <button className="btn btn-danger" style={{ width: '100%', marginBottom: '15px' }} onClick={() => setShowExpenseForm(true)}>+ Log New Expense</button>
@@ -563,24 +538,30 @@ function ClubFinanceHub() {
                     <form onSubmit={handleSubmitExpense} style={{ marginBottom: '15px', backgroundColor: 'var(--surface-color)', padding: '15px', borderRadius: 'var(--radius-md)' }}>
                       <input type="text" className="form-control" placeholder="Expense Title" value={expenseData.title} onChange={(e) => setExpenseData({...expenseData, title: e.target.value})} required style={{ marginBottom: '10px' }}/>
                       <input type="number" className="form-control" placeholder="Amount (Rs.)" value={expenseData.amount} onChange={(e) => setExpenseData({...expenseData, amount: e.target.value})} required style={{ marginBottom: '10px' }}/>
+                      <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '5px', fontWeight: 'bold' }}>Upload Invoice/Receipt (Optional)</label>
+                      <input type="file" className="form-control" accept="image/*,application/pdf" onChange={(e) => setExpenseData({...expenseData, receipt: e.target.files[0]})} style={{ marginBottom: '10px' }}/>
                       <div style={{ display: 'flex', gap: '10px' }}>
                         <button type="submit" className="btn btn-danger" style={{ flex: 1, padding: '8px' }}>Save</button>
-                        <button type="button" className="btn btn-outline" style={{ flex: 1, padding: '8px' }} onClick={() => { setShowExpenseForm(false); setEditingExpenseId(null); setExpenseData({ title: '', amount: '', description: '', date: '' }); }}>Cancel</button>
+                        <button type="button" className="btn btn-outline" style={{ flex: 1, padding: '8px' }} onClick={() => { setShowExpenseForm(false); setEditingExpenseId(null); setExpenseData({ title: '', amount: '', description: '', date: '', receipt: null }); }}>Cancel</button>
                       </div>
                     </form>
                   )
                 )}
 
-                <ul style={{ padding: 0, listStyle: 'none', margin: 0, maxHeight: '150px', overflowY: 'auto' }}>
-                  {analytics.expenses?.length === 0 && <li style={{ fontStyle: 'italic', color: 'var(--text-muted)' }}>No expenses recorded yet.</li>}
-                  {analytics.expenses?.map(exp => (
-                    <li key={exp._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px', backgroundColor: 'var(--surface-color)', border: '1px solid var(--border-color)', borderRadius: '4px', marginBottom: '5px', fontSize: '0.85rem' }}>
-                      <div>
-                        <strong style={{ display: 'block', color: 'var(--text-main)' }}>{exp.title}</strong>
-                        <span style={{ color: 'var(--danger)', fontWeight: 'bold' }}>Rs. {exp.amount.toLocaleString()}</span>
+                <ul style={{ padding: 0, listStyle: 'none', margin: 0, maxHeight: '250px', overflowY: 'auto' }}>
+                  {analytics.expenses?.filter(e => !e.isDeleted).length === 0 && <li style={{ fontStyle: 'italic', color: 'var(--text-muted)' }}>No active expenses recorded yet.</li>}
+                  {analytics.expenses?.filter(e => !e.isDeleted).map(exp => (
+                    <li key={exp._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 8px', backgroundColor: 'var(--surface-color)', border: '1px solid var(--border-color)', borderRadius: '4px', marginBottom: '5px', fontSize: '0.85rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                        {exp.receiptUrl && (
+                          <img src={`http://localhost:5000${exp.receiptUrl}`} alt="Receipt" style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px', cursor: 'pointer', border: '1px solid var(--border-color)' }} onClick={() => setReceiptModal(exp.receiptUrl)} />
+                        )}
+                        <div>
+                          <strong style={{ display: 'block', color: 'var(--text-main)' }}>{exp.title} {exp.isEdited && <span style={{ fontSize: '0.65rem', color: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.1)', padding: '2px 4px', borderRadius: '4px', marginLeft: '5px' }}>EDITED</span>}</strong>
+                          <span style={{ color: 'var(--danger)', fontWeight: 'bold' }}>Rs. {exp.amount.toLocaleString()}</span>
+                        </div>
                       </div>
                       
-                      {/* Only Treasury can Edit/Delete expenses */}
                       {canManageData && (
                         <div style={{ display: 'flex', gap: '10px' }}>
                           <button type="button" style={{ background: 'none', border: 'none', color: 'var(--primary-color)', cursor: 'pointer', fontSize: '1rem' }} onClick={() => openEditForm(exp)}>✏️</button>
@@ -591,7 +572,6 @@ function ClubFinanceHub() {
                   ))}
                 </ul>
               </div>
-
             </div>
           </div>
         )}

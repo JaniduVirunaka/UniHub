@@ -33,6 +33,90 @@ router.get('/', async (req, res) => {
   }
 });
 
+
+// GLOBAL SUPERVISOR MATRIX
+router.get('/global/analytics', async (req, res) => {
+  try {
+    // 1. AGGREGATE ALL FEE REVENUE GLOBALLY
+    const globalFees = await Club.aggregate([
+      { $unwind: "$feeRecords" }, 
+      { $match: { "feeRecords.status": "Paid" } },
+      { $group: { _id: { month: { $month: "$feeRecords.lastUpdated" } }, total: { $sum: "$feeRecords.amountPaid" } } }
+    ]);
+
+    // 2. AGGREGATE ALL CORPORATE SPONSORSHIPS GLOBALLY
+    const globalPledges = await Club.aggregate([
+      { $unwind: "$proposals" }, 
+      { $unwind: "$proposals.pledges" }, 
+      { $match: { "proposals.pledges.status": "Accepted" } },
+      { $group: { _id: { month: { $month: "$proposals.pledges.date" } }, total: { $sum: "$proposals.pledges.amount" } } }
+    ]);
+
+    // 3. AGGREGATE ALL EXPENSES GLOBALLY
+    const globalExpenses = await Club.aggregate([
+      { $unwind: "$expenses" },
+      { $match: { "expenses.isDeleted": { $ne: true } } },
+      { $group: { _id: { month: { $month: "$expenses.date" } }, total: { $sum: "$expenses.amount" } } }
+    ]);
+
+    // 4. MAP TO A 12-MONTH MASTER ARRAY
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    let masterChart = months.map((month) => ({ 
+      name: month, 
+      monthlyRevenue: 0, 
+      monthlyExpenses: 0 
+    }));
+
+    globalFees.forEach(r => { masterChart[r._id.month - 1].monthlyRevenue += r.total; });
+    globalPledges.forEach(r => { masterChart[r._id.month - 1].monthlyRevenue += r.total; });
+    globalExpenses.forEach(r => { masterChart[r._id.month - 1].monthlyExpenses += r.total; });
+
+    // Calculate Cumulative YTD for the Global Area Chart
+    let ytdRev = 0;
+    let ytdExp = 0;
+    masterChart = masterChart.map(data => {
+      ytdRev += data.monthlyRevenue;
+      ytdExp += data.monthlyExpenses;
+      return { ...data, ytdRevenue: ytdRev, ytdExpenses: ytdExp };
+    });
+
+    // 5. CALCULATE LEADERBOARD (Top Performing Clubs)
+    const allClubs = await Club.find().populate('members');
+    const leaderboard = allClubs.map(club => {
+      let clubRev = 0;
+      let clubExp = 0; // NEW: Track Expenses
+      
+      // Calculate Revenue
+      club.feeRecords.forEach(f => { if (f.status === 'Paid') clubRev += f.amountPaid; });
+      club.proposals.forEach(p => p.pledges.forEach(pl => { if (pl.status === 'Accepted') clubRev += pl.amount; }));
+      
+      // Calculate Expenses
+      if (club.expenses) {
+        club.expenses.forEach(e => { clubExp += e.amount; });
+      }
+      
+      return {
+        id: club._id,
+        name: club.name,
+        totalRevenue: clubRev,
+        totalExpenses: clubExp, // Inject it into the payload
+        memberCount: club.members.length
+      };
+    }).sort((a, b) => b.totalRevenue - a.totalRevenue).slice(0, 5); // Get Top 5
+    
+    res.status(200).json({ 
+      masterChart, 
+      leaderboard, 
+      totalClubs: allClubs.length,
+      totalUniversityMembers: allClubs.reduce((acc, club) => acc + club.members.length, 0)
+    });
+
+  } catch (err) {
+    console.error("Global Analytics Error:", err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // Get a SINGLE club by ID
 router.get('/:id', async (req, res) => {
   try {
@@ -1033,63 +1117,80 @@ router.delete('/:id/categories/:categoryName', async (req, res) => {
 
 
 // --- MANAGE EXPENSES (TREASURY & PRESIDENT) ---
-router.post('/:id/expenses', async (req, res) => {
+// 1. ADD EXPENSE (Now supports receipts)
+router.post('/:id/expenses', upload.single('receipt'), async (req, res) => {
   try {
     const { title, amount, description, date, userId } = req.body;
     const club = await Club.findById(req.params.id);
 
-    const isPres = club.president?.toString() === userId;
     const isTreasury = club.topBoard?.some(b => (b.user?._id?.toString() === userId || b.user?.toString() === userId) && ['Treasurer', 'Assistant Treasurer'].includes(b.role));
-    if (!isPres && !isTreasury) return res.status(403).json({ message: "Access Denied: Only Treasury and President can log expenses." });
+    if (!isTreasury) return res.status(403).json({ message: "Access Denied: Only Treasury can log expenses." });
 
-    if (!club.expenses) club.expenses = []; // Ensures old clubs don't crash here
+    if (!club.expenses) club.expenses = [];
 
-    club.expenses.push({ title, amount, description, date: date || new Date(), loggedBy: userId });
+    let receiptUrl = '';
+    if (req.file) receiptUrl = `/uploads/${req.file.filename}`;
+
+    club.expenses.push({ 
+      title, 
+      amount: Number(amount), 
+      description, 
+      date: date || new Date(), 
+      loggedBy: userId,
+      receiptUrl
+    });
+    
     await club.save();
-
     res.status(200).json({ message: "Expense logged successfully." });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 });
 
-router.put('/:id/expenses/:expenseId', async (req, res) => {
+// 2. EDIT EXPENSE (Flags it as edited)
+router.put('/:id/expenses/:expenseId', upload.single('receipt'), async (req, res) => {
   try {
     const { title, amount, description, date, userId } = req.body;
     const club = await Club.findById(req.params.id);
 
-    const isPres = club.president?.toString() === userId;
     const isTreasury = club.topBoard?.some(b => (b.user?._id?.toString() === userId || b.user?.toString() === userId) && ['Treasurer', 'Assistant Treasurer'].includes(b.role));
-    if (!isPres && !isTreasury) return res.status(403).json({ message: "Access Denied." });
+    if (!isTreasury) return res.status(403).json({ message: "Access Denied." });
 
     const expense = club.expenses.id(req.params.expenseId);
     if (!expense) return res.status(404).json({ message: "Expense not found." });
 
     expense.title = title || expense.title;
-    expense.amount = amount || expense.amount;
+    expense.amount = amount ? Number(amount) : expense.amount;
     expense.description = description || expense.description;
     expense.date = date || expense.date;
+    expense.isEdited = true; // FLAG IT!
+
+    if (req.file) expense.receiptUrl = `/uploads/${req.file.filename}`;
 
     await club.save();
-    res.status(200).json({ message: "Expense updated." });
+    res.status(200).json({ message: "Expense updated and flagged." });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 });
 
+// 3. DELETE EXPENSE (Soft Delete)
 router.delete('/:id/expenses/:expenseId', async (req, res) => {
   try {
     const { userId } = req.body;
     const club = await Club.findById(req.params.id);
 
-    const isPres = club.president?.toString() === userId;
     const isTreasury = club.topBoard?.some(b => (b.user?._id?.toString() === userId || b.user?.toString() === userId) && ['Treasurer', 'Assistant Treasurer'].includes(b.role));
-    if (!isPres && !isTreasury) return res.status(403).json({ message: "Access Denied." });
+    if (!isTreasury) return res.status(403).json({ message: "Access Denied." });
 
-    club.expenses.pull(req.params.expenseId);
+    const expense = club.expenses.id(req.params.expenseId);
+    if (!expense) return res.status(404).json({ message: "Expense not found." });
+
+    // SOFT DELETE: Don't pull it, just hide it!
+    expense.isDeleted = true; 
     await club.save();
 
-    res.status(200).json({ message: "Expense deleted." });
+    res.status(200).json({ message: "Expense soft-deleted and archived." });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -1113,8 +1214,10 @@ router.get('/:id/analytics', async (req, res) => {
       { $group: { _id: { month: { $month: "$proposals.pledges.date" } }, total: { $sum: "$proposals.pledges.amount" } } }
     ]);
 
-    const expenseAnalytics = await Club.aggregate([
-      { $match: { _id: clubId } }, { $unwind: "$expenses" },
+   const expenseAnalytics = await Club.aggregate([
+      { $match: { _id: clubId } }, 
+      { $unwind: "$expenses" },
+      { $match: { "expenses.isDeleted": { $ne: true } } }, // THE FIX: Only count active expenses!
       { $group: { _id: { month: { $month: "$expenses.date" } }, total: { $sum: "$expenses.amount" } } }
     ]);
 
