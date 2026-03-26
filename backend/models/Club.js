@@ -35,8 +35,11 @@ const expenseSchema = new mongoose.Schema({
   title: { type: String, required: true },
   amount: { type: Number, required: true },
   description: { type: String },
+  receiptUrl: { type: String, default: '' },
   date: { type: Date, default: Date.now },
-  loggedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+  loggedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  isDeleted: { type: Boolean, default: false }, 
+  isEdited: { type: Boolean, default: false }
 });
 
 // 4. Election System 

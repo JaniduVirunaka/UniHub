@@ -30,8 +30,7 @@ function ClubFinanceHub() {
   // Expense States
   const [showExpenseForm, setShowExpenseForm] = useState(false);
   const [editingExpenseId, setEditingExpenseId] = useState(null);
-  const [expenseData, setExpenseData] = useState({ title: '', amount: '', description: '', date: '' });
-
+  const [expenseData, setExpenseData] = useState({ title: '', amount: '', description: '', date: '', receipt: null });
   // --- MATH & DERIVED STATE (Must be at the top so PDFs can use them!) ---
   const safeCategories = club?.paymentCategories?.length > 0 ? club.paymentCategories : ['Membership Fee'];
   
@@ -154,15 +153,21 @@ function ClubFinanceHub() {
   // --- ACTIONS: Expense Management ---
   const handleSubmitExpense = (e) => {
     e.preventDefault();
-    const payload = { ...expenseData, userId: currentUser?.id };
+    
+    const data = new FormData();
+    data.append('userId', currentUser?.id);
+    data.append('title', expenseData.title);
+    data.append('amount', expenseData.amount);
+    data.append('description', expenseData.description || '');
+    if (expenseData.receipt) data.append('receipt', expenseData.receipt);
 
     if (editingExpenseId) {
-      axios.put(`http://localhost:5000/api/clubs/${id}/expenses/${editingExpenseId}`, payload)
+      axios.put(`http://localhost:5000/api/clubs/${id}/expenses/${editingExpenseId}`, data, { headers: { 'Content-Type': 'multipart/form-data' } })
         .then(res => { alert(res.data.message); setEditingExpenseId(null); setShowExpenseForm(false); fetchAnalytics(); })
         .catch(err => alert("Error updating expense."));
     } else {
-      axios.post(`http://localhost:5000/api/clubs/${id}/expenses`, payload)
-        .then(res => { alert(res.data.message); setExpenseData({ title: '', amount: '', description: '', date: '' }); setShowExpenseForm(false); fetchAnalytics(); })
+      axios.post(`http://localhost:5000/api/clubs/${id}/expenses`, data, { headers: { 'Content-Type': 'multipart/form-data' } })
+        .then(res => { alert(res.data.message); setExpenseData({ title: '', amount: '', description: '', date: '', receipt: null }); setShowExpenseForm(false); fetchAnalytics(); })
         .catch(err => alert("Error logging expense."));
     }
   };
@@ -180,8 +185,19 @@ function ClubFinanceHub() {
       .then(res => fetchAnalytics()).catch(err => alert("Error deleting expense."));
   };
 
+  // --- ASYNC IMAGE LOADER FOR PDFs ---
+  const loadImage = (url) => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = 'Anonymous'; // Prevents CORS security blocks
+      img.src = url;
+      img.onload = () => resolve(img);
+      img.onerror = () => resolve(null); // If image fails, don't crash the PDF
+    });
+  };
+
   // --- PDF GENERATORS (COMPILER BUGS FIXED) ---
-  const generateFilteredLedgerPDF = () => {
+ const generateFilteredLedgerPDF = async () => {
     const doc = new jsPDF();
     doc.setFontSize(22);
     doc.setTextColor(40, 40, 40);
@@ -190,36 +206,101 @@ function ClubFinanceHub() {
     doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 28);
     doc.text(`Filter Applied: ${categoryFilter}`, 14, 34);
 
-    const tableColumn = ["Member Name", "Category", "Status", "Amount", "Date"];
-    const tableRows = [];
+    // 1. Wait for all receipt images to load before building the PDF!
+    const recordsWithImages = await Promise.all(
+      filteredLedger.map(async (record) => {
+        let imgData = null;
+        if (record.receiptUrl) {
+          imgData = await loadImage(`http://localhost:5000${record.receiptUrl}`);
+        }
+        return { ...record, imgData };
+      })
+    );
 
-    filteredLedger.forEach(record => {
-      const name = record.user?.name || 'Unknown User';
-      const dateStr = new Date(record.lastUpdated).toLocaleDateString();
-      tableRows.push([ name, record.category, record.status, `Rs. ${record.amountPaid.toLocaleString()}`, dateStr ]);
+    const tableColumn = ["Member Name", "Category", "Status", "Amount", "Receipt"];
+    const tableRows = recordsWithImages.map(record => [
+      record.user?.name || 'Unknown User',
+      record.category,
+      record.status,
+      `Rs. ${record.amountPaid.toLocaleString()}`,
+      record.imgData ? "" : "No File" // Leave a blank space if an image exists
+    ]);
+
+    autoTable(doc, { 
+      head: [tableColumn], 
+      body: tableRows, 
+      startY: 40, 
+      styles: { fontSize: 9, cellPadding: 3, minCellHeight: 15 }, // Make rows taller for images
+      headStyles: { fillColor: [59, 130, 246] }, 
+      alternateRowStyles: { fillColor: [239, 246, 255] },
+      didDrawCell: (data) => {
+        // Paint the image exactly into the 5th column (index 4)
+        if (data.row.section === 'body' && data.column.index === 4) {
+          const record = recordsWithImages[data.row.index];
+          if (record.imgData) {
+            doc.addImage(record.imgData, 'JPEG', data.cell.x + 2, data.cell.y + 2, 10, 10);
+          }
+        }
+      }
     });
-
-    autoTable(doc, { head: [tableColumn], body: tableRows, startY: 40, styles: { fontSize: 9, cellPadding: 3 }, headStyles: { fillColor: [59, 130, 246] }, alternateRowStyles: { fillColor: [239, 246, 255] } });
+    
     doc.save(`${club.name.replace(/\s+/g, '_')}_Filtered_Ledger.pdf`);
   };
 
-  const generateExpensesPDF = () => {
+  const generateExpensesPDF = async () => {
     const doc = new jsPDF();
     doc.setFontSize(22);
     doc.setTextColor(40, 40, 40);
     doc.text(`${club.name} - Official Expense Report`, 14, 20);
     doc.setFontSize(11);
     doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 28);
-    doc.text(`YTD Total Expenses: Rs. ${ytdExpenses.toLocaleString()}`, 14, 34); // FIXED
+    doc.text(`YTD Total Active Expenses: Rs. ${ytdExpenses.toLocaleString()}`, 14, 34);
 
-    const tableColumn = ["Date", "Expense Title", "Description", "Amount (Rs.)"];
-    const tableRows = [];
+    const sortedExpenses = [...analytics.expenses].sort((a, b) => new Date(b.date) - new Date(a.date));
 
-    [...analytics.expenses].sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(exp => {
-      tableRows.push([ new Date(exp.date).toLocaleDateString(), exp.title, exp.description || 'N/A', `Rs. ${exp.amount.toLocaleString()}` ]);
+    // 1. Wait for all receipt images to load!
+    const expensesWithImages = await Promise.all(
+      sortedExpenses.map(async (exp) => {
+        let imgData = null;
+        if (exp.receiptUrl) {
+          imgData = await loadImage(`http://localhost:5000${exp.receiptUrl}`);
+        }
+        return { ...exp, imgData };
+      })
+    );
+
+    const tableColumn = ["Date", "Expense Title", "Amount (Rs.)", "Audit Status", "Receipt"];
+    const tableRows = expensesWithImages.map(exp => {
+      let auditStatus = 'Active';
+      if (exp.isDeleted) auditStatus = 'DELETED';
+      else if (exp.isEdited) auditStatus = 'EDITED';
+
+      return [ 
+        new Date(exp.date).toLocaleDateString(), 
+        exp.title, 
+        `Rs. ${exp.amount.toLocaleString()}`,
+        auditStatus,
+        exp.imgData ? "" : "No File"
+      ];
     });
 
-    autoTable(doc, { head: [tableColumn], body: tableRows, startY: 40, headStyles: { fillColor: [220, 38, 38] } }); 
+    autoTable(doc, { 
+      head: [tableColumn], 
+      body: tableRows, 
+      startY: 40, 
+      styles: { minCellHeight: 15 }, // Make rows taller
+      headStyles: { fillColor: [220, 38, 38] },
+      didDrawCell: (data) => {
+        // Paint the image into the 5th column
+        if (data.row.section === 'body' && data.column.index === 4) {
+          const exp = expensesWithImages[data.row.index];
+          if (exp.imgData) {
+            doc.addImage(exp.imgData, 'JPEG', data.cell.x + 2, data.cell.y + 2, 10, 10);
+          }
+        }
+      }
+    }); 
+    
     doc.save(`${club.name.replace(/\s+/g, '_')}_Expense_Report.pdf`);
   };
 
@@ -563,24 +644,41 @@ function ClubFinanceHub() {
                     <form onSubmit={handleSubmitExpense} style={{ marginBottom: '15px', backgroundColor: 'var(--surface-color)', padding: '15px', borderRadius: 'var(--radius-md)' }}>
                       <input type="text" className="form-control" placeholder="Expense Title" value={expenseData.title} onChange={(e) => setExpenseData({...expenseData, title: e.target.value})} required style={{ marginBottom: '10px' }}/>
                       <input type="number" className="form-control" placeholder="Amount (Rs.)" value={expenseData.amount} onChange={(e) => setExpenseData({...expenseData, amount: e.target.value})} required style={{ marginBottom: '10px' }}/>
+                      
+                      <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '5px', fontWeight: 'bold' }}>Upload Invoice/Receipt (Optional)</label>
+                      <input type="file" className="form-control" accept="image/*,application/pdf" onChange={(e) => setExpenseData({...expenseData, receipt: e.target.files[0]})} style={{ marginBottom: '10px' }}/>
+                      
                       <div style={{ display: 'flex', gap: '10px' }}>
                         <button type="submit" className="btn btn-danger" style={{ flex: 1, padding: '8px' }}>Save</button>
-                        <button type="button" className="btn btn-outline" style={{ flex: 1, padding: '8px' }} onClick={() => { setShowExpenseForm(false); setEditingExpenseId(null); setExpenseData({ title: '', amount: '', description: '', date: '' }); }}>Cancel</button>
+                        <button type="button" className="btn btn-outline" style={{ flex: 1, padding: '8px' }} onClick={() => { setShowExpenseForm(false); setEditingExpenseId(null); setExpenseData({ title: '', amount: '', description: '', date: '', receipt: null }); }}>Cancel</button>
                       </div>
                     </form>
                   )
                 )}
 
-                <ul style={{ padding: 0, listStyle: 'none', margin: 0, maxHeight: '150px', overflowY: 'auto' }}>
-                  {analytics.expenses?.length === 0 && <li style={{ fontStyle: 'italic', color: 'var(--text-muted)' }}>No expenses recorded yet.</li>}
-                  {analytics.expenses?.map(exp => (
-                    <li key={exp._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px', backgroundColor: 'var(--surface-color)', border: '1px solid var(--border-color)', borderRadius: '4px', marginBottom: '5px', fontSize: '0.85rem' }}>
-                      <div>
-                        <strong style={{ display: 'block', color: 'var(--text-main)' }}>{exp.title}</strong>
-                        <span style={{ color: 'var(--danger)', fontWeight: 'bold' }}>Rs. {exp.amount.toLocaleString()}</span>
+                <ul style={{ padding: 0, listStyle: 'none', margin: 0, maxHeight: '250px', overflowY: 'auto' }}>
+                  {analytics.expenses?.filter(e => !e.isDeleted).length === 0 && <li style={{ fontStyle: 'italic', color: 'var(--text-muted)' }}>No active expenses recorded yet.</li>}
+                  
+                  {/* Filter out soft-deleted expenses from the main UI */}
+                  {analytics.expenses?.filter(e => !e.isDeleted).map(exp => (
+                    <li key={exp._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 8px', backgroundColor: 'var(--surface-color)', border: '1px solid var(--border-color)', borderRadius: '4px', marginBottom: '5px', fontSize: '0.85rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                        {exp.receiptUrl && (
+                          <img 
+                            src={`http://localhost:5000${exp.receiptUrl}`} 
+                            alt="Receipt" 
+                            style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px', cursor: 'pointer', border: '1px solid var(--border-color)' }}
+                            onClick={() => setReceiptModal(exp.receiptUrl)}
+                          />
+                        )}
+                        <div>
+                          <strong style={{ display: 'block', color: 'var(--text-main)' }}>
+                            {exp.title} {exp.isEdited && <span style={{ fontSize: '0.65rem', color: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.1)', padding: '2px 4px', borderRadius: '4px', marginLeft: '5px' }}>EDITED</span>}
+                          </strong>
+                          <span style={{ color: 'var(--danger)', fontWeight: 'bold' }}>Rs. {exp.amount.toLocaleString()}</span>
+                        </div>
                       </div>
                       
-                      {/* Only Treasury can Edit/Delete expenses */}
                       {canManageData && (
                         <div style={{ display: 'flex', gap: '10px' }}>
                           <button type="button" style={{ background: 'none', border: 'none', color: 'var(--primary-color)', cursor: 'pointer', fontSize: '1rem' }} onClick={() => openEditForm(exp)}>✏️</button>
