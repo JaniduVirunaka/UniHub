@@ -67,7 +67,7 @@ function ClubNavigation({ club }) {
           onMouseLeave={() => setDropdownOpen(false)}
         >
           <button className="btn btn-outline" style={{ border: 'none', padding: '8px 15px', margin: 0, boxShadow: 'none' }}>
-            ⚙️ Admin Portals ▾
+            ⚙️ Member Portals ▾
           </button>
           
           {dropdownOpen && (
@@ -77,9 +77,17 @@ function ClubNavigation({ club }) {
               borderRadius: 'var(--radius-md)', minWidth: '220px', zIndex: 1000, display: 'flex', flexDirection: 'column', overflow: 'hidden'
             }}>
               
-              <Link to={`/clubs/${club._id}/fees`} style={{ padding: '12px 15px', textDecoration: 'none', color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-color)', transition: 'background-color 0.2s' }} onMouseEnter={(e) => e.target.style.backgroundColor = 'var(--bg-color)'} onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}>
+              {/* <Link to={`/clubs/${club._id}/fees`} style={{ padding: '12px 15px', textDecoration: 'none', color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-color)', transition: 'background-color 0.2s' }} onMouseEnter={(e) => e.target.style.backgroundColor = 'var(--bg-color)'} onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}>
                 💳 Membership Ledger
-              </Link>
+              </Link> */}
+             {/*
+              {canViewAnalytics && (
+                <Link to={`/clubs/${club._id}/analytics`} style={{ padding: '12px 15px', textDecoration: 'none', color: 'var(--text-secondary)', transition: 'background-color 0.2s' }} onMouseEnter={(e) => e.target.style.backgroundColor = 'var(--bg-color)'} onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}>
+                  📈 Financial Dashboard
+                </Link>
+              )}
+                */}
+          
               
               <Link to={`/clubs/${club._id}/elections`} style={{ padding: '12px 15px', textDecoration: 'none', color: 'var(--text-secondary)', borderBottom: 'canViewAnalytics ? 1px solid var(--border-color) : none', transition: 'background-color 0.2s' }} onMouseEnter={(e) => e.target.style.backgroundColor = 'var(--bg-color)'} onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}>
                 🗳️ Voting Booth
@@ -88,14 +96,6 @@ function ClubNavigation({ club }) {
               <Link to={`/clubs/${club._id}/finance`} style={{ padding: '12px 15px', textDecoration: 'none', color: 'var(--text-secondary)', transition: 'background-color 0.2s' }} onMouseEnter={(e) => e.target.style.backgroundColor = 'var(--bg-color)'} onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}>
                 🏦 Financial Hub
               </Link>
-              
-              {/* The New Restricted Analytics Link */}
-              {canViewAnalytics && (
-                <Link to={`/clubs/${club._id}/analytics`} style={{ padding: '12px 15px', textDecoration: 'none', color: 'var(--text-secondary)', transition: 'background-color 0.2s' }} onMouseEnter={(e) => e.target.style.backgroundColor = 'var(--bg-color)'} onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}>
-                  📈 Financial Dashboard
-                </Link>
-              )}
-              
             </div>
           )}
         </div>

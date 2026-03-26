@@ -30,8 +30,8 @@ function App() {
           <Route path="/clubs/:id" element={<ClubDetail />} />
           <Route path="/clubs/:id/sponsorships" element={<Sponsorships />} />
           <Route path="/clubs/:id/achievements" element={<AchievementShowcase />} />
-          <Route path="/clubs/:id/fees" element={<MembershipFees />} />
-          <Route path="/clubs/:id/analytics" element={<FinancialAnalytics />} />
+          { /* <Route path="/clubs/:id/fees" element={<MembershipFees />} /> */ }
+          {/* <Route path="/clubs/:id/analytics" element={<FinancialAnalytics />} /> */}
           <Route path="/clubs/:id/about" element={<ClubAbout />} />
           <Route path="/clubs/:id/elections" element={<ClubElections />} />
           <Route path="/clubs/:id/finance" element={<ClubFinanceHub />} />
