@@ -84,6 +84,10 @@ function ClubNavigation({ club }) {
               <Link to={`/clubs/${club._id}/elections`} style={{ padding: '12px 15px', textDecoration: 'none', color: 'var(--text-secondary)', borderBottom: 'canViewAnalytics ? 1px solid var(--border-color) : none', transition: 'background-color 0.2s' }} onMouseEnter={(e) => e.target.style.backgroundColor = 'var(--bg-color)'} onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}>
                 🗳️ Voting Booth
               </Link>
+
+              <Link to={`/clubs/${club._id}/finance`} style={{ padding: '12px 15px', textDecoration: 'none', color: 'var(--text-secondary)', transition: 'background-color 0.2s' }} onMouseEnter={(e) => e.target.style.backgroundColor = 'var(--bg-color)'} onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}>
+                🏦 Financial Hub
+              </Link>
               
               {/* The New Restricted Analytics Link */}
               {canViewAnalytics && (

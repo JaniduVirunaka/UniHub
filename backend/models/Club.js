@@ -75,10 +75,15 @@ const clubSchema = new mongoose.Schema({
   members: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], 
   pendingMembers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], 
   
-  // Tracks individual student payments
+ // Dynamic Payment Categories (Managed by Treasury)
+  paymentCategories: [{ type: String, default: 'Membership Fee' }],
+
+  // Tracks individual student payments (Upgraded for Receipts & Categories)
   feeRecords: [{
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    status: { type: String, enum: ['Pending','Pending Verification', 'Paid', 'Exempt'], default: 'Pending' },
+    category: { type: String, required: true, default: 'Membership Fee' },
+    receiptUrl: { type: String }, // Stores the path to the uploaded screenshot
+    status: { type: String, enum: ['Pending', 'Pending Verification', 'Paid', 'Rejected', 'Exempt'], default: 'Pending' },
     amountPaid: { type: Number, default: 0 },
     lastUpdated: { type: Date, default: Date.now }
   }],
