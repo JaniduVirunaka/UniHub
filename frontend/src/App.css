@@ -307,18 +307,20 @@ textarea.form-control { min-height: 120px; resize: vertical; }
   }
 
   .club-navigation-container {
-    flex-wrap: nowrap !important;
-    overflow-x: auto;
-    padding-bottom: 8px; /* Room for scrollbar */
-    white-space: nowrap;
-    -webkit-overflow-scrolling: touch; 
+    flex-wrap: wrap !important;
+    justify-content: center;
+    padding: 15px !important;
+  }
+
+  /* Make the nav links fill the screen nicely on phones */
+  .club-navigation-container > * {
+    flex: 1 1 40%;
+    text-align: center;
   }
 
   .quick-stats-grid {
     grid-template-columns: 1fr !important;
   }
-
-  /* (Add these INSIDE the @media (max-width: 992px) block) */
 
   /* Forces form inputs and buttons to stack vertically on phones */
   .flex-mobile-stack {
@@ -338,5 +340,59 @@ textarea.form-control { min-height: 120px; resize: vertical; }
     flex-direction: column;
     align-items: flex-start !important;
     text-align: left;
+  }
+}
+
+/* ==========================================
+   PHONE REFINEMENTS (Screens smaller than 768px)
+   ========================================== */
+@media (max-width: 768px) {
+  /* 1. Reclaim horizontal screen real estate */
+  .container {
+    padding: 0 10px;
+    margin: 1rem auto;
+  }
+
+  /* 2. Shrink the massive desktop padding on cards */
+  .card {
+    padding: 1.25rem !important;
+  }
+
+  /* 3. Shrink the Navbar so it doesn't wrap awkwardly */
+  .navbar {
+    padding: 10px;
+  }
+
+  .nav-links {
+    gap: 8px; /* Brings links closer together */
+  }
+
+  .nav-link {
+    font-size: 0.85rem; /* Slightly smaller text */
+  }
+
+  .brand-name {
+    font-size: 1.3rem; /* Shrink logo text slightly */
+  }
+
+  /* Shrink standard buttons so they fit better on mobile */
+  .btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.85rem;
+  }
+
+  /* 4. MAGIC FIX: Automatically shrink inline-styled boxes (Like the Announcements container) */
+  div[style*="padding: 20px"], 
+  div[style*="padding: 25px"] {
+    padding: 12px !important;
+  }
+  
+  div[style*="padding: 15px"] {
+    padding: 10px !important;
+  }
+
+  /* 5. Force flex-mobile-stack children to not have excessive gaps */
+  .flex-mobile-stack {
+    gap: 10px !important;
   }
 }

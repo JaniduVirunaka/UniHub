@@ -31,7 +31,7 @@ function Home() {
         <p style={{ fontSize: '1.25rem', marginBottom: '2.5rem', opacity: 0.9, maxWidth: '600px', margin: '0 auto 2.5rem auto' }}>
           Discover events, join clubs, and connect with your campus community.
         </p>
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '15px' }}>
+        <div className="flex-mobile-stack" style={{ display: 'flex', justifyContent: 'center', gap: '15px' }}>
           <Link to="/signup" className="btn" style={{ backgroundColor: 'white', color: 'var(--primary-color)' }}>
             Get Started
           </Link>
@@ -41,10 +41,11 @@ function Home() {
         </div>
       </div>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '30px', marginTop: '3rem' }}>
+      {/* THE FIX: Replaced the inline flex with our responsive grid class */}
+      <div className="dashboard-grid-split" style={{ marginTop: '3rem' }}>
         
         {/* --- LEFT COLUMN: CLUBS --- */}
-        <div style={{ flex: '1 1 60%' }}>
+        <div>
           <h2 style={{ color: 'var(--text-main)', borderBottom: '2px solid var(--border-color)', paddingBottom: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
             <span style={{ fontSize: '1.5rem' }}>🎓</span> Featured Campus Clubs
           </h2>
@@ -70,7 +71,7 @@ function Home() {
         </div>
 
         {/* --- RIGHT COLUMN: EVENTS & ANNOUNCEMENTS --- */}
-        <div style={{ flex: '1 1 35%', display: 'flex', flexDirection: 'column', gap: '25px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
           
           {/* Events Feature Scaffolding */}
           <div className="card card-hover" style={{ borderTop: '4px solid var(--warning)', marginBottom: 0 }}>

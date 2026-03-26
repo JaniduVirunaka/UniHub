@@ -7,8 +7,6 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import ClubDetail from './pages/ClubDetail';
 import Sponsorships from './pages/Sponsorships';
-import MembershipFees from './pages/MembershipFees';
-import FinancialAnalytics from './pages/FinancialAnalytics';
 import ClubFinanceHub from './pages/ClubFinanceHub';
 import GlobalAnalytics from './pages/GlobalAnalytics';
 import AchievementShowcase from './pages/AchievementShowcase';

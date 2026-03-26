@@ -35,6 +35,8 @@ function ClubNavigation({ club }) {
 
   return (
     <div className="club-navigation-container" style={{
+      position: 'relative', 
+      zIndex: 99,
       backgroundColor: 'var(--surface-color)', 
       borderBottom: '1px solid var(--border-color)', 
       marginBottom: '25px', 
