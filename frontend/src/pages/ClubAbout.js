@@ -22,38 +22,38 @@ function ClubAbout() {
 
   if (!club) return <div style={{ textAlign: 'center', marginTop: '50px' }}>Loading...</div>;
 
-  return (
+ return (
     <div className="container">
       
       {/* HEADER WITH LOGO */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginBottom: '20px' }}>
-        <div style={{ width: '80px', height: '80px', borderRadius: '50%', backgroundColor: '#e5e7eb', overflow: 'hidden', display: 'flex', justifyContent: 'center', alignItems: 'center', border: '2px solid #d1d5db' }}>
+        <div style={{ width: '80px', height: '80px', borderRadius: '50%', backgroundColor: 'var(--bg-color)', overflow: 'hidden', display: 'flex', justifyContent: 'center', alignItems: 'center', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
           {club.logoUrl ? (
             <img src={`http://localhost:5000${club.logoUrl}`} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           ) : (
             <span style={{ fontSize: '2rem' }}>🎓</span>
           )}
         </div>
-        <h1 style={{ margin: 0, color: '#1f2937' }}>{club.name}</h1>
+        <h1 style={{ margin: 0, color: 'var(--text-main)', fontSize: '2.5rem', letterSpacing: '-0.5px' }}>{club.name}</h1>
       </div>
 
       <ClubNavigation club={club} />
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '30px' }}>
         
-        {/* Mission & Rules Section */}
+        {/* Mission Section */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
-          <div className="card" style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', margin: 0 }}>
-            <h3 style={{ color: '#166534', marginTop: 0 }}>🎯 Our Mission</h3>
-            <p style={{ color: '#15803d', fontStyle: 'italic', fontSize: '1.1rem' }}>"{club.mission}"</p>
+          <div className="card" style={{ backgroundColor: 'var(--success-bg)', border: '1px solid var(--success)', margin: 0 }}>
+            <h3 style={{ color: 'var(--success)', marginTop: 0 }}>🎯 Our Mission</h3>
+            <p style={{ color: 'var(--text-main)', fontStyle: 'italic', fontSize: '1.15rem', lineHeight: '1.6' }}>"{club.mission}"</p>
           </div>
         </div>
 
         {/* Executive Board Full Grid */}
-        <div className="card" style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe' }}>
-          <h3 style={{ color: '#1e40af', marginTop: 0, borderBottom: '2px solid #bfdbfe', paddingBottom: '10px' }}>👔 Executive Board</h3>
+        <div className="card" style={{ backgroundColor: 'var(--primary-light)', border: '1px solid var(--primary-color)' }}>
+          <h3 style={{ color: 'var(--primary-color)', marginTop: 0, borderBottom: '2px solid rgba(79, 70, 229, 0.2)', paddingBottom: '10px' }}>👔 Executive Board</h3>
           
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '15px', marginTop: '15px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '15px', marginTop: '20px' }}>
             {availableRoles.map(role => {
               let personName = 'Vacant';
               if (role === 'President') {
@@ -63,9 +63,9 @@ function ClubAbout() {
                 if (boardMember?.user?.name) personName = boardMember.user.name;
               }
               return (
-                <div key={role} style={{ backgroundColor: '#fff', padding: '15px', borderRadius: '8px', border: '1px solid #d1d5db', textAlign: 'center', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
-                  <strong style={{ display: 'block', color: '#1e3a8a', fontSize: '0.8rem', textTransform: 'uppercase', marginBottom: '8px' }}>{role}</strong>
-                  <span style={{ color: personName === 'Vacant' ? '#9ca3af' : '#111827', fontWeight: personName === 'Vacant' ? 'normal' : 'bold', fontSize: '1.05rem' }}>
+                <div key={role} className="card-hover" style={{ backgroundColor: 'var(--surface-color)', padding: '15px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', textAlign: 'center', boxShadow: 'var(--shadow-sm)', transition: 'var(--transition)' }}>
+                  <strong style={{ display: 'block', color: 'var(--primary-color)', fontSize: '0.8rem', textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '0.5px' }}>{role}</strong>
+                  <span style={{ color: personName === 'Vacant' ? 'var(--text-muted)' : 'var(--text-main)', fontWeight: personName === 'Vacant' ? '500' : '700', fontSize: '1.05rem' }}>
                     {personName}
                   </span>
                 </div>
@@ -74,13 +74,13 @@ function ClubAbout() {
           </div>
         </div>
 
+        {/* Rules & Regulations */}
         <div className="card" style={{ margin: 0 }}>
-            <h3 style={{ borderBottom: '2px solid #e5e7eb', paddingBottom: '10px', marginTop: 0 }}>⚖️ Rules & Regulations</h3>
-            <p style={{ whiteSpace: 'pre-wrap', color: '#4b5563', lineHeight: '1.6' }}>
+            <h3 style={{ borderBottom: '2px solid var(--border-color)', paddingBottom: '10px', marginTop: 0, color: 'var(--text-main)' }}>⚖️ Rules & Regulations</h3>
+            <p style={{ whiteSpace: 'pre-wrap', color: 'var(--text-secondary)', lineHeight: '1.7', fontSize: '1.05rem' }}>
               {club.rulesAndRegulations}
             </p>
           </div>
-
       </div>
     </div>
   );

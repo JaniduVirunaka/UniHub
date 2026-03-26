@@ -170,9 +170,9 @@ function ClubElections() {
 
   return (
     <div className="container">
-      {/* HEADER & NAV (Keeps the UI consistent with the Main Page) */}
+      {/* HEADER & NAV */}
       <div className="card" style={{ borderTop: '4px solid var(--primary-color)' }}>
-        <button className="btn" style={{ backgroundColor: '#6b7280', marginBottom: '20px' }} onClick={() => navigate(`/clubs/${id}`)}>
+        <button className="btn btn-outline" style={{ marginBottom: '20px' }} onClick={() => navigate(`/clubs/${id}`)}>
           ← Back to Main Hub
         </button>
 
@@ -183,8 +183,8 @@ function ClubElections() {
       </div>
 
       {/* --- 1. MEMBER VIEW: LIVE VOTING BOOTH --- */}
-      <div className="card" style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0' }}>
-        <h2 style={{ color: '#166534', margin: '0 0 15px 0', borderBottom: '2px solid #bbf7d0', paddingBottom: '10px' }}>🗳️ Official Club Elections</h2>
+      <div className="card" style={{ backgroundColor: 'var(--success-bg)', border: '1px solid var(--success)' }}>
+        <h2 style={{ color: 'var(--success)', margin: '0 0 20px 0', borderBottom: '2px solid rgba(16, 185, 129, 0.2)', paddingBottom: '10px' }}>🗳️ Official Club Elections</h2>
 
         {club.elections && club.elections.filter(e => e.isActive || e.isPublished).length > 0 ? (
           <div style={{ display: 'grid', gap: '15px' }}>
@@ -193,10 +193,10 @@ function ClubElections() {
               const totalVotes = election.votedUsers.length;
 
               return (
-                <div key={election._id} style={{ backgroundColor: '#fff', border: '1px solid #d1d5db', padding: '15px', borderRadius: '8px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-                    <h5 style={{ margin: 0, color: '#065f46', fontSize: '1.1rem' }}>{election.position}</h5>
-                    <span style={{ fontSize: '0.8rem', padding: '4px 10px', borderRadius: '12px', backgroundColor: election.isActive ? '#dcfce7' : '#f3f4f6', color: election.isActive ? '#166534' : '#4b5563', fontWeight: 'bold' }}>
+                <div key={election._id} style={{ backgroundColor: 'var(--surface-color)', border: '1px solid var(--border-color)', padding: '20px', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                    <h5 style={{ margin: 0, color: 'var(--text-main)', fontSize: '1.25rem' }}>{election.position}</h5>
+                    <span className="badge" style={{ backgroundColor: election.isActive ? 'var(--success-bg)' : 'var(--bg-color)', color: election.isActive ? 'var(--success)' : 'var(--text-muted)' }}>
                       {election.isPublished ? 'Results Published' : election.isActive ? 'Voting Open' : 'Voting Closed'}
                     </span>
                   </div>
@@ -207,16 +207,16 @@ function ClubElections() {
                       const votePercent = totalVotes > 0 ? ((c.voteCount / totalVotes) * 100).toFixed(0) : 0;
 
                       return (
-                        <div key={c._id} style={{ border: '1px solid #e5e7eb', padding: '10px', borderRadius: '5px', backgroundColor: '#f9fafb', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div key={c._id} style={{ border: '1px solid var(--border-color)', padding: '15px', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--bg-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <div style={{ flex: 1 }}>
-                            <strong style={{ display: 'block', fontSize: '1rem' }}>{candidateName}</strong>
-                            <span style={{ fontSize: '0.85rem', color: '#6b7280', fontStyle: 'italic' }}>"{c.manifesto}"</span>
+                            <strong style={{ display: 'block', fontSize: '1.1rem', color: 'var(--text-main)', marginBottom: '4px' }}>{candidateName}</strong>
+                            <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>"{c.manifesto}"</span>
                             {election.isPublished && (
-                              <div style={{ marginTop: '8px' }}>
-                                <div style={{ width: '100%', backgroundColor: '#e5e7eb', borderRadius: '4px', height: '8px', overflow: 'hidden' }}>
-                                  <div style={{ width: `${votePercent}%`, backgroundColor: '#10b981', height: '100%' }}></div>
+                              <div style={{ marginTop: '12px' }}>
+                                <div style={{ width: '100%', backgroundColor: 'var(--border-color)', borderRadius: '99px', height: '8px', overflow: 'hidden', marginBottom: '4px' }}>
+                                  <div style={{ width: `${votePercent}%`, backgroundColor: 'var(--success)', height: '100%' }}></div>
                                 </div>
-                                <small style={{ fontWeight: 'bold', color: '#166534' }}>{c.voteCount} Votes ({votePercent}%)</small>
+                                <small style={{ fontWeight: 'bold', color: 'var(--success)' }}>{c.voteCount} Votes ({votePercent}%)</small>
                               </div>
                             )}
                           </div>
@@ -224,13 +224,13 @@ function ClubElections() {
                           {/* THE NEW RESTRICTED VOTE LOGIC */}
                           {election.isActive && !hasVoted && (
                             hasPaidFees ? (
-                              <button className="btn" style={{ backgroundColor: '#10b981', marginLeft: '15px', padding: '8px 20px' }} onClick={() => handleVote(election._id, c._id)}>
+                              <button className="btn btn-success" style={{ marginLeft: '15px', padding: '8px 20px' }} onClick={() => handleVote(election._id, c._id)}>
                                 Vote
                               </button>
                             ) : (
                               <div style={{ marginLeft: '15px', textAlign: 'right' }}>
-                                <span style={{ fontSize: '0.8rem', color: '#dc2626', fontWeight: 'bold', display: 'block' }}>⚠️ Voting Restricted</span>
-                                <small style={{ color: '#6b7280' }}>Requires paid membership</small>
+                                <span style={{ fontSize: '0.85rem', color: 'var(--danger)', fontWeight: 'bold', display: 'block' }}>⚠️ Voting Restricted</span>
+                                <small style={{ color: 'var(--text-muted)' }}>Requires paid membership</small>
                               </div>
                             )
                           )}
@@ -240,7 +240,7 @@ function ClubElections() {
                   </div>
 
                   {election.isActive && hasVoted && (
-                    <div style={{ marginTop: '15px', padding: '10px', backgroundColor: '#dcfce7', color: '#166534', textAlign: 'center', borderRadius: '5px', fontWeight: 'bold' }}>
+                    <div style={{ marginTop: '20px', padding: '12px', backgroundColor: 'var(--success-bg)', color: 'var(--success)', textAlign: 'center', borderRadius: 'var(--radius-md)', fontWeight: 'bold' }}>
                       ✅ Your vote has been securely recorded.
                     </div>
                   )}
@@ -249,18 +249,18 @@ function ClubElections() {
             })}
           </div>
         ) : (
-          <p style={{ color: '#6b7280' }}>No active elections at this time.</p>
+          <p style={{ color: 'var(--text-muted)', fontSize: '1.05rem', margin: 0 }}>No active elections at this time.</p>
         )}
       </div>
 
       {/* --- 2. SUPERVISOR VIEW: ELECTORAL ENGINE --- */}
       {isSupervisor && (
-        <div className="card" style={{ marginTop: '30px', borderLeft: '4px solid #111827' }}>
-          <h3 style={{ color: '#111827', borderBottom: '2px solid #e5e7eb', paddingBottom: '10px' }}>🛡️ Supervisor Electoral Engine</h3>
+        <div className="card" style={{ marginTop: '30px', borderLeft: '4px solid var(--text-main)' }}>
+          <h3 style={{ color: 'var(--text-main)', borderBottom: '2px solid var(--border-color)', paddingBottom: '10px', marginTop: 0 }}>🛡️ Supervisor Electoral Engine</h3>
 
           {/* Create Election Form */}
-          <div style={{ backgroundColor: '#fff', border: '1px solid #d1d5db', padding: '15px', borderRadius: '8px', marginBottom: '30px' }}>
-            <h5 style={{ margin: '0 0 15px 0', color: '#374151', borderBottom: '1px solid #e5e7eb', paddingBottom: '10px' }}>➕ Create New Election</h5>
+          <div style={{ backgroundColor: 'var(--surface-color)', border: '1px solid var(--border-color)', padding: '20px', borderRadius: 'var(--radius-lg)', marginBottom: '30px', boxShadow: 'var(--shadow-sm)' }}>
+            <h5 style={{ margin: '0 0 15px 0', color: 'var(--text-main)', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', fontSize: '1.1rem' }}>➕ Create New Election & Ballot</h5>
 
             <div style={{ marginBottom: '15px' }}>
               <select className="form-control" value={electionData.position} onChange={(e) => setElectionData({ ...electionData, position: e.target.value })}>
@@ -269,16 +269,16 @@ function ClubElections() {
               </select>
             </div>
 
-            <div style={{ marginBottom: '15px', padding: '15px', backgroundColor: '#f9fafb', border: '1px dashed #d1d5db' }}>
-              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '10px' }}>Build the Ballot (Candidates)</label>
+            <div style={{ marginBottom: '20px', padding: '20px', backgroundColor: 'var(--bg-color)', borderRadius: 'var(--radius-md)', border: '1px dashed var(--border-color)' }}>
+              <label style={{ display: 'block', fontSize: '0.9rem', fontWeight: 'bold', marginBottom: '10px', color: 'var(--text-secondary)' }}>Build the Ballot (Candidates)</label>
               {electionData.candidates.length > 0 && (
-                <ul style={{ paddingLeft: '20px', fontSize: '0.9rem', marginBottom: '15px' }}>
+                <ul style={{ paddingLeft: '20px', fontSize: '0.95rem', marginBottom: '15px', color: 'var(--text-main)' }}>
                   {electionData.candidates.map((c, idx) => {
                     const name = club.members?.find(m => m._id === c.candidateUserId)?.name || 'Unknown User';
                     return (
-                      <li key={idx} style={{ marginBottom: '5px' }}>
-                        <strong>{name}</strong> <em>("{c.manifesto}")</em>
-                        <button type="button" onClick={() => handleRemoveTempCandidate(idx, false)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', marginLeft: '10px', fontWeight: 'bold' }}>[X]</button>
+                      <li key={idx} style={{ marginBottom: '8px' }}>
+                        <strong>{name}</strong> <em style={{ color: 'var(--text-secondary)' }}>("{c.manifesto}")</em>
+                        <button type="button" onClick={() => handleRemoveTempCandidate(idx, false)} style={{ color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer', marginLeft: '10px', fontWeight: 'bold' }}>[X]</button>
                       </li>
                     )
                   })}
@@ -287,13 +287,11 @@ function ClubElections() {
               <div style={{ display: 'flex', gap: '10px' }}>
                 <select className="form-control" value={tempCandidate.candidateUserId} onChange={(e) => setTempCandidate({ ...tempCandidate, candidateUserId: e.target.value })} style={{ margin: 0, flex: 1 }}>
                   <option value="">-- Select Member --</option>
-
                   {normalMembers.length > 0 && (
                     <optgroup label="Regular Members">
                       {normalMembers.map(m => <option key={m._id} value={m._id}>{m.name}</option>)}
                     </optgroup>
                   )}
-
                   {excoMembers.length > 0 && (
                     <optgroup label="Current Top Board (ExCo)">
                       {excoMembers.map(m => <option key={m._id} value={m._id}>{m.name}</option>)}
@@ -301,49 +299,47 @@ function ClubElections() {
                   )}
                 </select>
                 <input type="text" className="form-control" placeholder="Short Manifesto" value={tempCandidate.manifesto} onChange={(e) => setTempCandidate({ ...tempCandidate, manifesto: e.target.value })} style={{ margin: 0, flex: 2 }} />
-                <button type="button" className="btn" style={{ backgroundColor: '#059669', margin: 0 }} onClick={(e) => handleAddTempCandidate(e, false)}>Add</button>
+                <button type="button" className="btn btn-outline" style={{ margin: 0, backgroundColor: 'var(--surface-color)' }} onClick={(e) => handleAddTempCandidate(e, false)}>Add to List</button>
               </div>
             </div>
-            <button className="btn" style={{ backgroundColor: '#166534', width: '100%' }} onClick={handleCreateElection}>Initialize Full Election</button>
+            <button className="btn btn-success" style={{ width: '100%' }} onClick={handleCreateElection}>Initialize Full Election</button>
           </div>
 
           {/* Manage Active Elections List */}
-          <h5 style={{ color: '#166534', marginBottom: '15px' }}>📋 Election Records</h5>
+          <h5 style={{ color: 'var(--text-main)', marginBottom: '15px', fontSize: '1.1rem' }}>📋 Election Records</h5>
           {club.elections?.length === 0 ? (
-            <p style={{ color: '#6b7280', fontStyle: 'italic' }}>No elections on record.</p>
+            <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>No elections on record.</p>
           ) : (
             <div style={{ display: 'grid', gap: '20px' }}>
               {club.elections?.map(election => (
-                <div key={election._id} style={{ backgroundColor: '#fff', border: '1px solid #d1d5db', padding: '15px', borderRadius: '8px' }}>
+                <div key={election._id} className="card-hover" style={{ backgroundColor: 'var(--surface-color)', border: '1px solid var(--border-color)', padding: '20px', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)', transition: 'var(--transition)' }}>
 
-                  {/* Edit Mode vs Display Mode handled here (kept identical to your previous code) */}
                   {editingElectionId === election._id ? (
-                    <div style={{ backgroundColor: '#fef3c7', padding: '15px', borderRadius: '5px', border: '1px solid #fde68a' }}>
-                      <h6 style={{ margin: '0 0 10px 0', color: '#d97706' }}>✏️ Edit Election Details</h6>
-                      <select className="form-control" value={editElectionData.position} onChange={(e) => setEditElectionData({ ...editElectionData, position: e.target.value })} style={{ marginBottom: '10px' }}>
+                    <div style={{ backgroundColor: 'var(--warning-bg)', padding: '20px', borderRadius: 'var(--radius-md)', border: '1px solid var(--warning)' }}>
+                      <h6 style={{ margin: '0 0 15px 0', color: 'var(--warning)', fontSize: '1.1rem' }}>✏️ Edit Election Details</h6>
+                      <select className="form-control" value={editElectionData.position} onChange={(e) => setEditElectionData({ ...editElectionData, position: e.target.value })} style={{ marginBottom: '15px' }}>
                         <option value="">-- Select Position --</option>
                         {availableRoles.map(r => <option key={r} value={r}>{r}</option>)}
                       </select>
-                      <ul style={{ paddingLeft: '20px', fontSize: '0.9rem', marginBottom: '10px' }}>
+                      <ul style={{ paddingLeft: '20px', fontSize: '0.95rem', marginBottom: '15px', color: 'var(--text-main)' }}>
                         {editElectionData.candidates.map((c, idx) => {
                           const name = club.members?.find(m => m._id === (c.candidateUserId || c.user))?.name || 'Unknown User';
                           return (
-                            <li key={idx}><strong>{name}</strong> <em>("{c.manifesto}")</em>
-                              <button type="button" onClick={() => handleRemoveTempCandidate(idx, true)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', marginLeft: '5px' }}>[X]</button>
+                            <li key={idx} style={{ marginBottom: '8px' }}>
+                              <strong>{name}</strong> <em style={{ color: 'var(--text-secondary)' }}>("{c.manifesto}")</em>
+                              <button type="button" onClick={() => handleRemoveTempCandidate(idx, true)} style={{ color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer', marginLeft: '10px' }}>[X]</button>
                             </li>
                           )
                         })}
                       </ul>
-                      <div style={{ display: 'flex', gap: '5px', marginBottom: '15px' }}>
+                      <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
                         <select className="form-control" value={editTempCandidate.candidateUserId} onChange={(e) => setEditTempCandidate({ ...editTempCandidate, candidateUserId: e.target.value })} style={{ margin: 0, flex: 1 }}>
                           <option value="">-- Add Member --</option>
-
                           {normalMembers.length > 0 && (
                             <optgroup label="Regular Members">
                               {normalMembers.map(m => <option key={m._id} value={m._id}>{m.name}</option>)}
                             </optgroup>
                           )}
-
                           {excoMembers.length > 0 && (
                             <optgroup label="Current Top Board (ExCo)">
                               {excoMembers.map(m => <option key={m._id} value={m._id}>{m.name}</option>)}
@@ -351,45 +347,47 @@ function ClubElections() {
                           )}
                         </select>
                         <input type="text" className="form-control" placeholder="Manifesto" value={editTempCandidate.manifesto} onChange={(e) => setEditTempCandidate({ ...editTempCandidate, manifesto: e.target.value })} style={{ margin: 0, flex: 2 }} />
-                        <button type="button" className="btn" style={{ backgroundColor: '#059669', margin: 0, padding: '5px 10px' }} onClick={(e) => handleAddTempCandidate(e, true)}>+</button>
+                        <button type="button" className="btn btn-outline" style={{ margin: 0, padding: '8px 15px', backgroundColor: 'var(--surface-color)' }} onClick={(e) => handleAddTempCandidate(e, true)}>+</button>
                       </div>
                       <div style={{ display: 'flex', gap: '10px' }}>
-                        <button className="btn" style={{ backgroundColor: '#10b981', flex: 1 }} onClick={() => handleUpdateElection(election._id)}>Save Changes</button>
-                        <button className="btn" style={{ backgroundColor: '#6b7280', flex: 1 }} onClick={() => setEditingElectionId(null)}>Cancel</button>
+                        <button className="btn btn-success" style={{ flex: 1 }} onClick={() => handleUpdateElection(election._id)}>Save All Changes</button>
+                        <button className="btn btn-outline" style={{ flex: 1, backgroundColor: 'var(--surface-color)' }} onClick={() => setEditingElectionId(null)}>Cancel</button>
                       </div>
                     </div>
                   ) : (
                     <>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <h5 style={{ margin: 0, fontSize: '1.2rem', color: '#065f46' }}>{election.position}</h5>
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          <button className="btn" style={{ backgroundColor: election.isActive ? '#ef4444' : '#10b981', padding: '6px 12px', fontSize: '0.85rem' }} onClick={() => handleToggleElection(election._id, !election.isActive, election.isPublished)}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                        <h5 style={{ margin: 0, fontSize: '1.3rem', color: 'var(--text-main)' }}>{election.position}</h5>
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                          <button className={election.isActive ? "btn btn-danger" : "btn btn-success"} style={{ padding: '8px 15px', fontSize: '0.85rem' }} onClick={() => handleToggleElection(election._id, !election.isActive, election.isPublished)}>
                             {election.isActive ? '🛑 Close Voting' : '🟢 Open Voting'}
                           </button>
-                          <button className="btn" style={{ backgroundColor: election.isPublished ? '#6b7280' : '#8b5cf6', padding: '6px 12px', fontSize: '0.85rem' }} onClick={() => handleToggleElection(election._id, false, !election.isPublished)}>
+                          <button className="btn btn-outline" style={{ padding: '8px 15px', fontSize: '0.85rem', backgroundColor: 'var(--surface-color)' }} onClick={() => handleToggleElection(election._id, false, !election.isPublished)}>
                             {election.isPublished ? 'Hide Results' : '📢 Publish Results'}
                           </button>
                         </div>
                       </div>
 
-                      <hr style={{ border: 'none', borderTop: '1px solid #e5e7eb', margin: '15px 0' }} />
-                      <p style={{ margin: '0 0 10px 0', fontWeight: 'bold' }}>Live Tally ({election.votedUsers?.length || 0} votes)</p>
+                      <hr style={{ border: 'none', borderTop: '1px solid var(--border-color)', margin: '20px 0' }} />
 
-                      <ul style={{ margin: '0 0 15px 0', paddingLeft: '20px', color: '#4b5563' }}>
+                      <p style={{ margin: '0 0 10px 0', fontWeight: 'bold', color: 'var(--text-secondary)' }}>Live Tally ({election.votedUsers?.length || 0} votes cast)</p>
+
+                      <ul style={{ margin: '0 0 20px 0', paddingLeft: '20px', color: 'var(--text-main)' }}>
                         {election.candidates?.map(c => {
                           const candidateName = club.members?.find(m => m._id === c.user)?.name || 'Unknown User';
-                          return <li key={c._id} style={{ marginBottom: '8px' }}><span>{candidateName}: <strong style={{ color: '#111827' }}>{c.voteCount} votes</strong></span></li>;
+                          return <li key={c._id} style={{ marginBottom: '8px', fontSize: '1.05rem' }}><span>{candidateName}: <strong>{c.voteCount} votes</strong></span></li>;
                         })}
+                        {election.candidates?.length === 0 && <li style={{ fontStyle: 'italic', color: 'var(--text-muted)' }}>No candidates added.</li>}
                       </ul>
 
-                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px', borderTop: '1px dashed #e5e7eb', paddingTop: '12px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px', borderTop: '1px dashed var(--border-color)', paddingTop: '15px' }}>
                         {!election.isActive && !election.isPublished && election.votedUsers.length === 0 && (
-                          <button className="btn" style={{ backgroundColor: '#fef3c7', color: '#d97706', padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => {
+                          <button className="btn" style={{ backgroundColor: 'var(--warning-bg)', color: 'var(--warning)', padding: '6px 15px', fontSize: '0.85rem' }} onClick={() => {
                             setEditingElectionId(election._id);
                             setEditElectionData({ position: election.position, candidates: election.candidates.map(c => ({ candidateUserId: c.user, manifesto: c.manifesto })) });
-                          }}>✏️ Edit</button>
+                          }}>✏️ Edit Election</button>
                         )}
-                        <button className="btn" style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => handleDeleteElection(election._id)}>🗑️ Delete</button>
+                        <button className="btn btn-danger" style={{ padding: '6px 15px', fontSize: '0.85rem' }} onClick={() => handleDeleteElection(election._id)}>🗑️ Delete</button>
                       </div>
                     </>
                   )}

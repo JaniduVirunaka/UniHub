@@ -178,13 +178,13 @@ function MembershipFees() {
 
   return (
     <div className="container">
-      <button className="btn" style={{ backgroundColor: '#6b7280', marginBottom: '20px' }} onClick={() => navigate(`/clubs/${id}`)}>
+      <button className="btn btn-outline" style={{ marginBottom: '20px', backgroundColor: 'var(--surface-color)' }} onClick={() => navigate(`/clubs/${id}`)}>
         &larr; Back to {club.name} Hub
       </button>
 
       {/* HEADER */}
-      <div className="card" style={{ borderTop: '4px solid #10b981', textAlign: 'center', backgroundColor: '#ecfdf5' }}>
-        <h1 style={{ color: '#059669', margin: '0 0 10px 0' }}>💳 Membership Fee Portal</h1>
+      <div className="card" style={{ borderTop: '4px solid var(--success)', textAlign: 'center', backgroundColor: 'var(--success-bg)' }}>
+        <h1 style={{ color: 'var(--success)', margin: '0 0 10px 0' }}>💳 Membership Fee Portal</h1>
       </div>
 
       <ClubNavigation club={club} />
@@ -194,25 +194,25 @@ function MembershipFees() {
         {/* LEFT COLUMN: Personal Status */}
         <div>
           {!isSupervisor && (
-          <div className="card" style={{ border: '1px solid #a7f3d0', backgroundColor: '#fff' }}>
-            <h3 style={{ color: '#059669', marginTop: 0, borderBottom: '2px solid #a7f3d0', paddingBottom: '10px' }}>My Payment Status</h3>
+          <div className="card" style={{ border: '1px solid var(--border-color)', backgroundColor: 'var(--surface-color)' }}>
+            <h3 style={{ color: 'var(--text-main)', marginTop: 0, borderBottom: '2px solid var(--border-color)', paddingBottom: '10px' }}>My Payment Status</h3>
             
             <div style={{ padding: '20px 0', textAlign: 'center' }}>
-              <span style={{ 
-                display: 'inline-block', padding: '8px 20px', borderRadius: '20px', fontSize: '1.1rem', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '15px',
-                backgroundColor: myStatus === 'Paid' ? '#dcfce7' : myStatus === 'Pending Verification' ? '#dbeafe' : myStatus === 'Exempt' ? '#f3f4f6' : '#fef3c7',
-                color: myStatus === 'Paid' ? '#166534' : myStatus === 'Pending Verification' ? '#1e40af' : myStatus === 'Exempt' ? '#4b5563' : '#b45309'
+              <span className="badge" style={{ 
+                padding: '8px 20px', fontSize: '1.1rem', marginBottom: '15px',
+                backgroundColor: myStatus === 'Paid' ? 'var(--success-bg)' : myStatus === 'Pending Verification' ? 'var(--primary-light)' : myStatus === 'Exempt' ? 'var(--bg-color)' : 'var(--warning-bg)',
+                color: myStatus === 'Paid' ? 'var(--success)' : myStatus === 'Pending Verification' ? 'var(--primary-color)' : myStatus === 'Exempt' ? 'var(--text-muted)' : 'var(--warning)'
               }}>
                 {myStatus === 'Pending Verification' ? '⏳ Pending Verification' : myStatus}
               </span>
               
-              <h4 style={{ margin: '0 0 5px 0', color: '#374151' }}>Amount Logged: Rs. {myAmount.toLocaleString()}</h4>
+              <h4 style={{ margin: '0 0 5px 0', color: 'var(--text-main)' }}>Amount Logged: Rs. {myAmount.toLocaleString()}</h4>
               
               {/* UPGRADED: PAYMENT ENTRY FORM */}
               {myStatus === 'Pending' && (
-                <div style={{ marginTop: '20px', borderTop: '1px dashed #d1d5db', paddingTop: '15px', textAlign: 'left' }}>
-                  <p style={{ color: '#4b5563', fontSize: '0.9rem', marginBottom: '10px' }}>
-                    <strong>Submit Bank Transfer Details</strong><br/>
+                <div style={{ marginTop: '20px', borderTop: '1px dashed var(--border-color)', paddingTop: '15px', textAlign: 'left' }}>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '15px' }}>
+                    <strong style={{ color: 'var(--text-main)' }}>Submit Bank Transfer Details</strong><br/>
                     Transfer funds to the club account, then enter the amount you paid below.
                   </p>
                   <form onSubmit={handleSubmitPayment} style={{ display: 'flex', gap: '10px' }}>
@@ -226,7 +226,7 @@ function MembershipFees() {
                       min="1"
                       style={{ margin: 0, flex: 1 }} 
                     />
-                    <button type="submit" className="btn" style={{ backgroundColor: '#10b981', margin: 0, fontWeight: 'bold', padding: '8px 15px' }}>
+                    <button type="submit" className="btn btn-success" style={{ margin: 0, padding: '8px 15px' }}>
                       Submit
                     </button>
                   </form>
@@ -236,20 +236,20 @@ function MembershipFees() {
           </div>
           )}
 
-          {/* Quick Stats (Only Treasurers see this) */}
+          {/* Quick Stats (Only Treasurers and Supervisors see this) */}
           {canViewLedger && (
-            <div className="card" style={{ border: '1px solid #e5e7eb', backgroundColor: '#f9fafb' }}>
-              <h4 style={{ color: '#374151', margin: '0 0 15px 0' }}>📈 Treasury Overview</h4>
+            <div className="card" style={{ border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-color)' }}>
+              <h4 style={{ color: 'var(--text-main)', margin: '0 0 15px 0' }}>📈 Treasury Overview</h4>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-                <span style={{ color: '#6b7280' }}>Total Members:</span>
-                <strong style={{ color: '#111827' }}>{club.members?.length || 0}</strong>
+                <span style={{ color: 'var(--text-muted)' }}>Total Members:</span>
+                <strong style={{ color: 'var(--text-main)' }}>{allMembers?.length || 0}</strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.1rem', marginBottom: '20px' }}>
-                <span style={{ color: '#059669', fontWeight: 'bold' }}>Verified Funds:</span>
-                <strong style={{ color: '#059669' }}>Rs. {totalCollected.toLocaleString()}</strong>
+                <span style={{ color: 'var(--success)', fontWeight: 'bold' }}>Verified Funds:</span>
+                <strong style={{ color: 'var(--success)' }}>Rs. {totalCollected.toLocaleString()}</strong>
               </div>
               
-              <button className="btn" style={{ width: '100%', backgroundColor: '#0ea5e9', padding: '10px', fontWeight: 'bold' }} onClick={generateLedgerPDF}>
+              <button className="btn btn-outline" style={{ width: '100%', backgroundColor: 'var(--surface-color)' }} onClick={generateLedgerPDF}>
                 📥 Download Master Ledger
               </button>
             </div>
@@ -258,23 +258,22 @@ function MembershipFees() {
 
     {/* RIGHT COLUMN: Master Ledger (For Execs, Treasury & Supervisors) */}
         {canViewLedger && (
-          <div className="card" style={{ border: '1px solid #d1d5db', padding: '20px' }}>
-            <h3 style={{ color: '#111827', marginTop: 0, borderBottom: '2px solid #e5e7eb', paddingBottom: '10px', marginBottom: '20px' }}>
+          <div className="card" style={{ border: '1px solid var(--border-color)', padding: '20px' }}>
+            <h3 style={{ color: 'var(--text-main)', marginTop: 0, borderBottom: '2px solid var(--border-color)', paddingBottom: '10px', marginBottom: '20px' }}>
               📖 Official Treasury Ledger
             </h3>
 
             {allMembers.length === 0 ? (
-              <p style={{ color: '#6b7280', fontStyle: 'italic' }}>No approved members in this club yet.</p>
+              <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>No approved members in this club yet.</p>
             ) : (
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                   <thead>
-                    <tr style={{ backgroundColor: '#f3f4f6', borderBottom: '2px solid #d1d5db' }}>
-                      <th style={{ padding: '12px', color: '#374151' }}>Member Name</th>
-                      <th style={{ padding: '12px', color: '#374151' }}>Status</th>
-                      <th style={{ padding: '12px', color: '#374151' }}>Amount (Rs.)</th>
-                      {/* Hide Actions column header if they are a Supervisor */}
-                      {canManageFees && <th style={{ padding: '12px', color: '#374151', textAlign: 'right' }}>Actions</th>}
+                    <tr style={{ backgroundColor: 'var(--bg-color)', borderBottom: '2px solid var(--border-color)' }}>
+                      <th style={{ padding: '12px', color: 'var(--text-secondary)' }}>Member Name</th>
+                      <th style={{ padding: '12px', color: 'var(--text-secondary)' }}>Status</th>
+                      <th style={{ padding: '12px', color: 'var(--text-secondary)' }}>Amount (Rs.)</th>
+                      {canManageFees && <th style={{ padding: '12px', color: 'var(--text-secondary)', textAlign: 'right' }}>Actions</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -283,10 +282,10 @@ function MembershipFees() {
                       const isEditing = editingId === member._id;
 
                       return (
-                        <tr key={member._id} style={{ borderBottom: '1px solid #e5e7eb', backgroundColor: record.status === 'Pending Verification' ? '#eff6ff' : 'transparent' }}>
+                        <tr key={member._id} style={{ borderBottom: '1px solid var(--border-color)', backgroundColor: record.status === 'Pending Verification' ? 'var(--primary-light)' : 'transparent', transition: 'var(--transition)' }}>
                           <td style={{ padding: '12px' }}>
-                            <strong style={{ display: 'block', color: '#111827' }}>{member.name}</strong>
-                            <small style={{ color: '#6b7280' }}>{member.email}</small>
+                            <strong style={{ display: 'block', color: 'var(--text-main)' }}>{member.name}</strong>
+                            <small style={{ color: 'var(--text-muted)' }}>{member.email}</small>
                           </td>
                           
                           <td style={{ padding: '12px' }}>
@@ -298,10 +297,9 @@ function MembershipFees() {
                                 <option value="Exempt">Exempt</option>
                               </select>
                             ) : (
-                              <span style={{ 
-                                padding: '4px 10px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 'bold',
-                                backgroundColor: record.status === 'Paid' ? '#dcfce7' : record.status === 'Pending Verification' ? '#dbeafe' : record.status === 'Exempt' ? '#f3f4f6' : '#fef3c7',
-                                color: record.status === 'Paid' ? '#166534' : record.status === 'Pending Verification' ? '#1e40af' : record.status === 'Exempt' ? '#4b5563' : '#b45309'
+                              <span className="badge" style={{ 
+                                backgroundColor: record.status === 'Paid' ? 'var(--success-bg)' : record.status === 'Pending Verification' ? 'var(--primary-light)' : record.status === 'Exempt' ? 'var(--bg-color)' : 'var(--warning-bg)',
+                                color: record.status === 'Paid' ? 'var(--success)' : record.status === 'Pending Verification' ? 'var(--primary-color)' : record.status === 'Exempt' ? 'var(--text-muted)' : 'var(--warning)'
                               }}>
                                 {record.status === 'Pending Verification' ? '⏳ Verification' : record.status}
                               </span>
@@ -312,20 +310,19 @@ function MembershipFees() {
                             {isEditing ? (
                               <input type="number" className="form-control" value={editForm.amountPaid} onChange={(e) => setEditForm({...editForm, amountPaid: e.target.value})} style={{ margin: 0, padding: '6px', width: '80px' }} />
                             ) : (
-                              <strong style={{ color: record.amountPaid > 0 ? '#059669' : '#374151' }}>{record.amountPaid.toLocaleString()}</strong>
+                              <strong style={{ color: record.amountPaid > 0 ? 'var(--success)' : 'var(--text-main)' }}>{record.amountPaid.toLocaleString()}</strong>
                             )}
                           </td>
 
-                          {/* Hide Actions buttons if they are a Supervisor */}
                           {canManageFees && (
                             <td style={{ padding: '12px', textAlign: 'right' }}>
                               {isEditing ? (
                                 <div style={{ display: 'flex', gap: '5px', justifyContent: 'flex-end' }}>
-                                  <button className="btn" style={{ backgroundColor: '#10b981', padding: '6px 12px', fontSize: '0.8rem', margin: 0 }} onClick={() => handleUpdateFee(member._id)}>Save</button>
-                                  <button className="btn" style={{ backgroundColor: '#6b7280', padding: '6px 12px', fontSize: '0.8rem', margin: 0 }} onClick={() => setEditingId(null)}>Cancel</button>
+                                  <button className="btn btn-success" style={{ padding: '6px 12px', fontSize: '0.8rem', margin: 0 }} onClick={() => handleUpdateFee(member._id)}>Save</button>
+                                  <button className="btn btn-outline" style={{ padding: '6px 12px', fontSize: '0.8rem', margin: 0, backgroundColor: 'var(--surface-color)' }} onClick={() => setEditingId(null)}>Cancel</button>
                                 </div>
                               ) : (
-                                <button className="btn" style={{ backgroundColor: '#fef3c7', color: '#d97706', border: '1px solid #fde68a', padding: '6px 12px', fontSize: '0.8rem', margin: 0 }} onClick={() => {
+                                <button className="btn" style={{ backgroundColor: 'var(--warning-bg)', color: 'var(--warning)', border: '1px solid transparent', padding: '6px 12px', fontSize: '0.85rem', margin: 0 }} onClick={() => {
                                   setEditingId(member._id);
                                   setEditForm({ status: record.status, amountPaid: record.amountPaid });
                                 }}>

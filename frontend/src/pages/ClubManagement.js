@@ -222,20 +222,35 @@ const pendingAnnouncements = clubs.flatMap(club =>
               Action Center: Pending Approvals
             </h2>
             
-            {pendingAnnouncements.length === 0 ? (
+          {pendingAnnouncements.length === 0 ? (
               <p style={{ color: 'var(--text-muted)' }}>✅ All caught up! No pending announcements.</p>
             ) : (
               <div style={{ display: 'grid', gap: '15px' }}>
                 {pendingAnnouncements.map((ann) => (
-                  <div key={ann._id} style={{ backgroundColor: '#fef2f2', border: '1px solid #fecaca', padding: '15px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div key={ann._id} className="card-hover" style={{ 
+                    backgroundColor: 'var(--danger-bg)', 
+                    border: '1px solid var(--danger)', 
+                    padding: '20px', 
+                    borderRadius: 'var(--radius-md)', 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center',
+                    transition: 'var(--transition)'
+                  }}>
                     <div>
-                      <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#dc2626', textTransform: 'uppercase' }}>{ann.clubName}</span>
-                      <h4 style={{ margin: '5px 0' }}>{ann.title}</h4>
-                      <p style={{ margin: 0, fontSize: '0.9rem', color: '#4b5563' }}>{ann.content}</p>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--danger)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        {ann.clubName}
+                      </span>
+                      <h4 style={{ margin: '8px 0 4px 0', color: 'var(--text-main)', fontSize: '1.1rem' }}>{ann.title}</h4>
+                      <p style={{ margin: 0, fontSize: '0.95rem', color: 'var(--text-secondary)' }}>{ann.content}</p>
                     </div>
                     <div style={{ display: 'flex', gap: '10px' }}>
-                      <button className="btn" style={{ backgroundColor: '#10b981', padding: '8px 15px' }} onClick={() => handleApproveAnnouncement(ann.clubId, ann._id)}>Approve</button>
-                      <button className="btn" style={{ backgroundColor: '#ef4444', padding: '8px 15px' }} onClick={() => handleRejectAnnouncement(ann.clubId, ann._id)}>Reject</button>
+                      <button className="btn btn-success" style={{ padding: '8px 15px', margin: 0 }} onClick={() => handleApproveAnnouncement(ann.clubId, ann._id)}>
+                        Approve
+                      </button>
+                      <button className="btn btn-danger" style={{ padding: '8px 15px', margin: 0 }} onClick={() => handleRejectAnnouncement(ann.clubId, ann._id)}>
+                        Reject
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -309,28 +324,19 @@ const pendingAnnouncements = clubs.flatMap(club =>
 
     {/* DIRECTORY SECTION WITH TABS */}
       <div className="card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid var(--border-color)', paddingBottom: '10px', marginBottom: '20px' }}>
-          <h2 style={{ margin: 0 }}>Club Directory</h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid var(--border-color)', paddingBottom: '15px', marginBottom: '25px', flexWrap: 'wrap', gap: '15px' }}>
+          <h2 style={{ margin: 0, color: 'var(--text-main)' }}>Club Directory</h2>
           
           {/* Filtering Tabs */}
           {currentUser.role === 'student' && (
             <div style={{ display: 'flex', gap: '10px' }}>
-              <button 
-                className="btn" 
-                style={{ backgroundColor: 'var(--primary-color)' }}
-                onClick={() => fetchClubs()} // Grabs all clubs
-              >
+              <button className="btn" style={{ padding: '8px 16px', fontSize: '0.9rem' }} onClick={() => fetchClubs()}>
                 Explore All Clubs
               </button>
-              <button 
-                className="btn" 
-                style={{ backgroundColor: '#10b981' }} // Green color for 'My Clubs'
-                onClick={() => {
-                  // Filter local state to only show clubs where they are a member
+              <button className="btn btn-success" style={{ padding: '8px 16px', fontSize: '0.9rem' }} onClick={() => {
                   const myClubs = clubs.filter(club => club.members.some(m => m._id === currentUser.id));
                   setClubs(myClubs);
-                }}
-              >
+                }}>
                 My Registered Clubs
               </button>
             </div>
@@ -338,37 +344,55 @@ const pendingAnnouncements = clubs.flatMap(club =>
         </div>
 
         {clubs.length === 0 ? (
-          <p>No clubs found in this view.</p>
+          <div style={{ textAlign: 'center', padding: '3rem', backgroundColor: 'var(--bg-color)', borderRadius: 'var(--radius-md)' }}>
+            <p style={{ color: 'var(--text-muted)', margin: 0 }}>No clubs found in this view.</p>
+          </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '25px' }}>
             {clubs.map(club => (
-              <div key={club._id} style={{ border: '1px solid var(--border-color)', borderRadius: '8px', padding: '1.5rem', backgroundColor: 'var(--surface-color)', position: 'relative' }}>
-                <h3 style={{ color: 'var(--primary-color)', marginTop: '0' }}>{club.name}</h3>
-                <p style={{ color: 'var(--text-muted)' }}>{club.description.substring(0, 100)}...</p>
+              <div key={club._id} className="card card-hover" style={{ marginBottom: 0, padding: '1.5rem', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
                 
-                {/* Visual indicator if they are already a member */}
-                {club.members?.some(m => m._id === currentUser.id) && (
-                   <span style={{ position: 'absolute', top: '10px', right: '10px', backgroundColor: '#d1fae5', color: '#065f46', padding: '2px 8px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 'bold' }}>
-                     Member
-                   </span>
-                )}
-                {club.president?._id === currentUser.id && (
-                   <span style={{ position: 'absolute', top: '10px', right: '10px', backgroundColor: '#dbeafe', color: '#1e40af', padding: '2px 8px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 'bold' }}>
-                     President
-                   </span>
-                )}
+                {/* Visual Badges */}
+                <div style={{ position: 'absolute', top: '15px', right: '15px', display: 'flex', gap: '5px' }}>
+                  {club.members?.some(m => m._id === currentUser.id) && (
+                    <span className="badge" style={{ backgroundColor: 'var(--success-bg)', color: 'var(--success)' }}>Member</span>
+                  )}
+                  {club.president?._id === currentUser.id && (
+                    <span className="badge" style={{ backgroundColor: 'var(--primary-light)', color: 'var(--primary-color)' }}>President</span>
+                  )}
+                </div>
 
-                <div style={{ marginTop: '15px', display: 'flex', gap: '10px' }}>
-                  <button className="btn" style={{ flex: 1 }} onClick={() => navigate(`/clubs/${club._id}`)}>
-                    View Club Hub
+                <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '15px' }}>
+                  {/* Avatar Placeholder */}
+                  <div style={{ width: '50px', height: '50px', borderRadius: '12px', backgroundColor: 'var(--bg-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border-color)', flexShrink: 0 }}>
+                    {club.logoUrl ? (
+                      <img src={`http://localhost:5000${club.logoUrl}`} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '11px' }} />
+                    ) : (
+                      <span style={{ fontSize: '1.2rem', color: 'var(--text-muted)' }}>{club.name.charAt(0)}</span>
+                    )}
+                  </div>
+                  <h3 style={{ color: 'var(--text-main)', margin: 0, fontSize: '1.2rem', paddingRight: '70px' }}>{club.name}</h3>
+                </div>
+
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', flex: 1, margin: '0 0 20px 0' }}>
+                  {club.description.substring(0, 120)}...
+                </p>
+                
+                <div style={{ display: 'flex', gap: '10px', marginTop: 'auto' }}>
+                  <button className="btn btn-outline" style={{ flex: 1 }} onClick={() => navigate(`/clubs/${club._id}`)}>
+                    View Hub
                   </button>
                   
-                  {/* Supervisor Edit/Delete controls remain here on the dashboard */}
+                  {/* Supervisor Controls */}
                   {currentUser.role === 'supervisor' && (
-                    <>
-                      <button onClick={() => handleEditClick(club)} style={{ padding: '5px 10px', cursor: 'pointer', backgroundColor: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: '4px' }}>Edit</button>
-                      <button onClick={() => handleDeleteClub(club._id)} style={{ padding: '5px 10px', cursor: 'pointer', backgroundColor: '#fee2e2', color: '#dc2626', border: '1px solid #fca5a5', borderRadius: '4px' }}>Delete</button>
-                    </>
+                    <div style={{ display: 'flex', gap: '5px' }}>
+                      <button className="btn" style={{ padding: '0 12px', backgroundColor: 'var(--bg-color)', color: 'var(--text-secondary)', borderColor: 'var(--border-color)' }} onClick={() => handleEditClick(club)}>
+                        ✏️
+                      </button>
+                      <button className="btn btn-danger" style={{ padding: '0 12px' }} onClick={() => handleDeleteClub(club._id)}>
+                        🗑️
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
