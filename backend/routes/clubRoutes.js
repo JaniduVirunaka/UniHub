@@ -1,4 +1,5 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const router = express.Router();
 const multer = require('multer');
 const path = require('path');
@@ -944,5 +945,76 @@ router.delete('/:id/elections/:electionId', async (req, res) => {
   }
 });
 
+
+
+// --- ADVANCED ANALYTICS ROUTE (CUMULATIVE YTD & TARGETS) ---
+router.get('/:id/analytics', async (req, res) => {
+  try {
+    const clubId = new mongoose.Types.ObjectId(req.params.id);
+    
+    // 1. Fetch the club to calculate our Annual Targets
+    const club = await Club.findById(clubId);
+    if (!club) return res.status(404).json({ message: "Club not found." });
+
+    // Calculate Total Approved Members (President + Board + General)
+    const totalMembers = (club.president ? 1 : 0) + (club.topBoard?.length || 0) + (club.members?.length || 0);
+    
+    // Calculate Financial Targets
+    const feeTarget = (club.membershipFee || 0) * totalMembers;
+    const sponsorshipTarget = club.proposals?.reduce((sum, p) => sum + (p.targetAmount || 0), 0) || 0;
+    const overallTarget = feeTarget + sponsorshipTarget;
+
+    // 2. Aggregate the raw monthly data (Same as before)
+    const feeAnalytics = await Club.aggregate([
+      { $match: { _id: clubId } },
+      { $unwind: "$feeRecords" },
+      { $match: { "feeRecords.status": "Paid" } },
+      { $group: { _id: { month: { $month: "$feeRecords.lastUpdated" } }, monthlyFees: { $sum: "$feeRecords.amountPaid" } } }
+    ]);
+
+    const pledgeAnalytics = await Club.aggregate([
+      { $match: { _id: clubId } },
+      { $unwind: "$proposals" },
+      { $unwind: "$proposals.pledges" },
+      { $match: { "proposals.pledges.status": "Accepted" } },
+      { $group: { _id: { month: { $month: "$proposals.pledges.date" } }, monthlySponsorships: { $sum: "$proposals.pledges.amount" } } }
+    ]);
+
+    // 3. Process into a Cumulative (Running Total) Array
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    let chartData = months.map((month) => ({ name: month, rawFees: 0, rawSponsorships: 0 }));
+
+    feeAnalytics.forEach(r => { chartData[r._id.month - 1].rawFees = r.monthlyFees; });
+    pledgeAnalytics.forEach(r => { chartData[r._id.month - 1].rawSponsorships = r.monthlySponsorships; });
+
+    let runningFees = 0;
+    let runningSponsorships = 0;
+
+    // Build the Year-to-Date growth trajectory
+    chartData = chartData.map(data => {
+      runningFees += data.rawFees;
+      runningSponsorships += data.rawSponsorships;
+      const cumulativeTotal = runningFees + runningSponsorships;
+      
+      // Prevent division by zero if target is 0
+      const percent = overallTarget > 0 ? Math.round((cumulativeTotal / overallTarget) * 100) : 0;
+
+      return {
+        name: data.name,
+        cumulativeFees: runningFees,
+        cumulativeSponsorships: runningSponsorships,
+        cumulativeTotal: cumulativeTotal,
+        percentOfTarget: percent
+      };
+    });
+
+    // Send both the graph data AND the target numbers to the frontend
+    res.status(200).json({ chartData, targets: { feeTarget, sponsorshipTarget, overallTarget } });
+
+  } catch (err) {
+    console.error("Analytics Pipeline Error:", err);
+    res.status(500).json({ message: err.message });
+  }
+});
 
 module.exports = router;

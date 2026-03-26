@@ -29,6 +29,16 @@ const proposalSchema = new mongoose.Schema({
   isActive: { type: Boolean, default: true },
   pledges: [pledgeSchema] 
 });
+
+// 2.5 Club Expenses (NEW)
+const expenseSchema = new mongoose.Schema({
+  title: { type: String, required: true },
+  amount: { type: Number, required: true },
+  description: { type: String },
+  date: { type: Date, default: Date.now },
+  loggedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+});
+
 // 4. Election System 
 const candidateSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
@@ -86,7 +96,8 @@ const clubSchema = new mongoose.Schema({
   // Club Operations
   announcements: [announcementSchema],
   proposals: [proposalSchema],
-  elections: [electionSchema]
+  elections: [electionSchema],
+  expenses: [expenseSchema]
 });
 
 
