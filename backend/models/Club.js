@@ -29,6 +29,16 @@ const proposalSchema = new mongoose.Schema({
   isActive: { type: Boolean, default: true },
   pledges: [pledgeSchema] 
 });
+
+// 2.5 Club Expenses (NEW)
+const expenseSchema = new mongoose.Schema({
+  title: { type: String, required: true },
+  amount: { type: Number, required: true },
+  description: { type: String },
+  date: { type: Date, default: Date.now },
+  loggedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+});
+
 // 4. Election System 
 const candidateSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
@@ -65,10 +75,15 @@ const clubSchema = new mongoose.Schema({
   members: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], 
   pendingMembers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], 
   
-  // Tracks individual student payments
+ // Dynamic Payment Categories (Managed by Treasury)
+  paymentCategories: [{ type: String, default: 'Membership Fee' }],
+
+  // Tracks individual student payments (Upgraded for Receipts & Categories)
   feeRecords: [{
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    status: { type: String, enum: ['Pending','Pending Verification', 'Paid', 'Exempt'], default: 'Pending' },
+    category: { type: String, required: true, default: 'Membership Fee' },
+    receiptUrl: { type: String }, // Stores the path to the uploaded screenshot
+    status: { type: String, enum: ['Pending', 'Pending Verification', 'Paid', 'Rejected', 'Exempt'], default: 'Pending' },
     amountPaid: { type: Number, default: 0 },
     lastUpdated: { type: Date, default: Date.now }
   }],
@@ -86,7 +101,8 @@ const clubSchema = new mongoose.Schema({
   // Club Operations
   announcements: [announcementSchema],
   proposals: [proposalSchema],
-  elections: [electionSchema]
+  elections: [electionSchema],
+  expenses: [expenseSchema]
 });
 
 
