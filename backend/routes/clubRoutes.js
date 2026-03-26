@@ -1095,7 +1095,7 @@ router.delete('/:id/expenses/:expenseId', async (req, res) => {
   }
 });
 
-// 4. THE ULTIMATE FINANCIAL ANALYTICS ALGORITHM (Revenue vs Expenses)
+// 4. THE ULTIMATE FINANCIAL ANALYTICS ALGORITHM (Segmented Revenue)
 router.get('/:id/analytics', async (req, res) => {
   try {
     const clubId = new mongoose.Types.ObjectId(req.params.id);
@@ -1118,27 +1118,36 @@ router.get('/:id/analytics', async (req, res) => {
       { $group: { _id: { month: { $month: "$expenses.date" } }, total: { $sum: "$expenses.amount" } } }
     ]);
 
-    // B. Build the 12-Month Array
+    // B. Build the 12-Month Segmented Array
     const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    let chartData = months.map((month) => ({ name: month, rawRevenue: 0, rawExpenses: 0 }));
+    let chartData = months.map((month) => ({ 
+      name: month, 
+      monthlyFees: 0, 
+      monthlySponsorships: 0, 
+      monthlyExpenses: 0 
+    }));
 
-    feeAnalytics.forEach(r => { chartData[r._id.month - 1].rawRevenue += r.total; });
-    pledgeAnalytics.forEach(r => { chartData[r._id.month - 1].rawRevenue += r.total; });
-    expenseAnalytics.forEach(r => { chartData[r._id.month - 1].rawExpenses += r.total; });
+    // Inject exact monthly data into their specific buckets
+    feeAnalytics.forEach(r => { chartData[r._id.month - 1].monthlyFees += r.total; });
+    pledgeAnalytics.forEach(r => { chartData[r._id.month - 1].monthlySponsorships += r.total; });
+    expenseAnalytics.forEach(r => { chartData[r._id.month - 1].monthlyExpenses += r.total; });
 
-    // C. Process Cumulative YTD Totals & Net Balance
-    let runningRevenue = 0;
-    let runningExpenses = 0;
+    // C. Process Cumulative YTD Totals for the Area Chart
+    let ytdFees = 0;
+    let ytdSponsorships = 0;
+    let ytdExpenses = 0;
 
     chartData = chartData.map(data => {
-      runningRevenue += data.rawRevenue;
-      runningExpenses += data.rawExpenses;
+      ytdFees += data.monthlyFees;
+      ytdSponsorships += data.monthlySponsorships;
+      ytdExpenses += data.monthlyExpenses;
       
       return {
-        name: data.name,
-        ytdRevenue: runningRevenue,
-        ytdExpenses: runningExpenses,
-        netBalance: runningRevenue - runningExpenses
+        ...data,
+        ytdFees,
+        ytdSponsorships,
+        ytdExpenses,
+        ytdRevenue: ytdFees + ytdSponsorships, // Kept for the PDF Generator
       };
     });
 

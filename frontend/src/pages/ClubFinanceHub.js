@@ -4,14 +4,15 @@ import axios from 'axios';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import ClubNavigation from '../components/ClubNavigation';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 function ClubFinanceHub() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [club, setClub] = useState(null);
   const [analytics, setAnalytics] = useState({ chartData: [], expenses: [] });
-  
+  const [chartView, setChartView] = useState('YTD'); // 'YTD' or 'Monthly'
+
   const currentUser = JSON.parse(localStorage.getItem('user'));
 
   // Member Payment States
@@ -31,17 +32,34 @@ function ClubFinanceHub() {
   const [editingExpenseId, setEditingExpenseId] = useState(null);
   const [expenseData, setExpenseData] = useState({ title: '', amount: '', description: '', date: '' });
 
-  // ==========================================
-  // BUG FIX: MOVE THIS ABOVE THE USE-EFFECT!
-  // ==========================================
+  // --- MATH & DERIVED STATE (Must be at the top so PDFs can use them!) ---
   const safeCategories = club?.paymentCategories?.length > 0 ? club.paymentCategories : ['Membership Fee'];
+  
+  const filteredLedger = club?.feeRecords?.filter(record => 
+    categoryFilter === 'All' ? true : record.category === categoryFilter
+  ).reverse() || [];
+
+  // YTD Totals (Used for PDFs)
+  const ytdRevenue = (analytics.chartData[11]?.ytdFees || 0) + (analytics.chartData[11]?.ytdSponsorships || 0);
+  const ytdExpenses = analytics.chartData[11]?.ytdExpenses || 0;
+  const ytdBalance = ytdRevenue - ytdExpenses;
+
+  // Dynamic UI Stats (Changes based on Dropdown)
+  const currentMonthIndex = new Date().getMonth();
+  const displayStats = chartView === 'YTD' 
+    ? { label: 'YTD', rev: ytdRevenue, exp: ytdExpenses }
+    : { 
+        label: 'This Month', 
+        rev: (analytics.chartData[currentMonthIndex]?.monthlyFees || 0) + (analytics.chartData[currentMonthIndex]?.monthlySponsorships || 0), 
+        exp: analytics.chartData[currentMonthIndex]?.monthlyExpenses || 0 
+      };
+  const displayBalance = displayStats.rev - displayStats.exp;
 
   useEffect(() => {
     fetchClubData();
     fetchAnalytics();
   }, [id]);
 
-  // Make sure the dropdown selects a valid category once the club loads
   useEffect(() => {
     if (club && safeCategories.length > 0 && !safeCategories.includes(paymentData.category)) {
       setPaymentData(prev => ({ ...prev, category: safeCategories[0] }));
@@ -49,30 +67,27 @@ function ClubFinanceHub() {
   }, [club]); 
 
   const fetchClubData = () => {
-    axios.get(`http://localhost:5000/api/clubs/${id}`)
-      .then(res => setClub(res.data))
-      .catch(err => console.log(err));
+    axios.get(`http://localhost:5000/api/clubs/${id}`).then(res => setClub(res.data)).catch(err => console.log(err));
   };
 
   const fetchAnalytics = () => {
-    axios.get(`http://localhost:5000/api/clubs/${id}/analytics`)
-      .then(res => setAnalytics(res.data))
-      .catch(err => console.error("Error fetching analytics:", err));
+    axios.get(`http://localhost:5000/api/clubs/${id}/analytics`).then(res => setAnalytics(res.data)).catch(err => console.error("Error fetching analytics:", err));
   };
 
   if (!club) return <div style={{ textAlign: 'center', marginTop: '50px' }}>Loading Financial Hub...</div>;
 
-  // --- ACCESS CONTROL ---
+  // --- STRICT ACCESS CONTROL (UPDATED) ---
   const isSupervisor = currentUser?.role === 'supervisor';
   const isActualPresident = club.president?._id === currentUser?.id;
   const isVP = club.topBoard?.some(b => b.user?._id === currentUser?.id && b.role === 'Vice President');
   const isPresident = isActualPresident || isVP;
   const isTreasury = club.topBoard?.some(b => b.user?._id === currentUser?.id && ['Treasurer', 'Assistant Treasurer'].includes(b.role));
   
+  // View permissions
   const canViewAdminDashboard = isPresident || isTreasury || isSupervisor;
-  const canManageData = isTreasury || isPresident;
+  // Edit permissions (ONLY Treasury team)
+  const canManageData = isTreasury;
 
-  // --- HELPER: Identify Current User's Role for Autofill ---
   let myRole = "General Member";
   if (isActualPresident) myRole = "President";
   else {
@@ -101,21 +116,15 @@ function ClubFinanceHub() {
       .catch(err => alert("Error processing payment."));
   };
 
-// --- ACTIONS: Admin Verify Payments ---
+  // --- ACTIONS: Admin Verify Payments ---
   const handleVerifyPayment = (recordId) => {
     axios.put(`http://localhost:5000/api/clubs/${id}/fees/update`, {
-      recordId: recordId, // THE FIX: Sending the exact transaction ID!
+      recordId: recordId, 
       status: editForm.status,
       amountPaid: Number(editForm.amountPaid),
       requestorId: currentUser?.id
-    })
-    .then(res => {
-      alert(res.data.message);
-      setEditingId(null);
-      fetchClubData(); 
-      fetchAnalytics(); 
-    })
-    .catch(err => alert(err.response?.data?.message || "Error updating record."));
+    }).then(res => { alert(res.data.message); setEditingId(null); fetchClubData(); fetchAnalytics(); })
+      .catch(err => alert(err.response?.data?.message || "Error updating record."));
   };
 
   // --- ACTIONS: Category Management ---
@@ -130,19 +139,16 @@ function ClubFinanceHub() {
   const handleEditCategory = (oldCat) => {
     if (oldCat === 'Membership Fee') return alert("Cannot rename the default category.");
     const newCat = window.prompt("Enter new category name:", oldCat);
-    
     if (newCat && newCat.trim() !== "" && newCat !== oldCat) {
       axios.put(`http://localhost:5000/api/clubs/${id}/categories`, { oldCategory: oldCat, newCategory: newCat, userId: currentUser?.id })
-        .then(res => fetchClubData())
-        .catch(err => alert(err.response?.data?.message || "Error renaming category."));
+        .then(res => fetchClubData()).catch(err => alert(err.response?.data?.message || "Error renaming category."));
     }
   };
 
   const handleDeleteCategory = (catName) => {
     if(!window.confirm(`Delete the category "${catName}"?`)) return;
     axios.delete(`http://localhost:5000/api/clubs/${id}/categories/${catName}`, { data: { userId: currentUser?.id } })
-      .then(res => fetchClubData())
-      .catch(err => alert(err.response?.data?.message || "Error deleting category."));
+      .then(res => fetchClubData()).catch(err => alert(err.response?.data?.message || "Error deleting category."));
   };
 
   // --- ACTIONS: Expense Management ---
@@ -162,40 +168,24 @@ function ClubFinanceHub() {
   };
 
   const openEditForm = (exp) => {
-    // Format the date so the HTML <input type="date"> can read it
     const formattedDate = new Date(exp.date).toISOString().split('T')[0];
-    
-    // Populate the form with the existing data
-    setExpenseData({ 
-      title: exp.title, 
-      amount: exp.amount, 
-      description: exp.description || '', 
-      date: formattedDate 
-    });
-    
+    setExpenseData({ title: exp.title, amount: exp.amount, description: exp.description || '', date: formattedDate });
     setEditingExpenseId(exp._id);
-    setShowExpenseForm(true); // Open the form UI
+    setShowExpenseForm(true); 
   };
 
   const handleDeleteExpense = (expenseId) => {
     if (!window.confirm("Are you sure you want to delete this expense record?")) return;
-    
     axios.delete(`http://localhost:5000/api/clubs/${id}/expenses/${expenseId}`, { data: { userId: currentUser?.id } })
-      .then(res => fetchAnalytics())
-      .catch(err => alert("Error deleting expense."));
+      .then(res => fetchAnalytics()).catch(err => alert("Error deleting expense."));
   };
 
-  // --- FILTER & PDF LOGIC ---
-  const filteredLedger = club.feeRecords?.filter(record => 
-    categoryFilter === 'All' ? true : record.category === categoryFilter
-  ).reverse() || [];
-
+  // --- PDF GENERATORS (COMPILER BUGS FIXED) ---
   const generateFilteredLedgerPDF = () => {
     const doc = new jsPDF();
     doc.setFontSize(22);
     doc.setTextColor(40, 40, 40);
     doc.text(`${club.name} - Official Transaction Ledger`, 14, 20);
-    
     doc.setFontSize(11);
     doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 28);
     doc.text(`Filter Applied: ${categoryFilter}`, 14, 34);
@@ -209,15 +199,7 @@ function ClubFinanceHub() {
       tableRows.push([ name, record.category, record.status, `Rs. ${record.amountPaid.toLocaleString()}`, dateStr ]);
     });
 
-    autoTable(doc, {
-      head: [tableColumn],
-      body: tableRows,
-      startY: 40,
-      styles: { fontSize: 9, cellPadding: 3 },
-      headStyles: { fillColor: [59, 130, 246] }, 
-      alternateRowStyles: { fillColor: [239, 246, 255] }
-    });
-
+    autoTable(doc, { head: [tableColumn], body: tableRows, startY: 40, styles: { fontSize: 9, cellPadding: 3 }, headStyles: { fillColor: [59, 130, 246] }, alternateRowStyles: { fillColor: [239, 246, 255] } });
     doc.save(`${club.name.replace(/\s+/g, '_')}_Filtered_Ledger.pdf`);
   };
 
@@ -228,21 +210,16 @@ function ClubFinanceHub() {
     doc.text(`${club.name} - Official Expense Report`, 14, 20);
     doc.setFontSize(11);
     doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 28);
-    doc.text(`Total Expenses: Rs. ${totalExpenses.toLocaleString()}`, 14, 34);
+    doc.text(`YTD Total Expenses: Rs. ${ytdExpenses.toLocaleString()}`, 14, 34); // FIXED
 
     const tableColumn = ["Date", "Expense Title", "Description", "Amount (Rs.)"];
     const tableRows = [];
 
     [...analytics.expenses].sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(exp => {
-      tableRows.push([
-        new Date(exp.date).toLocaleDateString(),
-        exp.title,
-        exp.description || 'N/A',
-        `Rs. ${exp.amount.toLocaleString()}`
-      ]);
+      tableRows.push([ new Date(exp.date).toLocaleDateString(), exp.title, exp.description || 'N/A', `Rs. ${exp.amount.toLocaleString()}` ]);
     });
 
-    autoTable(doc, { head: [tableColumn], body: tableRows, startY: 40, headStyles: { fillColor: [220, 38, 38] } }); // Red theme for expenses
+    autoTable(doc, { head: [tableColumn], body: tableRows, startY: 40, headStyles: { fillColor: [220, 38, 38] } }); 
     doc.save(`${club.name.replace(/\s+/g, '_')}_Expense_Report.pdf`);
   };
 
@@ -255,29 +232,24 @@ function ClubFinanceHub() {
 
     doc.setFontSize(14);
     doc.setTextColor(16, 185, 129); // Green
-    doc.text(`YTD Total Revenue: Rs. ${totalRevenue.toLocaleString()}`, 14, 45);
+    doc.text(`YTD Total Revenue: Rs. ${ytdRevenue.toLocaleString()}`, 14, 45); // FIXED
     doc.setTextColor(220, 38, 38); // Red
-    doc.text(`YTD Total Expenses: Rs. ${totalExpenses.toLocaleString()}`, 14, 55);
+    doc.text(`YTD Total Expenses: Rs. ${ytdExpenses.toLocaleString()}`, 14, 55); // FIXED
     doc.setTextColor(37, 99, 235); // Blue
-    doc.text(`Net Balance: Rs. ${currentBalance.toLocaleString()}`, 14, 65);
+    doc.text(`Net Balance: Rs. ${ytdBalance.toLocaleString()}`, 14, 65); // FIXED
 
-    // Add a monthly breakdown table
-    const tableColumn = ["Month", "Revenue (Rs.)", "Expenses (Rs.)", "Net (Rs.)"];
+    const tableColumn = ["Month", "Fees (Rs.)", "Sponsorships (Rs.)", "Expenses (Rs.)", "Net (Rs.)"];
     const tableRows = analytics.chartData.map(data => [
       data.name,
-      data.ytdRevenue.toLocaleString(),
-      data.ytdExpenses.toLocaleString(),
-      (data.ytdRevenue - data.ytdExpenses).toLocaleString()
+      data.monthlyFees.toLocaleString(),
+      data.monthlySponsorships.toLocaleString(),
+      data.monthlyExpenses.toLocaleString(),
+      ((data.monthlyFees + data.monthlySponsorships) - data.monthlyExpenses).toLocaleString()
     ]);
 
     autoTable(doc, { head: [tableColumn], body: tableRows, startY: 75, headStyles: { fillColor: [59, 130, 246] } });
     doc.save(`${club.name.replace(/\s+/g, '_')}_Financial_Summary.pdf`);
   };
-
-  // Analytics Math
-  const totalRevenue = analytics.chartData[11]?.ytdRevenue || 0;
-  const totalExpenses = analytics.chartData[11]?.ytdExpenses || 0;
-  const currentBalance = totalRevenue - totalExpenses;
 
   return (
     <div className="container" style={{ position: 'relative' }}>
@@ -297,17 +269,21 @@ function ClubFinanceHub() {
         <button className="btn btn-outline" style={{ marginBottom: '20px', backgroundColor: 'var(--surface-color)' }} onClick={() => navigate(`/clubs/${id}`)}>
           &larr; Back to Main Hub
         </button>
-        <h1 style={{ color: 'var(--primary-color)', margin: '0 0 10px 0' }}>🏦 Unified Financial Hub</h1>
-        <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '1.05rem' }}>Securely submit payments, verify bank transfers, and oversee club analytics.</p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '15px' }}>
+          <div>
+            <h1 style={{ color: 'var(--primary-color)', margin: '0 0 10px 0' }}>🏦 Unified Financial Hub</h1>
+            <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '1.05rem' }}>Securely submit payments, verify bank transfers, and oversee club analytics.</p>
+          </div>
+        </div>
         <div style={{ marginTop: '20px' }}><ClubNavigation club={club} /></div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: canViewAdminDashboard ? '1fr 2fr' : '1fr', gap: '30px' }}>
+      {/* LAYOUT FIX: Dynamic Grid columns based on if the left column is showing */}
+      <div style={{ display: 'grid', gridTemplateColumns: (canViewAdminDashboard && !isSupervisor) ? '1fr 2fr' : '1fr', gap: '30px' }}>
         
-        {/* LEFT COLUMN: MEMBER PAYMENT SUBMISSION */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
-          
-          {!isSupervisor && (
+        {/* LEFT COLUMN: MEMBER PAYMENT SUBMISSION (Hidden for Supervisors) */}
+        {!isSupervisor && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
             <div className="card" style={{ border: '1px solid var(--border-color)', padding: '25px', marginBottom: 0 }}>
               <h3 style={{ color: 'var(--text-main)', marginTop: 0, borderBottom: '2px solid var(--border-color)', paddingBottom: '10px', marginBottom: '20px' }}>Submit a Payment</h3>
               
@@ -342,9 +318,7 @@ function ClubFinanceHub() {
                 <button type="submit" className="btn btn-success" style={{ width: '100%', fontSize: '1.05rem', padding: '12px' }}>Submit for Verification</button>
               </form>
             </div>
-          )}
 
-          {!isSupervisor && (
             <div className="card" style={{ border: '1px solid var(--border-color)', padding: '20px' }}>
               <h4 style={{ color: 'var(--text-main)', marginTop: 0, marginBottom: '15px' }}>My Recent Submissions</h4>
               {club.feeRecords?.filter(r => r.user?._id === currentUser?.id || r.user === currentUser?.id).length === 0 ? (
@@ -368,52 +342,79 @@ function ClubFinanceHub() {
                 </div>
               )}
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* RIGHT COLUMN: ADMIN FINANCIAL DASHBOARD */}
         {canViewAdminDashboard && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
             
+            {/* --- 1. DYNAMIC STATS & CHARTS --- */}
             <div className="card" style={{ border: '1px solid var(--border-color)', padding: '20px', marginBottom: 0 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                <h3 style={{ margin: 0, color: 'var(--text-main)' }}>Executive Overview</h3>
-                <button className="btn btn-outline" style={{ margin: 0, padding: '6px 15px' }} onClick={generateFinancialSummaryPDF}>
-                  📥 Export Financial Summary
-                </button>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '15px', marginBottom: '20px' }}>
-                <div style={{ padding: '15px', textAlign: 'center', backgroundColor: 'var(--bg-color)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
-                  <h5 style={{ margin: '0 0 5px 0', color: 'var(--text-secondary)' }}>YTD Revenue</h5>
-                  <h3 style={{ margin: 0, color: 'var(--success)' }}>Rs. {totalRevenue.toLocaleString()}</h3>
-                </div>
-                <div style={{ padding: '15px', textAlign: 'center', backgroundColor: 'var(--bg-color)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
-                  <h5 style={{ margin: '0 0 5px 0', color: 'var(--text-secondary)' }}>YTD Expenses</h5>
-                  <h3 style={{ margin: 0, color: 'var(--danger)' }}>Rs. {totalExpenses.toLocaleString()}</h3>
-                </div>
-                <div style={{ padding: '15px', textAlign: 'center', backgroundColor: 'var(--primary-light)', borderRadius: 'var(--radius-md)', border: '1px solid var(--primary-color)' }}>
-                  <h5 style={{ margin: '0 0 5px 0', color: 'var(--text-secondary)' }}>Net Balance</h5>
-                  <h3 style={{ margin: 0, color: 'var(--primary-color)' }}>Rs. {currentBalance.toLocaleString()}</h3>
+              
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '15px' }}>
+                <h3 style={{ margin: 0, color: 'var(--text-main)' }}>📊 Financial Breakdown</h3>
+                
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                  <select className="form-control" style={{ width: 'auto', margin: 0, fontWeight: 'bold', padding: '6px 12px' }} value={chartView} onChange={(e) => setChartView(e.target.value)}>
+                    <option value="YTD">Year-to-Date (Cumulative)</option>
+                    <option value="Monthly">Month-by-Month (Isolated)</option>
+                  </select>
+                  
+                  <button className="btn btn-outline" style={{ padding: '6px 15px', margin: 0 }} onClick={generateFinancialSummaryPDF}>
+                    📥 Export Summary PDF
+                  </button>
                 </div>
               </div>
 
-              <div style={{ width: '100%', height: 250 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '15px', marginBottom: '20px' }}>
+                <div style={{ padding: '15px', textAlign: 'center', backgroundColor: 'var(--bg-color)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+                  <h5 style={{ margin: '0 0 5px 0', color: 'var(--text-secondary)' }}>{displayStats.label} Revenue</h5>
+                  <h3 style={{ margin: 0, color: 'var(--success)' }}>Rs. {displayStats.rev.toLocaleString()}</h3>
+                </div>
+                <div style={{ padding: '15px', textAlign: 'center', backgroundColor: 'var(--bg-color)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+                  <h5 style={{ margin: '0 0 5px 0', color: 'var(--text-secondary)' }}>{displayStats.label} Expenses</h5>
+                  <h3 style={{ margin: 0, color: 'var(--danger)' }}>Rs. {displayStats.exp.toLocaleString()}</h3>
+                </div>
+                <div style={{ padding: '15px', textAlign: 'center', backgroundColor: 'var(--primary-light)', borderRadius: 'var(--radius-md)', border: '1px solid var(--primary-color)' }}>
+                  <h5 style={{ margin: '0 0 5px 0', color: 'var(--text-secondary)' }}>{displayStats.label} Net Balance</h5>
+                  <h3 style={{ margin: 0, color: 'var(--primary-color)' }}>Rs. {displayBalance.toLocaleString()}</h3>
+                </div>
+              </div>
+
+              <div style={{ width: '100%', height: 300 }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={analytics.chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="var(--success)" stopOpacity={0.8}/><stop offset="95%" stopColor="var(--success)" stopOpacity={0}/></linearGradient>
-                      <linearGradient id="colorExp" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="var(--danger)" stopOpacity={0.8}/><stop offset="95%" stopColor="var(--danger)" stopOpacity={0}/></linearGradient>
-                    </defs>
-                    <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={11} />
-                    <YAxis stroke="var(--text-muted)" fontSize={11} />
-                    <Tooltip contentStyle={{ backgroundColor: 'var(--surface-color)', borderColor: 'var(--border-color)', borderRadius: '8px' }} />
-                    <Area type="monotone" dataKey="ytdRevenue" name="Revenue" stroke="var(--success)" strokeWidth={2} fillOpacity={1} fill="url(#colorRev)" />
-                    <Area type="monotone" dataKey="ytdExpenses" name="Expenses" stroke="var(--danger)" strokeWidth={2} fillOpacity={1} fill="url(#colorExp)" />
-                  </AreaChart>
+                  {chartView === 'YTD' ? (
+                    <AreaChart data={analytics.chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="colorFees" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="var(--success)" stopOpacity={0.7}/><stop offset="95%" stopColor="var(--success)" stopOpacity={0}/></linearGradient>
+                        <linearGradient id="colorSpons" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="var(--primary-color)" stopOpacity={0.7}/><stop offset="95%" stopColor="var(--primary-color)" stopOpacity={0}/></linearGradient>
+                        <linearGradient id="colorExp" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="var(--danger)" stopOpacity={0.7}/><stop offset="95%" stopColor="var(--danger)" stopOpacity={0}/></linearGradient>
+                      </defs>
+                      <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={11} />
+                      <YAxis stroke="var(--text-muted)" fontSize={11} />
+                      <Tooltip contentStyle={{ backgroundColor: 'var(--surface-color)', borderColor: 'var(--border-color)', borderRadius: '8px' }} />
+                      <Legend verticalAlign="top" height={36} wrapperStyle={{ fontSize: '0.85rem' }}/>
+                      <Area type="monotone" dataKey="ytdSponsorships" stackId="1" name="Corporate Sponsorships" stroke="var(--primary-color)" fill="url(#colorSpons)" />
+                      <Area type="monotone" dataKey="ytdFees" stackId="1" name="Member Fees" stroke="var(--success)" fill="url(#colorFees)" />
+                      <Area type="monotone" dataKey="ytdExpenses" name="Total Expenses" stroke="var(--danger)" strokeWidth={2} fill="none" />
+                    </AreaChart>
+                  ) : (
+                    <BarChart data={analytics.chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={11} />
+                      <YAxis stroke="var(--text-muted)" fontSize={11} />
+                      <Tooltip cursor={{ fill: 'var(--bg-color)' }} contentStyle={{ backgroundColor: 'var(--surface-color)', borderColor: 'var(--border-color)', borderRadius: '8px' }} />
+                      <Legend verticalAlign="top" height={36} wrapperStyle={{ fontSize: '0.85rem' }}/>
+                      <Bar dataKey="monthlyFees" stackId="a" name="Member Fees" fill="var(--success)" radius={[0, 0, 4, 4]} />
+                      <Bar dataKey="monthlySponsorships" stackId="a" name="Corporate Sponsorships" fill="var(--primary-color)" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="monthlyExpenses" name="Expenses" fill="var(--danger)" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  )}
                 </ResponsiveContainer>
               </div>
             </div>
 
+            {/* --- 2. MASTER TRANSACTION LEDGER --- */}
             <div className="card" style={{ border: '1px solid var(--border-color)', padding: '20px', marginBottom: 0 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid var(--border-color)', paddingBottom: '10px', marginBottom: '20px', flexWrap: 'wrap', gap: '15px' }}>
                 <h3 style={{ color: 'var(--text-main)', margin: 0 }}>📖 Filterable Transaction Ledger</h3>
@@ -441,6 +442,7 @@ function ClubFinanceHub() {
                         <th style={{ padding: '12px', color: 'var(--text-secondary)' }}>Status</th>
                         <th style={{ padding: '12px', color: 'var(--text-secondary)' }}>Amount (Rs.)</th>
                         <th style={{ padding: '12px', color: 'var(--text-secondary)' }}>Receipt</th>
+                        {/* Only Treasury can Verify */}
                         {canManageData && <th style={{ padding: '12px', color: 'var(--text-secondary)', textAlign: 'right' }}>Verify</th>}
                       </tr>
                     </thead>
@@ -453,11 +455,9 @@ function ClubFinanceHub() {
                               <strong style={{ display: 'block', color: 'var(--text-main)', fontSize: '0.95rem' }}>{record.user?.name || 'Unknown User'}</strong>
                               <small style={{ color: 'var(--text-muted)' }}>{new Date(record.lastUpdated).toLocaleDateString()}</small>
                             </td>
-
                             <td style={{ padding: '12px', color: 'var(--text-secondary)', fontWeight: 'bold', fontSize: '0.9rem' }}>
                               {record.category}
                             </td>
-                            
                             <td style={{ padding: '12px' }}>
                               {isEditing ? (
                                 <select className="form-control" value={editForm.status} onChange={(e) => setEditForm({...editForm, status: e.target.value})} style={{ margin: 0, padding: '4px' }}>
@@ -474,7 +474,6 @@ function ClubFinanceHub() {
                                 </span>
                               )}
                             </td>
-
                             <td style={{ padding: '12px' }}>
                               {isEditing ? (
                                 <input type="number" className="form-control" value={editForm.amountPaid} onChange={(e) => setEditForm({...editForm, amountPaid: e.target.value})} style={{ margin: 0, padding: '4px', width: '80px' }} />
@@ -482,7 +481,6 @@ function ClubFinanceHub() {
                                 <strong style={{ color: record.amountPaid > 0 ? 'var(--success)' : 'var(--text-main)' }}>{record.amountPaid.toLocaleString()}</strong>
                               )}
                             </td>
-
                             <td style={{ padding: '12px' }}>
                               {record.receiptUrl ? (
                                 <img 
@@ -490,13 +488,11 @@ function ClubFinanceHub() {
                                   alt="Receipt" 
                                   style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px', cursor: 'pointer', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}
                                   onClick={() => setReceiptModal(record.receiptUrl)}
-                                  title="Click to enlarge"
                                 />
                               ) : (
                                 <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontStyle: 'italic' }}>No File</span>
                               )}
                             </td>
-
                             {canManageData && (
                               <td style={{ padding: '12px', textAlign: 'right' }}>
                                 {isEditing ? (
@@ -523,9 +519,11 @@ function ClubFinanceHub() {
               )}
             </div>
 
-            {canManageData && (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                
+            {/* --- 3. CATEGORIES & EXPENSES --- */}
+            <div style={{ display: 'grid', gridTemplateColumns: canManageData ? '1fr 1fr' : '1fr', gap: '20px' }}>
+              
+              {/* Category Manager (ONLY VISIBLE TO TREASURY) */}
+              {canManageData && (
                 <div className="card" style={{ padding: '20px', border: '1px solid var(--primary-color)', backgroundColor: 'var(--primary-light)', marginBottom: 0 }}>
                   <h4 style={{ color: 'var(--primary-color)', marginTop: 0, borderBottom: '1px solid rgba(0, 240, 255, 0.2)', paddingBottom: '10px' }}>⚙️ Payment Categories</h4>
                   <form onSubmit={handleAddCategory} style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
@@ -546,15 +544,20 @@ function ClubFinanceHub() {
                     ))}
                   </ul>
                 </div>
+              )}
 
-                <div className="card" style={{ padding: '20px', border: '1px solid var(--danger)', backgroundColor: 'var(--danger-bg)', marginBottom: 0 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255, 0, 60, 0.2)', paddingBottom: '10px', marginBottom: '15px' }}>
-                    <h4 style={{ color: 'var(--danger)', margin: 0 }}>💸 Club Expenses</h4>
-                    <button className="btn btn-outline" style={{ margin: 0, padding: '4px 10px', fontSize: '0.8rem', color: 'var(--danger)', borderColor: 'var(--danger)' }} onClick={generateExpensesPDF}>
-                      📥 Export PDF
-                    </button>
-                  </div>
-                  {!showExpenseForm ? (
+              {/* Expense List (Visible to all Dashboard users, Editable only by Treasury) */}
+              <div className="card" style={{ padding: '20px', border: '1px solid var(--danger)', backgroundColor: 'var(--danger-bg)', marginBottom: 0 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255, 0, 60, 0.2)', paddingBottom: '10px', marginBottom: '15px' }}>
+                  <h4 style={{ color: 'var(--danger)', margin: 0 }}>💸 Club Expenses</h4>
+                  <button className="btn btn-outline" style={{ margin: 0, padding: '4px 10px', fontSize: '0.8rem', color: 'var(--danger)', borderColor: 'var(--danger)' }} onClick={generateExpensesPDF}>
+                    📥 Export PDF
+                  </button>
+                </div>
+                
+                {/* Only Treasury can add new expenses */}
+                {canManageData && (
+                  !showExpenseForm ? (
                     <button className="btn btn-danger" style={{ width: '100%', marginBottom: '15px' }} onClick={() => setShowExpenseForm(true)}>+ Log New Expense</button>
                   ) : (
                     <form onSubmit={handleSubmitExpense} style={{ marginBottom: '15px', backgroundColor: 'var(--surface-color)', padding: '15px', borderRadius: 'var(--radius-md)' }}>
@@ -565,27 +568,31 @@ function ClubFinanceHub() {
                         <button type="button" className="btn btn-outline" style={{ flex: 1, padding: '8px' }} onClick={() => { setShowExpenseForm(false); setEditingExpenseId(null); setExpenseData({ title: '', amount: '', description: '', date: '' }); }}>Cancel</button>
                       </div>
                     </form>
-                  )}
+                  )
+                )}
 
-                  <ul style={{ padding: 0, listStyle: 'none', margin: 0, maxHeight: '150px', overflowY: 'auto' }}>
-                    {analytics.expenses?.map(exp => (
-                      <li key={exp._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px', backgroundColor: 'var(--surface-color)', border: '1px solid var(--border-color)', borderRadius: '4px', marginBottom: '5px', fontSize: '0.85rem' }}>
-                        <div>
-                          <strong style={{ display: 'block', color: 'var(--text-main)' }}>{exp.title}</strong>
-                          <span style={{ color: 'var(--danger)', fontWeight: 'bold' }}>Rs. {exp.amount.toLocaleString()}</span>
-                        </div>
-                        {/* THE FIX: Added the flex div and the Edit button! */}
+                <ul style={{ padding: 0, listStyle: 'none', margin: 0, maxHeight: '150px', overflowY: 'auto' }}>
+                  {analytics.expenses?.length === 0 && <li style={{ fontStyle: 'italic', color: 'var(--text-muted)' }}>No expenses recorded yet.</li>}
+                  {analytics.expenses?.map(exp => (
+                    <li key={exp._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px', backgroundColor: 'var(--surface-color)', border: '1px solid var(--border-color)', borderRadius: '4px', marginBottom: '5px', fontSize: '0.85rem' }}>
+                      <div>
+                        <strong style={{ display: 'block', color: 'var(--text-main)' }}>{exp.title}</strong>
+                        <span style={{ color: 'var(--danger)', fontWeight: 'bold' }}>Rs. {exp.amount.toLocaleString()}</span>
+                      </div>
+                      
+                      {/* Only Treasury can Edit/Delete expenses */}
+                      {canManageData && (
                         <div style={{ display: 'flex', gap: '10px' }}>
                           <button type="button" style={{ background: 'none', border: 'none', color: 'var(--primary-color)', cursor: 'pointer', fontSize: '1rem' }} onClick={() => openEditForm(exp)}>✏️</button>
                           <button type="button" style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: '1rem' }} onClick={() => handleDeleteExpense(exp._id)}>🗑️</button>
                         </div>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
+                      )}
+                    </li>
+                  ))}
+                </ul>
               </div>
-            )}
+
+            </div>
           </div>
         )}
       </div>
