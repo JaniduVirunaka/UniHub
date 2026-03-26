@@ -16,79 +16,90 @@ function Home() {
     // TODO: [Teammate Name] - Fetch a preview of events here to populate the Events section below
   }, []);
 
-  return (
+ return (
     <div>
       {/* Hero Section */}
-      <div className="card" style={{ textAlign: 'center', padding: '4rem 2rem', backgroundColor: 'var(--primary-color)', color: 'white' }}>
-        <h1 style={{ fontSize: '2.5rem', margin: '0 0 1rem 0' }}>Welcome to UniHub</h1>
-        <p style={{ fontSize: '1.2rem', marginBottom: '2rem', opacity: 0.9 }}>
+      <div className="card" style={{ 
+        textAlign: 'center', 
+        padding: '5rem 2rem', 
+        background: 'linear-gradient(135deg, var(--primary-color), #8B5CF6)', 
+        color: 'white',
+        border: 'none',
+        boxShadow: 'var(--shadow-lg)'
+      }}>
+        <h1 style={{ fontSize: '3rem', margin: '0 0 1rem 0', color: 'white' }}>Welcome to UniHub</h1>
+        <p style={{ fontSize: '1.25rem', marginBottom: '2.5rem', opacity: 0.9, maxWidth: '600px', margin: '0 auto 2.5rem auto' }}>
           Discover events, join clubs, and connect with your campus community.
         </p>
         <div style={{ display: 'flex', justifyContent: 'center', gap: '15px' }}>
-          <Link to="/signup">
-            <button className="btn" style={{ backgroundColor: 'white', color: 'var(--primary-color)' }}>Get Started</button>
+          <Link to="/signup" className="btn" style={{ backgroundColor: 'white', color: 'var(--primary-color)' }}>
+            Get Started
           </Link>
-          <Link to="/login">
-            <button className="btn" style={{ border: '2px solid white', backgroundColor: 'transparent' }}>Log In</button>
+          <Link to="/login" className="btn btn-outline" style={{ color: 'white', borderColor: 'white' }}>
+            Log In
           </Link>
         </div>
       </div>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px', marginTop: '2rem' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '30px', marginTop: '3rem' }}>
         
-        {/* --- LEFT COLUMN: CLUBS (Your Feature) --- */}
+        {/* --- LEFT COLUMN: CLUBS --- */}
         <div style={{ flex: '1 1 60%' }}>
-          <h2 style={{ color: 'var(--primary-color)', borderBottom: '2px solid var(--border-color)', paddingBottom: '10px' }}>
-            Featured Campus Clubs
+          <h2 style={{ color: 'var(--text-main)', borderBottom: '2px solid var(--border-color)', paddingBottom: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '1.5rem' }}>🎓</span> Featured Campus Clubs
           </h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', marginTop: '1rem' }}>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', marginTop: '1.5rem' }}>
             {clubs.length === 0 ? (
-              <p>Loading campus clubs...</p>
+              <p style={{ color: 'var(--text-muted)' }}>Loading campus clubs...</p>
             ) : (
               clubs.map(club => (
-                <div key={club._id} className="card" style={{ marginBottom: '0' }}>
-                  <h3 style={{ color: 'var(--primary-color)', marginTop: '0' }}>{club.name}</h3>
-                  <p style={{ color: 'var(--text-muted)' }}>{club.description.substring(0, 80)}...</p>
+                <div key={club._id} className="card card-hover" style={{ marginBottom: '0', display: 'flex', flexDirection: 'column' }}>
+                  <h3 style={{ color: 'var(--primary-color)', marginTop: '0', fontSize: '1.25rem' }}>{club.name}</h3>
+                  <p style={{ color: 'var(--text-muted)', flex: 1, fontSize: '0.95rem' }}>{club.description.substring(0, 100)}...</p>
                 </div>
               ))
             )}
           </div>
+          
           <div style={{ textAlign: 'center', marginTop: '2rem' }}>
-            <Link to="/clubs">
-              <button className="btn" style={{ backgroundColor: '#6b7280' }}>View All Clubs</button>
+            <Link to="/clubs" className="btn" style={{ backgroundColor: 'var(--text-secondary)' }}>
+              View All Clubs Directory →
             </Link>
           </div>
         </div>
 
-        {/* --- RIGHT COLUMN: EVENTS & ANNOUNCEMENTS (Teammates' Features) --- */}
-        <div style={{ flex: '1 1 35%', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        {/* --- RIGHT COLUMN: EVENTS & ANNOUNCEMENTS --- */}
+        <div style={{ flex: '1 1 35%', display: 'flex', flexDirection: 'column', gap: '25px' }}>
           
           {/* Events Feature Scaffolding */}
-          <div className="card" style={{ borderTop: '4px solid #f59e0b' }}>
-            <h3 style={{ marginTop: 0 }}>📅 Upcoming Events</h3>
+          <div className="card card-hover" style={{ borderTop: '4px solid var(--warning)', marginBottom: 0 }}>
+            <h3 style={{ marginTop: 0, color: 'var(--text-main)' }}>📅 Upcoming Events</h3>
             {/* TODO: [Sakurani] - Map through actual events data here instead of hardcoding */}
-            <ul style={{ listStyleType: 'none', padding: 0 }}>
-              <li style={{ padding: '10px 0', borderBottom: '1px solid var(--border-color)' }}>
-                <strong>Tech Symposium 2026</strong><br/>
-                <small style={{ color: 'var(--text-muted)' }}>Tomorrow at 10:00 AM | Main Hall</small>
+            <ul style={{ listStyleType: 'none', padding: 0, margin: 0 }}>
+              <li style={{ padding: '12px 0', borderBottom: '1px solid var(--border-color)' }}>
+                <strong style={{ color: 'var(--text-main)' }}>Tech Symposium 2026</strong><br/>
+                <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Tomorrow at 10:00 AM | Main Hall</span>
               </li>
-              <li style={{ padding: '10px 0', borderBottom: '1px solid var(--border-color)' }}>
-                <strong>Photography Walk</strong><br/>
-                <small style={{ color: 'var(--text-muted)' }}>Friday at 4:00 PM | Campus Gardens</small>
+              <li style={{ padding: '12px 0', borderBottom: 'none' }}>
+                <strong style={{ color: 'var(--text-main)' }}>Photography Walk</strong><br/>
+                <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Friday at 4:00 PM | Campus Gardens</span>
               </li>
             </ul>
-            <Link to="/events" style={{ display: 'block', textAlign: 'center', marginTop: '10px', textDecoration: 'none', color: 'var(--primary-color)', fontWeight: 'bold' }}>
+            <Link to="/events" style={{ display: 'block', textAlign: 'center', marginTop: '15px', textDecoration: 'none', color: 'var(--primary-color)', fontWeight: '600', fontSize: '0.9rem' }}>
               See all events →
             </Link>
           </div>
 
-          {/* Quick Profile/Announcements Scaffolding */}
-          <div className="card" style={{ borderTop: '4px solid #10b981' }}>
-            <h3 style={{ marginTop: 0 }}>📣 Campus News - Chamod</h3>
+          {/* Quick Announcements Scaffolding */}
+          <div className="card card-hover" style={{ borderTop: '4px solid var(--success)', marginBottom: 0 }}>
+            <h3 style={{ marginTop: 0, color: 'var(--text-main)' }}>📣 Campus News</h3>
              {/* TODO: [Chamod] - Pull global announcements here */}
-            <p style={{ color: 'var(--text-muted)' }}>
-              <em>Feature pending backend integration. Global announcements will display here.</em>
-            </p>
+            <div style={{ padding: '15px', backgroundColor: 'var(--bg-color)', borderRadius: 'var(--radius-md)', border: '1px dashed var(--border-color)' }}>
+              <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: '0.9rem', fontStyle: 'italic' }}>
+                Global announcements will display here once the backend is integrated.
+              </p>
+            </div>
           </div>
 
         </div>

@@ -1,138 +1,225 @@
-/* --- Global Variables & Reset --- */
+/* --- 1. Global Design System (CSS Variables) --- */
 :root {
-  --primary-color: #4F46E5; /* Modern Indigo */
+  /* Brand Colors */
+  --primary-color: #4F46E5; 
   --primary-hover: #4338CA;
-  --bg-color: #F3F4F6; /* Soft gray background */
-  --surface-color: #FFFFFF; /* White cards */
-  --text-main: #1F2937;
-  --text-muted: #6B7280;
-  --border-color: #E5E7EB;
+  --primary-light: #EEF2FF; /* Soft background for active states */
+  
+  /* Semantic Colors (For statuses, errors, success) */
+  --success: #10b981;
+  --success-bg: #d1fae5;
+  --danger: #ef4444;
+  --danger-bg: #fee2e2;
+  --warning: #f59e0b;
+  --warning-bg: #fef3c7;
+
+  /* Surface & Background */
+  --bg-color: #F8FAFC; /* Cooler, modern slate-gray background */
+  --surface-color: #FFFFFF;
+  
+  /* Typography Colors */
+  --text-main: #0F172A; /* Deep slate, better contrast than pure black */
+  --text-secondary: #334155;
+  --text-muted: #64748B;
+  
+  /* Borders & Depth */
+  --border-color: #E2E8F0;
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  
+  /* Shared Attributes */
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --transition: 0.2s ease-in-out;
+}
+
+/* --- 2. Base Resets --- */
+html {
+  scroll-behavior: smooth;
 }
 
 body {
   margin: 0;
-  font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  /* Modern system font stack that looks great on Mac, Windows, and iOS */
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background-color: var(--bg-color);
   color: var(--text-main);
+  line-height: 1.6;
 }
 
-/* --- Navigation Bar --- */
+/* --- 3. Typography --- */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--text-main);
+  font-weight: 700;
+  margin-top: 0;
+}
+
+/* --- 4. Navigation Bar --- */
 .navbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 1rem 5%;
-  background-color: var(--surface-color);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  background-color: rgba(255, 255, 255, 0.9); /* Glassmorphism effect */
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: var(--shadow-sm);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .navbar-brand {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
 .logo-img {
-  height: 40px;
+  height: 42px;
   width: auto;
+  transition: transform var(--transition);
+}
+
+.logo-img:hover {
+  transform: scale(1.05);
 }
 
 .brand-name {
   font-size: 1.5rem;
-  font-weight: bold;
-  color: var(--primary-color);
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  background: linear-gradient(135deg, var(--primary-color), #8B5CF6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 20px;
 }
 
 .nav-link {
   text-decoration: none;
-  color: var(--text-main);
-  font-weight: 500;
-  margin-left: 20px;
-  transition: color 0.2s;
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: color var(--transition);
 }
 
 .nav-link:hover {
   color: var(--primary-color);
 }
 
-/* --- Layout & Cards --- */
+/* --- 5. Layout & Cards --- */
 .container {
-  max-width: 1000px;
-  margin: 2rem auto;
-  padding: 0 1rem;
+  max-width: 1100px; /* Slightly wider for modern monitors */
+  margin: 2.5rem auto;
+  padding: 0 1.5rem;
 }
 
 .card {
   background-color: var(--surface-color);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 2rem;
-  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-md);
   margin-bottom: 2rem;
+  transition: box-shadow var(--transition), transform var(--transition);
 }
 
-/* --- Forms & Inputs --- */
+/* Subtle lift effect when hovering over interactive cards */
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* --- 6. Forms & Inputs --- */
 .form-group {
   margin-bottom: 1.5rem;
 }
 
 .form-control {
   width: 100%;
-  padding: 0.75rem;
+  padding: 0.85rem 1rem;
   border: 1px solid var(--border-color);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   box-sizing: border-box;
   font-family: inherit;
-  font-size: 1rem;
+  font-size: 0.95rem;
+  color: var(--text-main);
+  background-color: var(--bg-color);
+  transition: all var(--transition);
 }
 
 .form-control:focus {
   outline: none;
   border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+  background-color: var(--surface-color);
+  box-shadow: 0 0 0 4px var(--primary-light);
 }
 
 textarea.form-control {
-  min-height: 100px;
+  min-height: 120px;
   resize: vertical;
 }
 
-/* --- Buttons --- */
+/* --- 7. Buttons --- */
 .btn {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
   background-color: var(--primary-color);
   color: white;
   padding: 0.75rem 1.5rem;
-  border: none;
-  border-radius: 6px;
-  font-size: 1rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all var(--transition);
+  text-decoration: none;
 }
 
 .btn:hover {
   background-color: var(--primary-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);
 }
 
-/* --- Lists --- */
-.club-list {
-  list-style: none;
-  padding: 0;
+.btn:active {
+  transform: translateY(0);
 }
 
-.club-item {
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 1.5rem;
-  margin-bottom: 1rem;
-  background-color: var(--surface-color);
-}
-
-.club-item h4 {
-  margin: 0 0 0.5rem 0;
+/* Universal Button Variants */
+.btn-outline {
+  background-color: transparent;
   color: var(--primary-color);
+  border-color: var(--primary-color);
 }
 
-.club-item p {
-  margin: 0.25rem 0;
-  color: var(--text-muted);
+.btn-outline:hover {
+  background-color: var(--primary-light);
+  box-shadow: none;
+}
+
+.btn-danger { background-color: var(--danger); }
+.btn-danger:hover { background-color: #dc2626; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2); }
+
+.btn-success { background-color: var(--success); }
+.btn-success:hover { background-color: #059669; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2); }
+
+/* --- 8. Universal Badges --- */
+.badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }

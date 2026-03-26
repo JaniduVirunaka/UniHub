@@ -22,15 +22,15 @@ const ClubNavigation = ({ club }) => {
     hasFullAccess = isSupervisor || isPres || isBoard || isMember;
   }
 
-  const getTabStyle = (path, hash = '') => {
+ const getTabStyle = (path, hash = '') => {
     const isActive = currentPath === path && currentHash === hash;
     return {
       padding: '12px 15px',
       textDecoration: 'none',
-      color: isActive ? '#2563eb' : '#4b5563',
-      fontWeight: isActive ? 'bold' : 'normal',
-      borderBottom: isActive ? '3px solid #2563eb' : '3px solid transparent',
-      transition: 'all 0.2s ease-in-out',
+      color: isActive ? 'var(--primary-color)' : 'var(--text-muted)',
+      fontWeight: isActive ? '700' : '500',
+      borderBottom: isActive ? '3px solid var(--primary-color)' : '3px solid transparent',
+      transition: 'all var(--transition)',
       display: 'inline-block',
       fontSize: '0.95rem'
     };
@@ -75,19 +75,20 @@ const ClubNavigation = ({ club }) => {
                 position: 'absolute',
                 top: '100%',
                 left: 0,
-                backgroundColor: '#fff',
-                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-                border: '1px solid #e5e7eb',
-                borderRadius: '5px',
+                backgroundColor: 'var(--surface-color)',
+                boxShadow: 'var(--shadow-lg)',
+                border: '1px solid var(--border-color)',
+                borderRadius: 'var(--radius-md)',
                 minWidth: '180px',
                 zIndex: 1000,
                 display: 'flex',
-                flexDirection: 'column'
+                flexDirection: 'column',
+                overflow: 'hidden'
               }}>
-                <Link to={`/clubs/${club._id}/fees`} style={{ padding: '10px 15px', textDecoration: 'none', color: '#4b5563', borderBottom: '1px solid #e5e7eb' }}>
+                <Link to={`/clubs/${club._id}/fees`} style={{ padding: '12px 15px', textDecoration: 'none', color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-color)', transition: 'background-color 0.2s' }} onMouseEnter={(e) => e.target.style.backgroundColor = 'var(--bg-color)'} onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}>
                   💳 Membership Fees
                 </Link>
-                <Link to={`/clubs/${club._id}/elections`} style={{ padding: '10px 15px', textDecoration: 'none', color: '#4b5563' }}>
+                <Link to={`/clubs/${club._id}/elections`} style={{ padding: '12px 15px', textDecoration: 'none', color: 'var(--text-secondary)', transition: 'background-color 0.2s' }} onMouseEnter={(e) => e.target.style.backgroundColor = 'var(--bg-color)'} onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}>
                   🗳️ Voting Booth
                 </Link>
               </div>

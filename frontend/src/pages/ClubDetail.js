@@ -554,39 +554,42 @@ function ClubDetail() {
  return (
     <div className="container">
       {/* 1. PUBLIC HEADER */}
-      <div className="card" style={{ borderTop: '4px solid var(--primary-color)' }}>
-        <button className="btn" style={{ backgroundColor: '#6b7280', marginBottom: '20px' }} onClick={() => navigate('/clubs')}>
-          {isPresident ? 'Browse Other Clubs' : 'Back to Directory'}
+      <div className="card" style={{ borderTop: '4px solid var(--primary-color)', paddingBottom: '0' }}>
+        <button className="btn btn-outline" style={{ marginBottom: '20px' }} onClick={() => navigate('/clubs')}>
+          &larr; {isPresident ? 'Browse Other Clubs' : 'Back to Directory'}
         </button>
 
         {/* TOP ROW: Logo, Title, and Join Buttons */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '15px' }}>
           
-          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-            <div style={{ width: '60px', height: '60px', borderRadius: '50%', backgroundColor: '#e5e7eb', overflow: 'hidden', display: 'flex', justifyContent: 'center', alignItems: 'center', border: '2px solid #d1d5db' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+            <div style={{ width: '70px', height: '70px', borderRadius: '16px', backgroundColor: 'var(--bg-color)', overflow: 'hidden', display: 'flex', justifyContent: 'center', alignItems: 'center', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
               {club.logoUrl ? (
                 <img src={`http://localhost:5000${club.logoUrl}`} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               ) : (
-                <span style={{ fontSize: '1.5rem' }}>🎓</span>
+                <span style={{ fontSize: '2rem' }}>🎓</span>
               )}
             </div>
-            <h1 style={{ color: 'var(--primary-color)', margin: 0 }}>{club.name}</h1>
+            <div>
+              <h1 style={{ color: 'var(--text-main)', margin: '0 0 5px 0', fontSize: '2rem', letterSpacing: '-0.5px' }}>{club.name}</h1>
+              <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.95rem' }}>Official University Chapter</p>
+            </div>
           </div>
 
           <div>
             {currentUser?.role === 'student' && !isMember && !isPending && (
-              <button className="btn" style={{ backgroundColor: '#10b981', margin: 0 }} onClick={handleJoinRequest}>
+              <button className="btn btn-success" onClick={handleJoinRequest}>
                 Request to Join Club
               </button>
             )}
             {currentUser?.role === 'student' && isPending && (
-              <span style={{ padding: '8px 15px', backgroundColor: '#fef3c7', color: '#d97706', borderRadius: '5px', fontWeight: 'bold' }}>
-                Join Request Pending...
+              <span className="badge" style={{ backgroundColor: 'var(--warning-bg)', color: 'var(--warning)', padding: '8px 16px', fontSize: '0.85rem' }}>
+                ⏳ Join Request Pending...
               </span>
             )}
             {isMember && !isPresident && (
-              <span style={{ padding: '8px 15px', backgroundColor: '#d1fae5', color: '#065f46', borderRadius: '5px', fontWeight: 'bold' }}>
-                You are a Member
+              <span className="badge" style={{ backgroundColor: 'var(--success-bg)', color: 'var(--success)', padding: '8px 16px', fontSize: '0.85rem' }}>
+                ✓ You are a Member
               </span>
             )}
           </div>
@@ -597,44 +600,38 @@ function ClubDetail() {
       </div>
 
 
- {/* 3. PRIVATE SECTIONS (Internal Member Hub) */}
+      {/* 3. PRIVATE SECTIONS (Internal Member Hub) */}
       {hasFullAccess && (
-        <div id="announcements" className="card" style={{ borderLeft: '4px solid #10b981' }}>
-          <h2 style={{ color: '#10b981', borderBottom: '1px solid #e5e7eb', paddingBottom: '10px' }}>Internal Member Hub</h2>
+        <div id="announcements" className="card" style={{ borderLeft: '4px solid var(--success)' }}>
+          <h2 style={{ color: 'var(--success)', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>Internal Member Hub</h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', marginTop: '20px' }}>
 
-           {/* Announcements */}
-            <div style={{ backgroundColor: '#f9fafb', padding: '20px', borderRadius: '8px', border: '1px solid #e5e7eb', gridColumn: '1 / -1' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #e5e7eb', paddingBottom: '10px', marginBottom: '15px' }}>
-                <h4 style={{ margin: 0, color: '#1f2937' }}>📢 Official Announcements</h4>
+            {/* Announcements (Using your upgraded Grid layout!) */}
+            <div style={{ backgroundColor: 'var(--bg-color)', padding: '20px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-color)', gridColumn: '1 / -1' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid var(--border-color)', paddingBottom: '10px', marginBottom: '15px' }}>
+                <h4 style={{ margin: 0, color: 'var(--text-main)' }}>📢 Official Announcements</h4>
               </div>
               
               {club.announcements?.filter(a => !a.isDeleted && (a.isApproved || canManageAnnouncements || isSupervisor)).length === 0 ? (
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>No announcements yet.</p>
               ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '15px' }}>
-                  
-                  {/* Reverse the array so the newest announcements show up first! */}
                   {[...club.announcements].reverse().map((ann) => {
-                    
                     if (!ann.isDeleted && (ann.isApproved || canManageAnnouncements || isSupervisor)) {
-                      
-                      // Extract Date from createdAt OR the MongoDB ObjectID
                       const dateStr = ann.createdAt
                         ? new Date(ann.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
                         : new Date(parseInt(ann._id.substring(0, 8), 16) * 1000).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 
                       return (
-                        <div key={ann._id} style={{ padding: '15px', backgroundColor: '#fff', border: '1px solid #d1d5db', borderRadius: '8px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-
+                        <div key={ann._id} className="card-hover" style={{ padding: '15px', backgroundColor: 'var(--surface-color)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', transition: 'var(--transition)' }}>
                           {editingAnnId === ann._id ? (
                             /* EDIT MODE */
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                               <input type="text" className="form-control" value={editAnnData.title} onChange={(e) => setEditAnnData({ ...editAnnData, title: e.target.value })} style={{ margin: 0 }} />
                               <textarea className="form-control" value={editAnnData.content} onChange={(e) => setEditAnnData({ ...editAnnData, content: e.target.value })} style={{ margin: 0, minHeight: '80px' }} />
                               <div style={{ display: 'flex', gap: '8px', marginTop: '5px' }}>
-                                <button className="btn" style={{ padding: '6px 12px', fontSize: '0.8rem', backgroundColor: '#10b981', flex: 1 }} onClick={() => handleEditAnnouncement(ann._id)}>Save</button>
-                                <button className="btn" style={{ padding: '6px 12px', fontSize: '0.8rem', backgroundColor: '#6b7280', flex: 1 }} onClick={() => setEditingAnnId(null)}>Cancel</button>
+                                <button className="btn btn-success" style={{ padding: '6px 12px', fontSize: '0.8rem', flex: 1 }} onClick={() => handleEditAnnouncement(ann._id)}>Save</button>
+                                <button className="btn btn-outline" style={{ padding: '6px 12px', fontSize: '0.8rem', flex: 1 }} onClick={() => setEditingAnnId(null)}>Cancel</button>
                               </div>
                             </div>
                           ) : (
@@ -642,34 +639,26 @@ function ClubDetail() {
                             <>
                               <div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                                  <strong style={{ fontSize: '1.1rem', color: '#111827' }}>{ann.title}</strong>
-                                  <span style={{ fontSize: '0.75rem', color: '#6b7280', backgroundColor: '#f3f4f6', padding: '2px 8px', borderRadius: '12px', whiteSpace: 'nowrap', marginLeft: '10px' }}>
-                                    {dateStr}
-                                  </span>
+                                  <strong style={{ fontSize: '1.1rem', color: 'var(--text-main)' }}>{ann.title}</strong>
+                                  <span className="badge" style={{ backgroundColor: 'var(--bg-color)', color: 'var(--text-muted)' }}>{dateStr}</span>
                                 </div>
-                                <p style={{ fontSize: '0.9rem', color: '#4b5563', whiteSpace: 'pre-wrap', margin: '0 0 15px 0', lineHeight: '1.5' }}>{ann.content}</p>
+                                <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', whiteSpace: 'pre-wrap', margin: '0 0 15px 0', lineHeight: '1.5' }}>{ann.content}</p>
                               </div>
 
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px dashed #e5e7eb', paddingTop: '10px' }}>
-                                {/* Status Badge */}
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px dashed var(--border-color)', paddingTop: '10px' }}>
                                 {!ann.isApproved ? (
-                                  <span style={{ display: 'inline-block', backgroundColor: '#fef3c7', color: '#d97706', padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold' }}>
-                                    ⏳ Pending Approval
-                                  </span>
+                                  <span className="badge" style={{ backgroundColor: 'var(--warning-bg)', color: 'var(--warning)' }}>⏳ Pending Approval</span>
                                 ) : (
-                                  <span style={{ display: 'inline-block', color: '#10b981', fontSize: '0.75rem', fontWeight: 'bold' }}>
-                                    ✓ Published
-                                  </span>
+                                  <span className="badge" style={{ backgroundColor: 'transparent', color: 'var(--success)', padding: 0 }}>✓ Published</span>
                                 )}
 
-                                {/* Admin Controls */}
                                 {(canManageAnnouncements || isSupervisor) && (
                                   <div style={{ display: 'flex', gap: '5px' }}>
-                                    <button className="btn" style={{ padding: '4px 8px', fontSize: '0.75rem', backgroundColor: '#fef3c7', color: '#d97706', border: '1px solid #fde68a' }} onClick={() => {
+                                    <button className="btn" style={{ padding: '4px 8px', fontSize: '0.75rem', backgroundColor: 'var(--warning-bg)', color: 'var(--warning)', borderColor: 'transparent' }} onClick={() => {
                                       setEditingAnnId(ann._id);
                                       setEditAnnData({ title: ann.title, content: ann.content });
-                                    }}>✏️ Edit</button>
-                                    <button className="btn" style={{ padding: '4px 8px', fontSize: '0.75rem', backgroundColor: '#fee2e2', color: '#dc2626', border: '1px solid #fca5a5' }} onClick={() => handleDeleteAnnouncement(ann._id)}>🗑️</button>
+                                    }}>✏️</button>
+                                    <button className="btn btn-danger" style={{ padding: '4px 8px', fontSize: '0.75rem' }} onClick={() => handleDeleteAnnouncement(ann._id)}>🗑️</button>
                                   </div>
                                 )}
                               </div>
@@ -685,12 +674,12 @@ function ClubDetail() {
             </div>
 
             {/* Active Funding Campaigns */}
-            <div style={{ backgroundColor: '#f9fafb', padding: '15px', borderRadius: '8px', border: '1px solid #e5e7eb', gridColumn: '1 / -1' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #e5e7eb', paddingBottom: '10px', marginBottom: '15px' }}>
-                <h4 style={{ margin: 0, color: '#6d28d9' }}>🤝 Active Funding Campaigns</h4>
+            <div style={{ backgroundColor: 'var(--bg-color)', padding: '20px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-color)', gridColumn: '1 / -1' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid var(--border-color)', paddingBottom: '10px', marginBottom: '15px' }}>
+                <h4 style={{ margin: 0, color: 'var(--primary-color)' }}>🤝 Active Funding Campaigns</h4>
                 {canManageSponsorships && (
-                  <button className="btn" style={{ padding: '5px 15px', backgroundColor: '#8b5cf6', fontSize: '0.85rem' }} onClick={() => navigate(`/clubs/${id}/sponsorships`)}>
-                    Manage in Corporate Portal
+                  <button className="btn" style={{ padding: '6px 15px', fontSize: '0.85rem' }} onClick={() => navigate(`/clubs/${id}/sponsorships`)}>
+                    Manage in Portal &rarr;
                   </button>
                 )}
               </div>
@@ -702,20 +691,20 @@ function ClubDetail() {
                     const totalRaised = prop.pledges?.filter(p => p.status === 'Accepted').reduce((sum, p) => sum + p.amount, 0) || 0;
                     const percent = Math.min((totalRaised / prop.targetAmount) * 100, 100).toFixed(0);
                     return (
-                      <div key={prop._id} style={{ backgroundColor: '#fff', border: '1px solid #d1d5db', borderRadius: '8px', padding: '15px' }}>
+                      <div key={prop._id} className="card-hover" style={{ backgroundColor: 'var(--surface-color)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '15px', transition: 'var(--transition)' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                          <h5 style={{ margin: '0 0 5px 0', color: '#6d28d9' }}>{prop.title}</h5>
-                          <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '12px', backgroundColor: prop.isActive ? '#dbeafe' : '#f3f4f6', color: prop.isActive ? '#1e40af' : '#4b5563' }}>
+                          <h5 style={{ margin: '0 0 5px 0', color: 'var(--text-main)', fontSize: '1.1rem' }}>{prop.title}</h5>
+                          <span className="badge" style={{ backgroundColor: prop.isActive ? 'var(--primary-light)' : 'var(--bg-color)', color: prop.isActive ? 'var(--primary-color)' : 'var(--text-muted)' }}>
                             {prop.isActive ? 'Active' : 'Closed'}
                           </span>
                         </div>
-                        <p style={{ margin: '0 0 15px 0', fontSize: '0.85rem', color: '#6b7280' }}>{prop.description}</p>
-                        <div style={{ width: '100%', backgroundColor: '#e5e7eb', borderRadius: '4px', height: '10px', marginBottom: '5px', overflow: 'hidden' }}>
-                          <div style={{ width: `${percent}%`, backgroundColor: percent >= 100 ? '#10b981' : '#8b5cf6', height: '100%', transition: 'width 0.5s ease-in-out' }}></div>
+                        <p style={{ margin: '0 0 15px 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{prop.description}</p>
+                        <div style={{ width: '100%', backgroundColor: 'var(--border-color)', borderRadius: '99px', height: '8px', marginBottom: '8px', overflow: 'hidden' }}>
+                          <div style={{ width: `${percent}%`, backgroundColor: percent >= 100 ? 'var(--success)' : 'var(--primary-color)', height: '100%', transition: 'width 0.5s ease-in-out' }}></div>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', fontWeight: 'bold' }}>
-                          <span style={{ color: '#10b981' }}>Raised: Rs. {totalRaised}</span>
-                          <span style={{ color: '#9ca3af' }}>Goal: Rs. {prop.targetAmount}</span>
+                          <span style={{ color: 'var(--success)' }}>Raised: Rs. {totalRaised}</span>
+                          <span style={{ color: 'var(--text-muted)' }}>Goal: Rs. {prop.targetAmount}</span>
                         </div>
                       </div>
                     );
@@ -723,25 +712,24 @@ function ClubDetail() {
                 </div>
               )}
             </div>
-
           </div>
         </div>
       )}
       
       {/* 2. PUBLIC SECTIONS (Quick Links) */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', marginBottom: '20px' }}>
-        <div className="card" style={{ marginBottom: '0', textAlign: 'center', backgroundColor: '#f5f3ff', border: '1px solid #ddd6fe' }}>
-          <h3 style={{ color: '#8b5cf6', marginTop: 0 }}>🏢 Corporate Partnerships</h3>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>View active funding proposals or submit a pledge on behalf of your company.</p>
-          <button className="btn" style={{ backgroundColor: '#8b5cf6', width: '100%', marginTop: '10px' }} onClick={() => navigate(`/clubs/${id}/sponsorships`)}>
+        <div className="card card-hover" style={{ marginBottom: '0', textAlign: 'center', backgroundColor: 'var(--primary-light)', border: '1px solid var(--primary-color)' }}>
+          <h3 style={{ color: 'var(--primary-color)', marginTop: 0 }}>🏢 Corporate Partnerships</h3>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>View active funding proposals or submit a pledge on behalf of your company.</p>
+          <button className="btn" style={{ width: '100%', marginTop: '10px' }} onClick={() => navigate(`/clubs/${id}/sponsorships`)}>
             Enter Sponsorship Portal
           </button>
         </div>
         
-        <div className="card" style={{ marginBottom: '0', textAlign: 'center', backgroundColor: '#fffbeb', border: '1px solid #fde68a' }}>
-          <h3 style={{ color: '#d97706', marginTop: 0 }}>🏆 Trophy Room</h3>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>View our official gallery of achievements, milestones, and awards.</p>
-          <button className="btn" style={{ backgroundColor: '#f59e0b', width: '100%', marginTop: '10px' }} onClick={() => navigate(`/clubs/${id}/achievements`)}>
+        <div className="card card-hover" style={{ marginBottom: '0', textAlign: 'center', backgroundColor: 'var(--warning-bg)', border: '1px solid var(--warning)' }}>
+          <h3 style={{ color: 'var(--warning)', marginTop: 0 }}>🏆 Trophy Room</h3>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>View our official gallery of achievements, milestones, and awards.</p>
+          <button className="btn" style={{ backgroundColor: 'var(--warning)', width: '100%', marginTop: '10px' }} onClick={() => navigate(`/clubs/${id}/achievements`)}>
             View Showcase
           </button>
         </div>
@@ -749,28 +737,24 @@ function ClubDetail() {
 
       {/* 4. OFFICIAL REPORTING HUB (Visible to ExCo AND Supervisors) */}
       {(isTopBoard || isSupervisor) && (
-        <div className="card" style={{ borderLeft: '4px solid #10b981', marginTop: '20px', backgroundColor: '#f0fdf4' }}>
-          <h2 style={{ color: '#166534', marginTop: 0, marginBottom: '10px' }}>📊 Official Reporting Hub</h2>
-          <p style={{ fontSize: '0.85rem', color: '#15803d', marginBottom: '15px', marginTop: 0 }}>Generate official PDF documents for university records.</p>
+        <div className="card" style={{ borderLeft: '4px solid var(--success)', marginTop: '20px', backgroundColor: 'var(--success-bg)' }}>
+          <h2 style={{ color: 'var(--success)', marginTop: 0, marginBottom: '10px' }}>📊 Official Reporting Hub</h2>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '15px', marginTop: 0 }}>Generate official PDF documents for university records.</p>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px' }}>
-            <button className="btn" style={{ backgroundColor: '#10b981', padding: '8px', fontSize: '0.85rem' }} onClick={generateMemberListPDF}>
+            <button className="btn btn-success" style={{ padding: '8px', fontSize: '0.85rem' }} onClick={generateMemberListPDF}>
               👥 Member List
             </button>
-            <button className="btn" style={{ backgroundColor: '#8b5cf6', padding: '8px', fontSize: '0.85rem' }} onClick={generateElectionResultsPDF}>
+            <button className="btn" style={{ padding: '8px', fontSize: '0.85rem' }} onClick={generateElectionResultsPDF}>
               🗳️ Election Results
             </button>
-
-            {/* Financial Report (Execs, Treasury & Supervisor) */}
             {(canManageSponsorships || isSupervisor) && (
-              <button className="btn" style={{ backgroundColor: '#0ea5e9', padding: '8px', fontSize: '0.85rem' }} onClick={generateSponsorshipReportPDF}>
+              <button className="btn btn-outline" style={{ padding: '8px', fontSize: '0.85rem', backgroundColor: 'var(--surface-color)' }} onClick={generateSponsorshipReportPDF}>
                 📈 Financials & Pledges
               </button>
             )}
-
-            {/* Announcements Report (Execs, Secretaries & Supervisor) */}
             {(canManageAnnouncements || isSupervisor) && (
-              <button className="btn" style={{ backgroundColor: '#3b82f6', padding: '8px', fontSize: '0.85rem' }} onClick={generateAnnouncementsPDF}>
+              <button className="btn btn-outline" style={{ padding: '8px', fontSize: '0.85rem', backgroundColor: 'var(--surface-color)' }} onClick={generateAnnouncementsPDF}>
                 📢 Communications Log
               </button>
             )}
@@ -780,8 +764,8 @@ function ClubDetail() {
 
       {/* 4. EXECUTIVE ADMIN PANEL (All Top Board Members) */}
       {isTopBoard && (
-        <div className="card" style={{ borderLeft: '4px solid #3b82f6', marginTop: '20px' }}>
-          <h2 style={{ color: '#3b82f6', marginTop: 0, marginBottom: '20px' }}>
+        <div className="card" style={{ borderLeft: '4px solid var(--primary-color)', marginTop: '20px' }}>
+          <h2 style={{ color: 'var(--primary-color)', marginTop: 0, marginBottom: '20px' }}>
             {isPresident ? "President's Control Center" : "Executive Board Panel"}
           </h2>
 
@@ -790,25 +774,27 @@ function ClubDetail() {
             {/* LEFT COLUMN: People Management (ONLY FOR PRES/VP) */}
             {isPresident && (
               <div>
-                <div style={{ backgroundColor: '#fef3c7', padding: '15px', borderRadius: '8px', border: '1px solid #fde68a', marginBottom: '20px' }}>
-                  <h4 style={{ color: '#d97706', marginTop: 0 }}>👥 Pending Join Requests</h4>
+                <div style={{ backgroundColor: 'var(--warning-bg)', padding: '20px', borderRadius: 'var(--radius-md)', border: '1px solid var(--warning)', marginBottom: '20px' }}>
+                  <h4 style={{ color: 'var(--warning)', marginTop: 0 }}>👥 Pending Join Requests</h4>
                   {club.pendingMembers?.length === 0 ? (
-                    <p style={{ color: '#b45309', fontSize: '0.9rem' }}>No pending requests.</p>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: 0 }}>No pending requests.</p>
                   ) : (
-                    club.pendingMembers?.map(student => (
-                      <div key={student._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', backgroundColor: '#fff', padding: '10px', borderRadius: '5px' }}>
-                        <span><strong>{student.name}</strong><br /><small>{student.email}</small></span>
-                        <div style={{ display: 'flex', gap: '5px' }}>
-                          <button className="btn" style={{ padding: '5px 10px', fontSize: '0.8rem', backgroundColor: '#059669' }} onClick={() => handleApprove(student._id)}>Approve</button>
-                          <button className="btn" style={{ padding: '5px 10px', fontSize: '0.8rem', backgroundColor: '#ef4444' }} onClick={() => handleRejectRequest(student._id)}>Decline</button>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {club.pendingMembers?.map(student => (
+                        <div key={student._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--surface-color)', padding: '12px', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-sm)' }}>
+                          <span><strong style={{ color: 'var(--text-main)' }}>{student.name}</strong><br /><small style={{ color: 'var(--text-muted)' }}>{student.email}</small></span>
+                          <div style={{ display: 'flex', gap: '5px' }}>
+                            <button className="btn btn-success" style={{ padding: '6px 12px', fontSize: '0.8rem' }} onClick={() => handleApprove(student._id)}>Approve</button>
+                            <button className="btn btn-danger" style={{ padding: '6px 12px', fontSize: '0.8rem' }} onClick={() => handleRejectRequest(student._id)}>Decline</button>
+                          </div>
                         </div>
-                      </div>
-                    ))
+                      ))}
+                    </div>
                   )}
                 </div>
 
-                <div style={{ backgroundColor: '#f3f4f6', padding: '15px', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
-                  <h4 style={{ color: '#374151', marginTop: 0 }}>👔 Top Board Management</h4>
+                <div style={{ backgroundColor: 'var(--bg-color)', padding: '20px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+                  <h4 style={{ color: 'var(--text-main)', marginTop: 0 }}>👔 Top Board Management</h4>
                   <form onSubmit={handleAssignBoard} style={{ marginBottom: '15px' }}>
                     <select className="form-control" style={{ marginBottom: '10px' }} value={boardData.userId} onChange={(e) => setBoardData({ ...boardData, userId: e.target.value })} required>
                       <option value="">-- Select an Approved Member --</option>
@@ -820,13 +806,13 @@ function ClubDetail() {
                       <option value="">-- Select a Position --</option>
                       {availableRoles.map(r => <option key={r} value={r}>{r}</option>)}
                     </select>
-                    <button type="submit" className="btn" style={{ width: '100%', padding: '8px', backgroundColor: '#374151' }}>Assign Role</button>
+                    <button type="submit" className="btn btn-outline" style={{ width: '100%', padding: '8px' }}>Assign Role</button>
                   </form>
 
                   {club.topBoard?.map((boardMember, i) => (
-                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fff', padding: '8px', borderRadius: '5px', marginBottom: '5px', borderLeft: '3px solid #3b82f6' }}>
-                      <span><strong>{boardMember.role}:</strong> {boardMember.user?.name}</span>
-                      <button className="btn" style={{ padding: '2px 8px', fontSize: '0.8rem', backgroundColor: '#ef4444' }} onClick={() => handleRemoveBoard(boardMember.user?._id)}>X</button>
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--surface-color)', padding: '10px', borderRadius: 'var(--radius-md)', marginBottom: '8px', borderLeft: '3px solid var(--primary-color)', boxShadow: 'var(--shadow-sm)' }}>
+                      <span><strong style={{ color: 'var(--text-main)' }}>{boardMember.role}:</strong> <span style={{ color: 'var(--text-secondary)' }}>{boardMember.user?.name}</span></span>
+                      <button className="btn btn-danger" style={{ padding: '4px 10px', fontSize: '0.8rem' }} onClick={() => handleRemoveBoard(boardMember.user?._id)}>X</button>
                     </div>
                   ))}
                 </div>
@@ -835,12 +821,12 @@ function ClubDetail() {
 
             {/* RIGHT COLUMN: Communications (FOR PRES, VP, AND SECRETARIES) */}
             {canManageAnnouncements && (
-              <div style={{ backgroundColor: '#eff6ff', padding: '15px', borderRadius: '8px', border: '1px solid #bfdbfe', height: 'fit-content' }}>
-                <h4 style={{ color: '#1e40af', marginTop: 0 }}>📢 Draft New Announcement</h4>
+              <div style={{ backgroundColor: 'var(--primary-light)', padding: '20px', borderRadius: 'var(--radius-md)', border: '1px solid var(--primary-color)', height: 'fit-content' }}>
+                <h4 style={{ color: 'var(--primary-color)', marginTop: 0 }}>📢 Draft New Announcement</h4>
                 <form onSubmit={handlePostAnnouncement}>
                   <input type="text" className="form-control" placeholder="Announcement Title" value={announcementData.title} onChange={(e) => setAnnouncementData({ ...announcementData, title: e.target.value })} required style={{ marginBottom: '10px' }} />
                   <textarea className="form-control" placeholder="What do you want to tell your members?" value={announcementData.content} onChange={(e) => setAnnouncementData({ ...announcementData, content: e.target.value })} required style={{ marginBottom: '10px', minHeight: '120px' }} />
-                  <button type="submit" className="btn" style={{ width: '100%', backgroundColor: '#3b82f6' }}>Submit for Supervisor Approval</button>
+                  <button type="submit" className="btn" style={{ width: '100%' }}>Submit for Supervisor Approval</button>
                 </form>
               </div>
             )}
@@ -851,31 +837,31 @@ function ClubDetail() {
       {/* 5. SUPERVISOR ADMIN PANEL */}
       {isSupervisor && (
         <div style={{ marginTop: '30px' }}>
-          <h3 style={{ color: '#111827', borderBottom: '2px solid #e5e7eb', paddingBottom: '10px' }}>🛡️ Supervisor Control Center</h3>
-          <div className="card" style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0' }}>
-            <h4 style={{ color: '#166534', marginTop: 0, borderBottom: '2px solid #bbf7d0', paddingBottom: '10px', marginBottom: '20px' }}>Electoral Engine</h4>
+          <h3 style={{ color: 'var(--text-main)', borderBottom: '2px solid var(--border-color)', paddingBottom: '10px' }}>🛡️ Supervisor Control Center</h3>
+          <div className="card" style={{ backgroundColor: 'var(--bg-color)', border: '1px solid var(--border-color)' }}>
+            <h4 style={{ color: 'var(--text-main)', marginTop: 0, borderBottom: '2px solid var(--border-color)', paddingBottom: '10px', marginBottom: '20px' }}>Electoral Engine</h4>
 
             {/* 1. ALL-IN-ONE CREATE ELECTION BUILDER */}
-            <div style={{ backgroundColor: '#fff', border: '1px solid #d1d5db', padding: '15px', borderRadius: '8px', marginBottom: '30px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-              <h5 style={{ margin: '0 0 15px 0', color: '#374151', borderBottom: '1px solid #e5e7eb', paddingBottom: '10px' }}>➕ Create New Election & Ballot</h5>
+            <div style={{ backgroundColor: 'var(--surface-color)', border: '1px solid var(--border-color)', padding: '20px', borderRadius: 'var(--radius-lg)', marginBottom: '30px', boxShadow: 'var(--shadow-sm)' }}>
+              <h5 style={{ margin: '0 0 15px 0', color: 'var(--text-main)', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>➕ Create New Election & Ballot</h5>
               <div style={{ marginBottom: '15px' }}>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '5px' }}>1. Select Position</label>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '5px', color: 'var(--text-secondary)' }}>1. Select Position</label>
                 <select className="form-control" value={electionData.position} onChange={(e) => setElectionData({ ...electionData, position: e.target.value })}>
                   <option value="">-- Select Position to Elect --</option>
                   {availableRoles.map(r => <option key={r} value={r}>{r}</option>)}
                 </select>
               </div>
 
-              <div style={{ marginBottom: '15px', padding: '15px', backgroundColor: '#f9fafb', borderRadius: '5px', border: '1px dashed #d1d5db' }}>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '10px' }}>2. Build the Ballot</label>
+              <div style={{ marginBottom: '15px', padding: '20px', backgroundColor: 'var(--bg-color)', borderRadius: 'var(--radius-md)', border: '1px dashed var(--border-color)' }}>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '10px', color: 'var(--text-secondary)' }}>2. Build the Ballot</label>
                 {electionData.candidates.length > 0 && (
-                  <ul style={{ paddingLeft: '20px', fontSize: '0.9rem', marginBottom: '15px', color: '#4b5563' }}>
+                  <ul style={{ paddingLeft: '20px', fontSize: '0.9rem', marginBottom: '15px', color: 'var(--text-secondary)' }}>
                     {electionData.candidates.map((c, idx) => {
                       const name = club.members?.find(m => m._id === c.candidateUserId)?.name || 'Unknown User';
                       return (
-                        <li key={idx} style={{ marginBottom: '5px' }}>
-                          <strong>{name}</strong> <em>("{c.manifesto}")</em>
-                          <button type="button" onClick={() => handleRemoveTempCandidate(idx, false)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', marginLeft: '10px', fontWeight: 'bold' }}>[X]</button>
+                        <li key={idx} style={{ marginBottom: '8px' }}>
+                          <strong style={{ color: 'var(--text-main)' }}>{name}</strong> <em>("{c.manifesto}")</em>
+                          <button type="button" onClick={() => handleRemoveTempCandidate(idx, false)} style={{ color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer', marginLeft: '10px', fontWeight: 'bold' }}>[X]</button>
                         </li>
                       )
                     })}
@@ -887,90 +873,91 @@ function ClubDetail() {
                     {club.members?.map(m => <option key={m._id} value={m._id}>{m.name}</option>)}
                   </select>
                   <input type="text" className="form-control" placeholder="Short Manifesto" value={tempCandidate.manifesto} onChange={(e) => setTempCandidate({ ...tempCandidate, manifesto: e.target.value })} style={{ margin: 0, flex: 2 }} />
-                  <button type="button" className="btn" style={{ backgroundColor: '#059669', margin: 0 }} onClick={(e) => handleAddTempCandidate(e, false)}>Add to List</button>
+                  <button type="button" className="btn btn-outline" style={{ margin: 0, backgroundColor: 'var(--surface-color)' }} onClick={(e) => handleAddTempCandidate(e, false)}>Add to List</button>
                 </div>
               </div>
-              <button className="btn" style={{ backgroundColor: '#166534', width: '100%' }} onClick={handleCreateElection}>Initialize Full Election</button>
+              <button className="btn btn-success" style={{ width: '100%' }} onClick={handleCreateElection}>Initialize Full Election</button>
             </div>
 
             {/* 2. MANAGE ACTIVE ELECTIONS */}
-            <h5 style={{ color: '#166534', marginBottom: '15px', fontSize: '1.1rem' }}>📋 Election Records</h5>
+            <h5 style={{ color: 'var(--text-main)', marginBottom: '15px', fontSize: '1.1rem' }}>📋 Election Records</h5>
             {club.elections?.length === 0 ? (
-              <p style={{ color: '#6b7280', fontStyle: 'italic' }}>No elections on record.</p>
+              <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>No elections on record.</p>
             ) : (
               <div style={{ display: 'grid', gap: '20px' }}>
                 {club.elections?.map(election => (
-                  <div key={election._id} style={{ backgroundColor: '#fff', border: '1px solid #d1d5db', padding: '15px', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                  <div key={election._id} className="card-hover" style={{ backgroundColor: 'var(--surface-color)', border: '1px solid var(--border-color)', padding: '20px', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)', transition: 'var(--transition)' }}>
 
                     {editingElectionId === election._id ? (
-                      <div style={{ backgroundColor: '#fef3c7', padding: '15px', borderRadius: '5px', border: '1px solid #fde68a' }}>
-                        <h6 style={{ margin: '0 0 10px 0', color: '#d97706' }}>✏️ Edit Election Details</h6>
+                      <div style={{ backgroundColor: 'var(--warning-bg)', padding: '15px', borderRadius: 'var(--radius-md)', border: '1px solid var(--warning)' }}>
+                        <h6 style={{ margin: '0 0 10px 0', color: 'var(--warning)', fontSize: '1rem' }}>✏️ Edit Election Details</h6>
                         <select className="form-control" value={editElectionData.position} onChange={(e) => setEditElectionData({ ...editElectionData, position: e.target.value })} style={{ marginBottom: '10px' }}>
                           <option value="">-- Select Position --</option>
                           {availableRoles.map(r => <option key={r} value={r}>{r}</option>)}
                         </select>
-                        <ul style={{ paddingLeft: '20px', fontSize: '0.9rem', marginBottom: '10px' }}>
+                        <ul style={{ paddingLeft: '20px', fontSize: '0.9rem', marginBottom: '15px', color: 'var(--text-secondary)' }}>
                           {editElectionData.candidates.map((c, idx) => {
                             const name = club.members?.find(m => m._id === (c.candidateUserId || c.user))?.name || 'Unknown User';
                             return (
-                              <li key={idx}><strong>{name}</strong> <em>("{c.manifesto}")</em>
-                                <button type="button" onClick={() => handleRemoveTempCandidate(idx, true)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', marginLeft: '5px' }}>[X]</button>
+                              <li key={idx} style={{ marginBottom: '8px' }}>
+                                <strong style={{ color: 'var(--text-main)' }}>{name}</strong> <em>("{c.manifesto}")</em>
+                                <button type="button" onClick={() => handleRemoveTempCandidate(idx, true)} style={{ color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer', marginLeft: '5px' }}>[X]</button>
                               </li>
                             )
                           })}
                         </ul>
-                        <div style={{ display: 'flex', gap: '5px', marginBottom: '15px' }}>
+                        <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
                           <select className="form-control" value={editTempCandidate.candidateUserId} onChange={(e) => setEditTempCandidate({ ...editTempCandidate, candidateUserId: e.target.value })} style={{ margin: 0, flex: 1 }}>
                             <option value="">-- Add Member --</option>
                             {club.members?.map(m => <option key={m._id} value={m._id}>{m.name}</option>)}
                           </select>
                           <input type="text" className="form-control" placeholder="Manifesto" value={editTempCandidate.manifesto} onChange={(e) => setEditTempCandidate({ ...editTempCandidate, manifesto: e.target.value })} style={{ margin: 0, flex: 2 }} />
-                          <button type="button" className="btn" style={{ backgroundColor: '#059669', margin: 0, padding: '5px 10px' }} onClick={(e) => handleAddTempCandidate(e, true)}>+</button>
+                          <button type="button" className="btn btn-outline" style={{ margin: 0, padding: '8px 15px', backgroundColor: 'var(--surface-color)' }} onClick={(e) => handleAddTempCandidate(e, true)}>+</button>
                         </div>
                         <div style={{ display: 'flex', gap: '10px' }}>
-                          <button className="btn" style={{ backgroundColor: '#10b981', flex: 1 }} onClick={() => handleUpdateElection(election._id)}>Save All Changes</button>
-                          <button className="btn" style={{ backgroundColor: '#6b7280', flex: 1 }} onClick={() => setEditingElectionId(null)}>Cancel</button>
+                          <button className="btn btn-success" style={{ flex: 1 }} onClick={() => handleUpdateElection(election._id)}>Save All Changes</button>
+                          <button className="btn btn-outline" style={{ flex: 1, backgroundColor: 'var(--surface-color)' }} onClick={() => setEditingElectionId(null)}>Cancel</button>
                         </div>
                       </div>
                     ) : (
                       <>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <h5 style={{ margin: 0, fontSize: '1.2rem', color: '#065f46' }}>{election.position}</h5>
-                          <div style={{ display: 'flex', gap: '8px' }}>
-                            <button className="btn" style={{ backgroundColor: election.isActive ? '#ef4444' : '#10b981', padding: '6px 12px', fontSize: '0.85rem', fontWeight: 'bold' }} onClick={() => handleToggleElection(election._id, !election.isActive, election.isPublished)}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                          <h5 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--text-main)' }}>{election.position}</h5>
+                          <div style={{ display: 'flex', gap: '10px' }}>
+                            <button className={election.isActive ? "btn btn-danger" : "btn btn-success"} style={{ padding: '6px 12px', fontSize: '0.85rem' }} onClick={() => handleToggleElection(election._id, !election.isActive, election.isPublished)}>
                               {election.isActive ? '🛑 Close Voting' : '🟢 Open Voting'}
                             </button>
-                            <button className="btn" style={{ backgroundColor: election.isPublished ? '#6b7280' : '#8b5cf6', padding: '6px 12px', fontSize: '0.85rem', fontWeight: 'bold' }} onClick={() => handleToggleElection(election._id, false, !election.isPublished)}>
+                            <button className="btn btn-outline" style={{ padding: '6px 12px', fontSize: '0.85rem', backgroundColor: 'var(--surface-color)' }} onClick={() => handleToggleElection(election._id, false, !election.isPublished)}>
                               {election.isPublished ? 'Hide Results' : '📢 Publish Results'}
                             </button>
                           </div>
                         </div>
 
-                        <hr style={{ border: 'none', borderTop: '1px solid #e5e7eb', margin: '15px 0' }} />
+                        <hr style={{ border: 'none', borderTop: '1px solid var(--border-color)', margin: '15px 0' }} />
 
-                        <p style={{ margin: '0 0 10px 0', fontWeight: 'bold', color: '#374151' }}>Live Tally ({election.votedUsers?.length || 0} votes cast)</p>
-                        <ul style={{ margin: '0 0 15px 0', paddingLeft: '20px', color: '#4b5563' }}>
+                        <p style={{ margin: '0 0 10px 0', fontWeight: 'bold', color: 'var(--text-secondary)' }}>Live Tally ({election.votedUsers?.length || 0} votes cast)</p>
+                        <ul style={{ margin: '0 0 15px 0', paddingLeft: '20px', color: 'var(--text-secondary)' }}>
                           {election.candidates?.map(c => {
                             const candidateName = club.members?.find(m => m._id === c.user)?.name || 'Unknown User';
                             return (
                               <li key={c._id} style={{ marginBottom: '8px' }}>
-                                <span>{candidateName}: <strong style={{ color: '#111827' }}>{c.voteCount} votes</strong></span>
+                                <span>{candidateName}: <strong style={{ color: 'var(--text-main)' }}>{c.voteCount} votes</strong></span>
                               </li>
                             );
                           })}
-                          {election.candidates?.length === 0 && <li style={{ fontStyle: 'italic', color: '#9ca3af' }}>No candidates added.</li>}
+                          {election.candidates?.length === 0 && <li style={{ fontStyle: 'italic', color: 'var(--text-muted)' }}>No candidates added.</li>}
                         </ul>
 
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px', borderTop: '1px dashed #e5e7eb', paddingTop: '12px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px', borderTop: '1px dashed var(--border-color)', paddingTop: '15px' }}>
                           {!election.isActive && !election.isPublished && election.votedUsers.length === 0 && (
-                            <button className="btn" style={{ backgroundColor: '#fef3c7', color: '#d97706', border: '1px solid #fde68a', padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => {
+                            <button className="btn" style={{ backgroundColor: 'var(--warning-bg)', color: 'var(--warning)', padding: '6px 15px', fontSize: '0.85rem' }} onClick={() => {
                               setEditingElectionId(election._id);
                               setEditElectionData({ position: election.position, candidates: election.candidates.map(c => ({ candidateUserId: c.user, manifesto: c.manifesto })) });
                             }}>
                               ✏️ Edit Election
                             </button>
                           )}
-                          <button className="btn" style={{ backgroundColor: '#fee2e2', color: '#dc2626', border: '1px solid #fca5a5', padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => handleDeleteElection(election._id)}>
+                          <button className="btn btn-danger" style={{ padding: '6px 15px', fontSize: '0.85rem' }} onClick={() => handleDeleteElection(election._id)}>
                             🗑️ Delete
                           </button>
                         </div>
