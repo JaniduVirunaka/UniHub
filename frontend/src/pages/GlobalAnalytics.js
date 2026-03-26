@@ -50,7 +50,7 @@ function GlobalAnalytics() {
           club.name, 
           club.totalRevenue.toLocaleString(), 
           club.totalExpenses.toLocaleString(), 
-          netBalance.toLocaleString(), // NEW: The calculated net balance
+          netBalance.toLocaleString(),
           club.memberCount
         ];
       }),
@@ -76,8 +76,8 @@ function GlobalAnalytics() {
         </button>
       </div>
 
-      {/* KPI WIDGETS */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '30px' }}>
+      {/* KPI WIDGETS (Fixed grid wrapper) */}
+      <div className="quick-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '30px' }}>
         <div className="card" style={{ textAlign: 'center', padding: '20px', marginBottom: 0, border: '1px solid var(--border-color)' }}>
           <h4 style={{ margin: '0 0 10px 0', color: 'var(--text-secondary)' }}>Total University Revenue</h4>
           <h2 style={{ margin: 0, color: 'var(--success)' }}>Rs. {totalUniversityRev.toLocaleString()}</h2>
@@ -96,7 +96,8 @@ function GlobalAnalytics() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '30px' }}>
+      {/* THE MAIN DASHBOARD SPLIT */}
+      <div className="dashboard-grid-global">
         
         {/* MASTER CHART */}
         <div className="card" style={{ border: '1px solid var(--border-color)' }}>
@@ -123,22 +124,21 @@ function GlobalAnalytics() {
         {/* LEADERBOARD */}
         <div className="card" style={{ border: '1px solid #f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.05)' }}>
           <h3 style={{ marginTop: 0, color: '#d97706', borderBottom: '1px solid rgba(245, 158, 11, 0.2)', paddingBottom: '15px' }}>🏆 Top Performing Clubs</h3>
-       <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+          <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
             {globalData.leaderboard.map((club, index) => {
               const netBalance = club.totalRevenue - club.totalExpenses;
               
               return (
-                <li key={club.id} style={{ display: 'flex', alignItems: 'center', gap: '15px', padding: '15px 0', borderBottom: index < 4 ? '1px solid rgba(245, 158, 11, 0.2)' : 'none' }}>
+                <li key={club.id} style={{ display: 'flex', alignItems: 'center', gap: '15px', padding: '15px 0', borderBottom: index < 4 ? '1px solid rgba(245, 158, 11, 0.2)' : 'none', flexWrap: 'wrap' }}>
                   <div style={{ width: '30px', height: '30px', borderRadius: '50%', backgroundColor: index === 0 ? '#f59e0b' : 'var(--bg-color)', color: index === 0 ? '#fff' : 'var(--text-muted)', display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', fontSize: '0.9rem' }}>
                     {index + 1}
                   </div>
-                  <div style={{ flex: 1 }}>
+                  <div style={{ flex: 1, minWidth: '120px' }}>
                     <strong style={{ display: 'block', color: 'var(--text-main)', fontSize: '1.05rem' }}>{club.name}</strong>
                     <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{club.memberCount} Members</span>
                   </div>
                   
-                  {/* NEW: Full Accounting Ledger Layout */}
-                  <div style={{ textAlign: 'right', minWidth: '120px' }}>
+                  <div style={{ textAlign: 'right', minWidth: '100px' }}>
                     <strong style={{ display: 'block', color: 'var(--success)', fontSize: '0.9rem' }}>
                       + {club.totalRevenue.toLocaleString()}
                     </strong>

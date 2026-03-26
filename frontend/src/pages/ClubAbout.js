@@ -7,7 +7,6 @@ function ClubAbout() {
   const { id } = useParams();
   const [club, setClub] = useState(null);
 
-  // The full list of roles to display the complete grid
   const availableRoles = [
     "President", "Vice President", "Secretary", "Assistant Secretary",
     "Treasurer", "Assistant Treasurer", "Event Coordinator",
@@ -25,9 +24,9 @@ function ClubAbout() {
  return (
     <div className="container">
       
-      {/* HEADER WITH LOGO */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginBottom: '20px' }}>
-        <div style={{ width: '80px', height: '80px', borderRadius: '50%', backgroundColor: 'var(--bg-color)', overflow: 'hidden', display: 'flex', justifyContent: 'center', alignItems: 'center', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
+      {/* THE FIX: Added flexWrap: 'wrap' to prevent logo squishing */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '20px', marginBottom: '20px' }}>
+        <div style={{ width: '80px', height: '80px', borderRadius: '50%', backgroundColor: 'var(--bg-color)', overflow: 'hidden', display: 'flex', justifyContent: 'center', alignItems: 'center', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)', flexShrink: 0 }}>
           {club.logoUrl ? (
             <img src={`http://localhost:5000${club.logoUrl}`} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           ) : (
