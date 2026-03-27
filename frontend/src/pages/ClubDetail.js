@@ -40,7 +40,7 @@ function ClubDetail() {
       .then(res => setClub(res.data))
       .catch(err => console.log(err));
   };
-
+//scroll to announcements if user clicks "View Announcements" from the main hub or any other page
   useEffect(() => {
     if (location.hash === '#announcements') {
       setTimeout(() => {
@@ -52,6 +52,8 @@ function ClubDetail() {
     }
   }, [location.hash, club]);
 
+
+  //--------Member Management------
   const handleJoinRequest = () => {
     axios.post(`http://localhost:5000/api/clubs/${id}/request-join`, { userId: currentUser.id })
       .then(res => { alert(res.data.message); fetchClubData(); })
@@ -71,6 +73,7 @@ function ClubDetail() {
       .catch(err => alert("Error rejecting member."));
   };
 
+  //--------Announcement Management------
   const handlePostAnnouncement = (e) => {
     e.preventDefault();
     axios.post(`http://localhost:5000/api/clubs/${id}/announcements`, { ...announcementData, presidentId: currentUser.id })
@@ -91,6 +94,7 @@ function ClubDetail() {
       .then(res => fetchClubData()).catch(err => alert("Error deleting announcement."));
   };
 
+  //--------Board Management------
   const handleAssignBoard = (e) => {
     e.preventDefault();
     axios.post(`http://localhost:5000/api/clubs/${id}/board`, { ...boardData, presidentId: currentUser.id })
@@ -114,6 +118,7 @@ function ClubDetail() {
     doc.setTextColor(40, 40, 40);
     doc.text(`${club.name} - Official Member Roster`, 14, 20);
 
+    //Exco memebers at top
     let excoMembers = [];
     let normalMembers = [];
     const excoIds = new Set();
@@ -184,8 +189,9 @@ function ClubDetail() {
 
     let currentY = 40;
 
+    // Generate a separate table for every individual election role
     publishedElections.forEach((election) => {
-      if (currentY > 250) { doc.addPage(); currentY = 20; }
+      if (currentY > 250) { doc.addPage(); currentY = 20; } // add new page
 
       doc.setFontSize(14);
       doc.setTextColor(109, 40, 217); 
@@ -317,6 +323,7 @@ function ClubDetail() {
     doc.save(`${club.name.replace(/\s+/g, '_')}_Communications_Log.pdf`);
   };
 
+  //--------Election Management------
   const handleAddTempCandidate = (e, isEdit = false) => {
     e.preventDefault();
     const targetState = isEdit ? editTempCandidate : tempCandidate;
@@ -395,13 +402,16 @@ function ClubDetail() {
     normalMembers.sort(sortAlphabetically); excoMembers.sort(sortAlphabetically);
   }
 
+  // ======== Role Based Access Control =========
   const isActualPresident = club.president?._id === currentUser?.id;
   const isVP = club.topBoard?.some(b => b.user?._id === currentUser?.id && b.role === 'Vice President');
   const isPresident = isActualPresident || isVP;
   const isSecretary = club.topBoard?.some(b => b.user?._id === currentUser?.id && ['Secretary', 'Assistant Secretary'].includes(b.role));
   const canManageAnnouncements = isPresident || isSecretary;
+  
   const allowedSponsorshipRoles = ['Vice President', 'Secretary', 'Assistant Secretary', 'Treasurer', 'Assistant Treasurer'];
   const canManageSponsorships = isPresident || club.topBoard?.some(b => b.user?._id === currentUser?.id && allowedSponsorshipRoles.includes(b.role));
+  
   const isSupervisor = currentUser?.role === 'supervisor';
   const isTopBoard = isPresident || club.topBoard?.some(b => b.user?._id === currentUser?.id);
   const isMember = club.members?.some(member => member._id === currentUser?.id);
