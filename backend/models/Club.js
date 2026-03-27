@@ -5,8 +5,8 @@ const announcementSchema = new mongoose.Schema({
   title: { type: String, required: true },
   content: { type: String, required: true },
   date: { type: Date, default: Date.now },
-  isApproved: { type: Boolean, default: false },
-  isDeleted: { type: Boolean, default: false },
+  isApproved: { type: Boolean, default: false }, //supervisors review announcement before publishing
+  isDeleted: { type: Boolean, default: false }, // hide announcements from UI, but keeps track for pdfs
   createdAt: { type: Date, default: Date.now }
 });
 
@@ -20,17 +20,17 @@ const pledgeSchema = new mongoose.Schema({
   date: { type: Date, default: Date.now }
 });
 
-// 3. Official Club Request 
+// 2.5 Official Club Request 
 const proposalSchema = new mongoose.Schema({
   title: { type: String, required: true },
   description: { type: String, required: true },
   targetAmount: { type: Number, required: true },
   proposalDocumentUrl: { type: String }, 
   isActive: { type: Boolean, default: true },
-  pledges: [pledgeSchema] 
+  pledges: [pledgeSchema] //shoes company pledges per proposal
 });
 
-// 2.5 Club Expenses (NEW)
+// 3. Club Expenses 
 const expenseSchema = new mongoose.Schema({
   title: { type: String, required: true },
   amount: { type: Number, required: true },
@@ -38,8 +38,8 @@ const expenseSchema = new mongoose.Schema({
   receiptUrl: { type: String, default: '' },
   date: { type: Date, default: Date.now },
   loggedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  isDeleted: { type: Boolean, default: false }, 
-  isEdited: { type: Boolean, default: false }
+  isDeleted: { type: Boolean, default: false }, //soft delete
+  isEdited: { type: Boolean, default: false } //audit track
 });
 
 // 4. Election System 
@@ -57,6 +57,7 @@ const electionSchema = new mongoose.Schema({
   votedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }] // Prevents double-voting!
 });
 
+//===MAIN CLUB SCHEMA===
 const clubSchema = new mongoose.Schema({
   // Basic Info
   name: { type: String, required: true },
@@ -81,7 +82,7 @@ const clubSchema = new mongoose.Schema({
  // Dynamic Payment Categories (Managed by Treasury)
   paymentCategories: [{ type: String, default: 'Membership Fee' }],
 
-  // Tracks individual student payments (Upgraded for Receipts & Categories)
+  // Ledger (Tracks individual student payments)
   feeRecords: [{
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     category: { type: String, required: true, default: 'Membership Fee' },
@@ -96,7 +97,7 @@ const clubSchema = new mongoose.Schema({
     title: { type: String, required: true },
     description: { type: String },
     dateAwarded: { type: String }, 
-    imageUrls: [{ type: String }],
+    imageUrls: [{ type: String }], //Multiple photos
     addedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     createdAt: { type: Date, default: Date.now }
   }],
