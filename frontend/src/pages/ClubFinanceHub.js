@@ -9,29 +9,36 @@ import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, R
 function ClubFinanceHub() {
   const { id } = useParams();
   const navigate = useNavigate();
+  
+  //Component sate
   const [club, setClub] = useState(null);
   const [analytics, setAnalytics] = useState({ chartData: [], expenses: [] });
   const [chartView, setChartView] = useState('YTD'); 
 
   const currentUser = JSON.parse(localStorage.getItem('user'));
 
+  //Form states
   const [paymentData, setPaymentData] = useState({ category: 'Membership Fee', amount: '', receipt: null });
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({ status: 'Pending Verification', amountPaid: 0 });
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [receiptModal, setReceiptModal] = useState(null); 
   const [newCategory, setNewCategory] = useState('');
+  
   const [showExpenseForm, setShowExpenseForm] = useState(false);
   const [editingExpenseId, setEditingExpenseId] = useState(null);
   const [expenseData, setExpenseData] = useState({ title: '', amount: '', description: '', date: '', receipt: null });
 
+  //Dynamic mathematics
   const safeCategories = club?.paymentCategories?.length > 0 ? club.paymentCategories : ['Membership Fee'];
   const filteredLedger = club?.feeRecords?.filter(record => categoryFilter === 'All' ? true : record.category === categoryFilter).reverse() || [];
 
+  //Extract cumulative totals
   const ytdRevenue = (analytics.chartData[11]?.ytdFees || 0) + (analytics.chartData[11]?.ytdSponsorships || 0);
   const ytdExpenses = analytics.chartData[11]?.ytdExpenses || 0;
   const ytdBalance = ytdRevenue - ytdExpenses;
 
+  //What no to show in the top KPI widgets
   const currentMonthIndex = new Date().getMonth();
   const displayStats = chartView === 'YTD' 
     ? { label: 'YTD', rev: ytdRevenue, exp: ytdExpenses }
@@ -63,6 +70,7 @@ function ClubFinanceHub() {
 
   if (!club) return <div style={{ textAlign: 'center', marginTop: '50px' }}>Loading Financial Hub...</div>;
 
+  //-----RBAC-------
   const isSupervisor = currentUser?.role === 'supervisor';
   const isActualPresident = club.president?._id === currentUser?.id;
   const isVP = club.topBoard?.some(b => b.user?._id === currentUser?.id && b.role === 'Vice President');
@@ -84,6 +92,7 @@ function ClubFinanceHub() {
     if (!paymentData.amount || paymentData.amount <= 0) return alert("Please enter a valid amount.");
     if (!paymentData.receipt) return alert("Please upload a screenshot of the bank transfer.");
 
+    // We use FormData instead of standard JSON so we can transmit the physical image file
     const data = new FormData();
     data.append('userId', currentUser?.id);
     data.append('amount', paymentData.amount);
@@ -98,6 +107,7 @@ function ClubFinanceHub() {
       }).catch(err => alert("Error processing payment."));
   };
 
+  //-----Financial portal----
   const handleVerifyPayment = (recordId) => {
     axios.put(`http://localhost:5000/api/clubs/${id}/fees/update`, {
       recordId: recordId, status: editForm.status, amountPaid: Number(editForm.amountPaid), requestorId: currentUser?.id
@@ -160,13 +170,16 @@ function ClubFinanceHub() {
       .then(res => fetchAnalytics()).catch(err => alert("Error deleting expense."));
   };
 
+  // --- ASYNC IMAGE LOADER FOR PDFs ---
+  // jsPDF crashes if you try to render an image URL before the browser has finished downloading it.
+  // This helper function wraps the image load in a Promise, allowing our PDF generator to 'await' the result.
   const loadImage = (url) => {
     return new Promise((resolve) => {
       const img = new Image();
-      img.crossOrigin = 'Anonymous';
+      img.crossOrigin = 'Anonymous';  // Bypasses strict CORS security blocks when pulling from localhost
       img.src = url;
       img.onload = () => resolve(img);
-      img.onerror = () => resolve(null); 
+      img.onerror = () => resolve(null);  // If a receipt is corrupted, skip it instead of crashing the PDF
     });
   };
 
@@ -179,6 +192,7 @@ function ClubFinanceHub() {
     doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 28);
     doc.text(`Filter Applied: ${categoryFilter}`, 14, 34);
 
+    // Wait for all the receipt images to download into memory BEFORE we start drawing the table
     const recordsWithImages = await Promise.all(
       filteredLedger.map(async (record) => {
         let imgData = null;
@@ -198,6 +212,7 @@ function ClubFinanceHub() {
       didDrawCell: (data) => {
         if (data.row.section === 'body' && data.column.index === 4) {
           const record = recordsWithImages[data.row.index];
+          // Physically paint the downloaded image data into the PDF cell coordinates
           if (record.imgData) doc.addImage(record.imgData, 'JPEG', data.cell.x + 2, data.cell.y + 2, 10, 10);
         }
       }
@@ -286,7 +301,7 @@ function ClubFinanceHub() {
         <div style={{ marginTop: '20px' }}><ClubNavigation club={club} /></div>
       </div>
 
-      {/* LAYOUT FIX: Responsive Split Grid */}
+      {/* Responsive Split Grid */}
       <div className={(!isSupervisor && canViewAdminDashboard) ? "dashboard-grid-split" : ""} style={{ display: (!isSupervisor && canViewAdminDashboard) ? '' : 'grid', gap: '30px' }}>     
         
         {/* LEFT COLUMN: MEMBER PAYMENT SUBMISSION (Hidden for Supervisors) */}

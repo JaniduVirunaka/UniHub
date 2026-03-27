@@ -15,6 +15,7 @@ function ClubManagement() {
 
   useEffect(() => {
     fetchClubs();
+    // Supervisors need the full user list to assign presidents to clubs
     if (currentUser && currentUser.role === 'supervisor') {
       axios.get('http://localhost:5000/api/auth/users')
         .then(res => setUsers(res.data))
@@ -28,7 +29,7 @@ function ClubManagement() {
       .catch(err => console.log(err));
   };
 
-  if (!currentUser) {
+  if (!currentUser) {  // must be logged in to view club directory
     return (
       <div className="card" style={{ textAlign: 'center', marginTop: '2rem' }}>
         <h2>Access Denied</h2>
@@ -38,6 +39,7 @@ function ClubManagement() {
     );
   }
 
+  //uses formdata so that files can be sent
   const handleCreateClub = (e) => {
     e.preventDefault();
     const data = new FormData();
@@ -86,10 +88,13 @@ function ClubManagement() {
       .catch(err => alert(err.response?.data?.message || "Error updating club."));
   };
 
+  //filter logic to omit current presidents when assigning new presidents
   const eligibleUsers = users.filter(user => {
     if (user.role !== 'student') return false;
+    
     const isBusyElsewhere = clubs.some(c => {
       if (editingClubId && c._id === editingClubId) return false;
+      
       const isPres = (c.president?._id === user._id) || (c.president === user._id);
       const isVP = c.topBoard?.some(b => ((b.user?._id === user._id) || (b.user === user._id)) && b.role === 'Vice President');
       return isPres || isVP;
@@ -97,6 +102,7 @@ function ClubManagement() {
 
     if (isBusyElsewhere) return false;
 
+    //if club already has members, show only the current members to the list
     const currentClub = editingClubId ? clubs.find(c => c._id === editingClubId) : null;
     const hasMembers = currentClub?.members?.length > 0;
     const isCurrentPresident = editingClubId && formData.presidentId === user._id;
@@ -114,25 +120,6 @@ function ClubManagement() {
         .then(() => { fetchClubs(); alert("Club deleted."); })
         .catch(err => alert("Error deleting club."));
     }
-  };
-
-  const handleJoinRequest = (clubId) => {
-    axios.post(`http://localhost:5000/api/clubs/${clubId}/request-join`, { userId: currentUser.id })
-      .then(res => alert(res.data.message))
-      .catch(err => alert(err.response?.data?.message || "Error requesting to join."));
-  };
-
-  const handleApprove = (clubId, studentId) => {
-    axios.post(`http://localhost:5000/api/clubs/${clubId}/approve`, { studentId, presidentId: currentUser.id })
-      .then(res => { alert(res.data.message); fetchClubs(); })
-      .catch(err => alert("Error approving member."));
-  };
-
-  const handlePostAnnouncement = (e, clubId) => {
-    e.preventDefault();
-    axios.post(`http://localhost:5000/api/clubs/${clubId}/announcements`, { ...announcementData, presidentId: currentUser.id })
-      .then(res => { alert(res.data.message); setAnnouncementData({ title: '', content: '' }); fetchClubs(); })
-      .catch(err => alert(err.response?.data?.message || "Error posting announcement."));
   };
 
   const handleApproveAnnouncement = (clubId, annId) => {
@@ -245,7 +232,7 @@ function ClubManagement() {
         </div>
       )}
 
-    {/* DIRECTORY SECTION WITH TABS */}
+    {/* ------ GLOBAL CLUB DIRECTORY -------- */}
       <div className="card">
         <div className="flex-mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid var(--border-color)', paddingBottom: '15px', marginBottom: '25px', flexWrap: 'wrap', gap: '15px' }}>
           <h2 style={{ margin: 0, color: 'var(--text-main)' }}>Club Directory</h2>

@@ -8,6 +8,7 @@ function Sponsorships() {
   const navigate = useNavigate();
   const [club, setClub] = useState(null);
   
+  //States for creating new proposals and pledges
   const [proposalData, setProposalData] = useState({ title: '', description: '', targetAmount: '', proposalDocumentUrl: '' });
   const [pledgeData, setPledgeData] = useState({ companyName: '', contactEmail: '', amount: '', message: '' });
   const [activePledgeForm, setActivePledgeForm] = useState(null);
@@ -26,11 +27,13 @@ function Sponsorships() {
 
   if (!club) return <div style={{ textAlign: 'center', marginTop: '50px' }}>Loading Corporate Portal...</div>;
 
+  //---RBAC---
   const isSupervisor = currentUser?.role === 'supervisor';
   const isPresident = club.president?._id === currentUser?.id;
   const allowedSponsorshipRoles = ['Vice President', 'Secretary', 'Assistant Secretary', 'Treasurer', 'Assistant Treasurer'];
   const canManageSponsorships = isPresident || isSupervisor || club.topBoard?.some(b => b.user?._id === currentUser?.id && allowedSponsorshipRoles.includes(b.role));
 
+  //-----Proposal management actions-----
   const handlePublishProposal = (e) => {
     e.preventDefault();
     axios.post(`http://localhost:5000/api/clubs/${id}/proposals`, { ...proposalData, userId: currentUser?.id })
@@ -54,6 +57,7 @@ function Sponsorships() {
       .then(res => fetchClubData()).catch(err => alert("Error deleting proposal."));
   };
 
+  //-------Pledge actions (public accessible)-------
   const handleSubmitPledge = (e, proposalId) => {
     e.preventDefault();
     axios.post(`http://localhost:5000/api/clubs/${id}/proposals/${proposalId}/pledge`, pledgeData)
@@ -82,7 +86,6 @@ function Sponsorships() {
       </div>
       <ClubNavigation club={club} />
 
-      {/* THE FIX: Replaced inline flex with our responsive grid class */}
       <div className={canManageSponsorships ? "dashboard-grid-split" : ""} style={{ display: canManageSponsorships ? '' : 'grid', gap: '30px' }}>
         
        {/* LEFT/MAIN COLUMN: Public Proposals */}
@@ -99,6 +102,8 @@ function Sponsorships() {
           ) : (
             <div style={{ display: 'grid', gap: '20px' }}>
               {club.proposals?.filter(p => p.isActive || canManageSponsorships).map(proposal => {
+                
+                //Dynamic math
                 const totalRaised = proposal.pledges?.filter(p => p.status === 'Accepted').reduce((sum, p) => sum + p.amount, 0) || 0;
                 const percent = Math.min((totalRaised / proposal.targetAmount) * 100, 100).toFixed(0);
 

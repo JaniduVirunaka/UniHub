@@ -24,6 +24,7 @@ function GlobalAnalytics() {
 
   if (!globalData) return <div style={{ textAlign: 'center', marginTop: '50px' }}>Initializing Global Matrix...</div>;
 
+  //Dynamic KPI calculations
   const totalUniversityRev = globalData.masterChart[11]?.ytdRevenue || 0;
   const totalUniversityExp = globalData.masterChart[11]?.ytdExpenses || 0;
   const universityNet = totalUniversityRev - totalUniversityExp;
@@ -76,7 +77,7 @@ function GlobalAnalytics() {
         </button>
       </div>
 
-      {/* KPI WIDGETS (Fixed grid wrapper) */}
+      {/* KPI WIDGETS*/}
       <div className="quick-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '30px' }}>
         <div className="card" style={{ textAlign: 'center', padding: '20px', marginBottom: 0, border: '1px solid var(--border-color)' }}>
           <h4 style={{ margin: '0 0 10px 0', color: 'var(--text-secondary)' }}>Total University Revenue</h4>
@@ -130,9 +131,13 @@ function GlobalAnalytics() {
               
               return (
                 <li key={club.id} style={{ display: 'flex', alignItems: 'center', gap: '15px', padding: '15px 0', borderBottom: index < 4 ? '1px solid rgba(245, 158, 11, 0.2)' : 'none', flexWrap: 'wrap' }}>
+                  
+                  //Rank badges
                   <div style={{ width: '30px', height: '30px', borderRadius: '50%', backgroundColor: index === 0 ? '#f59e0b' : 'var(--bg-color)', color: index === 0 ? '#fff' : 'var(--text-muted)', display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', fontSize: '0.9rem' }}>
                     {index + 1}
                   </div>
+                  
+                  //Club details
                   <div style={{ flex: 1, minWidth: '120px' }}>
                     <strong style={{ display: 'block', color: 'var(--text-main)', fontSize: '1.05rem' }}>{club.name}</strong>
                     <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{club.memberCount} Members</span>
