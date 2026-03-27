@@ -1,4 +1,5 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const router = express.Router();
 const multer = require('multer');
 const path = require('path');
@@ -32,6 +33,90 @@ router.get('/', async (req, res) => {
   }
 });
 
+
+// GLOBAL SUPERVISOR MATRIX
+router.get('/global/analytics', async (req, res) => {
+  try {
+    // 1. AGGREGATE ALL FEE REVENUE GLOBALLY
+    const globalFees = await Club.aggregate([
+      { $unwind: "$feeRecords" }, 
+      { $match: { "feeRecords.status": "Paid" } },
+      { $group: { _id: { month: { $month: "$feeRecords.lastUpdated" } }, total: { $sum: "$feeRecords.amountPaid" } } }
+    ]);
+
+    // 2. AGGREGATE ALL CORPORATE SPONSORSHIPS GLOBALLY
+    const globalPledges = await Club.aggregate([
+      { $unwind: "$proposals" }, 
+      { $unwind: "$proposals.pledges" }, 
+      { $match: { "proposals.pledges.status": "Accepted" } },
+      { $group: { _id: { month: { $month: "$proposals.pledges.date" } }, total: { $sum: "$proposals.pledges.amount" } } }
+    ]);
+
+    // 3. AGGREGATE ALL EXPENSES GLOBALLY
+    const globalExpenses = await Club.aggregate([
+      { $unwind: "$expenses" },
+      { $match: { "expenses.isDeleted": { $ne: true } } },
+      { $group: { _id: { month: { $month: "$expenses.date" } }, total: { $sum: "$expenses.amount" } } }
+    ]);
+
+    // 4. MAP TO A 12-MONTH MASTER ARRAY
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    let masterChart = months.map((month) => ({ 
+      name: month, 
+      monthlyRevenue: 0, 
+      monthlyExpenses: 0 
+    }));
+
+    globalFees.forEach(r => { masterChart[r._id.month - 1].monthlyRevenue += r.total; });
+    globalPledges.forEach(r => { masterChart[r._id.month - 1].monthlyRevenue += r.total; });
+    globalExpenses.forEach(r => { masterChart[r._id.month - 1].monthlyExpenses += r.total; });
+
+    // Calculate Cumulative YTD for the Global Area Chart
+    let ytdRev = 0;
+    let ytdExp = 0;
+    masterChart = masterChart.map(data => {
+      ytdRev += data.monthlyRevenue;
+      ytdExp += data.monthlyExpenses;
+      return { ...data, ytdRevenue: ytdRev, ytdExpenses: ytdExp };
+    });
+
+    // 5. CALCULATE LEADERBOARD (Top Performing Clubs)
+    const allClubs = await Club.find().populate('members');
+    const leaderboard = allClubs.map(club => {
+      let clubRev = 0;
+      let clubExp = 0; // NEW: Track Expenses
+      
+      // Calculate Revenue
+      club.feeRecords.forEach(f => { if (f.status === 'Paid') clubRev += f.amountPaid; });
+      club.proposals.forEach(p => p.pledges.forEach(pl => { if (pl.status === 'Accepted') clubRev += pl.amount; }));
+      
+      // Calculate Expenses
+      if (club.expenses) {
+        club.expenses.forEach(e => { clubExp += e.amount; });
+      }
+      
+      return {
+        id: club._id,
+        name: club.name,
+        totalRevenue: clubRev,
+        totalExpenses: clubExp, // Inject it into the payload
+        memberCount: club.members.length
+      };
+    }).sort((a, b) => b.totalRevenue - a.totalRevenue).slice(0, 5); // Get Top 5
+    
+    res.status(200).json({ 
+      masterChart, 
+      leaderboard, 
+      totalClubs: allClubs.length,
+      totalUniversityMembers: allClubs.reduce((acc, club) => acc + club.members.length, 0)
+    });
+
+  } catch (err) {
+    console.error("Global Analytics Error:", err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // Get a SINGLE club by ID
 router.get('/:id', async (req, res) => {
   try {
@@ -39,9 +124,16 @@ router.get('/:id', async (req, res) => {
       .populate('president', 'name email')
       .populate('pendingMembers', 'name email')
       .populate('members', 'name email')
-      .populate('topBoard.user', 'name email');
+      .populate('topBoard.user', 'name email')
+      .populate('feeRecords.user', 'name email'); // <--- CRITICAL for the ledger to show names
       
     if (!club) return res.status(404).json({ message: "Club not found" });
+
+    // SAFETY NET: If this is an old club, force it to have the default category before sending it to the frontend!
+    if (!club.paymentCategories || club.paymentCategories.length === 0) {
+      club.paymentCategories = ['Membership Fee'];
+    }
+
     res.json(club);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -344,66 +436,70 @@ router.get('/:id/fees', async (req, res) => {
   }
 });
 
-// 2. Student Submits a Payment (Simulated Gateway)
-router.post('/:id/fees/pay', async (req, res) => {
+// 2. Student Submits a Payment WITH RECEIPT (Now uses Multer upload)
+router.post('/:id/fees/pay', upload.single('receipt'), async (req, res) => {
   try {
-    const { userId, amount } = req.body;
+    const { userId, amount, category } = req.body;
     const club = await Club.findById(req.params.id);
 
-    // Look for their record
-    const existingRecord = club.feeRecords.find(f => f.user?.toString() === userId);
-
-    if (existingRecord) {
-      existingRecord.status = 'Pending Verification'; // Flips status so Treasury knows to check!
-      existingRecord.amountPaid = amount;
-      existingRecord.lastUpdated = new Date();
+    let receiptUrl = '';
+    if (req.file) {
+      receiptUrl = `/uploads/${req.file.filename}`;
     } else {
-      club.feeRecords.push({
-        user: userId,
-        status: 'Pending Verification',
-        amountPaid: amount,
-        lastUpdated: new Date()
-      });
+      return res.status(400).json({ message: "A bank transfer screenshot is required." });
     }
+
+    // We no longer overwrite the old record, we push a NEW transaction into the ledger
+    club.feeRecords.push({
+      user: userId,
+      category: category || 'Membership Fee',
+      receiptUrl: receiptUrl,
+      status: 'Pending Verification',
+      amountPaid: amount,
+      lastUpdated: new Date()
+    });
 
     await club.save();
     res.status(200).json({ message: "Payment submitted successfully! Waiting for Treasury verification." });
   } catch (err) {
+    console.error("Payment Error:", err);
     res.status(500).json({ message: err.message });
   }
 });
 
-// 3. Update a Member's Fee Status (STRICTLY Treasury Only)
+
+// 3. Update a Specific Transaction (STRICTLY Treasury Only)
 router.put('/:id/fees/update', async (req, res) => {
   try {
-    const { studentId, status, amountPaid, requestorId } = req.body;
+    // THE FIX: We now look for the specific recordId, not just the studentId
+    const { recordId, status, amountPaid, requestorId } = req.body; 
     const club = await Club.findById(req.params.id);
 
-    // STRICT RBAC: Only President and Treasurers! (Secretaries are locked out)
     const isPres = club.president?.toString() === requestorId;
-    const isTreasury = club.topBoard.some(b => b.user?.toString() === requestorId && ['Treasurer', 'Assistant Treasurer'].includes(b.role));
+    const isTreasury = club.topBoard.some(b => (b.user?._id?.toString() === requestorId || b.user?.toString() === requestorId) && ['Treasurer', 'Assistant Treasurer'].includes(b.role));
 
     if (!isPres && !isTreasury) {
       return res.status(403).json({ message: "Access Denied: Only the Treasury team can verify payments." });
     }
 
-    const existingRecord = club.feeRecords.find(f => f.user?.toString() === studentId);
+    // THE FIX: Find the EXACT transaction record using its unique database ID
+    const existingRecord = club.feeRecords.id(recordId);
 
     if (existingRecord) {
       existingRecord.status = status;
       existingRecord.amountPaid = amountPaid;
       existingRecord.lastUpdated = new Date();
+      await club.save();
+      res.status(200).json({ message: "Treasury verification complete." });
     } else {
-      club.feeRecords.push({ user: studentId, status, amountPaid, lastUpdated: new Date() });
+      res.status(404).json({ message: "Transaction record not found." });
     }
-
-    await club.save();
-    res.status(200).json({ message: "Treasury verification complete." });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 });
 
+// Announcements
 // Exec Board drafts a new announcement (Pres, VP, Sec, Asst Sec)
 router.post('/:id/announcements', async (req, res) => {
   try {
@@ -609,6 +705,7 @@ router.delete('/:id/board/:userId', async (req, res) => {
   }
 });
 
+//Sponsorships
 // 1. Exec & Treasury publishes a new Proposal (BULLETPROOF DB VERSION)
 router.post('/:id/proposals', async (req, res) => {
   try {
@@ -944,5 +1041,224 @@ router.delete('/:id/elections/:electionId', async (req, res) => {
   }
 });
 
+// --- MANAGE PAYMENT CATEGORIES (TREASURY & PRESIDENT) ---
+router.post('/:id/categories', async (req, res) => {
+  try {
+    const { newCategory, userId } = req.body;
+    const club = await Club.findById(req.params.id);
+
+    const isPres = club.president?.toString() === userId;
+    const isTreasury = club.topBoard?.some(b => (b.user?._id?.toString() === userId || b.user?.toString() === userId) && ['Treasurer', 'Assistant Treasurer'].includes(b.role));
+    if (!isPres && !isTreasury) return res.status(403).json({ message: "Access Denied: You do not have treasury permissions." });
+
+    if (!club.paymentCategories) club.paymentCategories = ['Membership Fee'];
+    
+    // Prevent duplicates
+    if (!club.paymentCategories.includes(newCategory)) {
+      club.paymentCategories.push(newCategory);
+      await club.save();
+      return res.status(200).json({ message: "Category added successfully." });
+    } else {
+      return res.status(400).json({ message: "That category already exists." });
+    }
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// EDIT A CATEGORY
+router.put('/:id/categories', async (req, res) => {
+  try {
+    const { oldCategory, newCategory, userId } = req.body;
+    const club = await Club.findById(req.params.id);
+
+    const isPres = club.president?.toString() === userId;
+    const isTreasury = club.topBoard?.some(b => (b.user?._id?.toString() === userId || b.user?.toString() === userId) && ['Treasurer', 'Assistant Treasurer'].includes(b.role));
+    if (!isPres && !isTreasury) return res.status(403).json({ message: "Access Denied." });
+
+    if (oldCategory === 'Membership Fee') return res.status(400).json({ message: "Cannot rename the default category." });
+
+    const catIndex = club.paymentCategories.indexOf(oldCategory);
+    if (catIndex > -1) {
+      club.paymentCategories[catIndex] = newCategory;
+      // Update all past transactions that used the old category name!
+      club.feeRecords.forEach(record => {
+        if (record.category === oldCategory) record.category = newCategory;
+      });
+      await club.save();
+      res.status(200).json({ message: "Category renamed successfully!" });
+    } else {
+      res.status(404).json({ message: "Category not found." });
+    }
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// DELETE A CATEGORY
+router.delete('/:id/categories/:categoryName', async (req, res) => {
+  try {
+    const { userId } = req.body;
+    const club = await Club.findById(req.params.id);
+
+    const isPres = club.president?.toString() === userId;
+    const isTreasury = club.topBoard?.some(b => (b.user?._id?.toString() === userId || b.user?.toString() === userId) && ['Treasurer', 'Assistant Treasurer'].includes(b.role));
+    if (!isPres && !isTreasury) return res.status(403).json({ message: "Access Denied." });
+
+    if (req.params.categoryName === 'Membership Fee') return res.status(400).json({ message: "Cannot delete the default category." });
+
+    club.paymentCategories = club.paymentCategories.filter(c => c !== req.params.categoryName);
+    await club.save();
+    res.status(200).json({ message: "Category deleted." });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+
+// --- MANAGE EXPENSES (TREASURY & PRESIDENT) ---
+// 1. ADD EXPENSE (Now supports receipts)
+router.post('/:id/expenses', upload.single('receipt'), async (req, res) => {
+  try {
+    const { title, amount, description, date, userId } = req.body;
+    const club = await Club.findById(req.params.id);
+
+    const isTreasury = club.topBoard?.some(b => (b.user?._id?.toString() === userId || b.user?.toString() === userId) && ['Treasurer', 'Assistant Treasurer'].includes(b.role));
+    if (!isTreasury) return res.status(403).json({ message: "Access Denied: Only Treasury can log expenses." });
+
+    if (!club.expenses) club.expenses = [];
+
+    let receiptUrl = '';
+    if (req.file) receiptUrl = `/uploads/${req.file.filename}`;
+
+    club.expenses.push({ 
+      title, 
+      amount: Number(amount), 
+      description, 
+      date: date || new Date(), 
+      loggedBy: userId,
+      receiptUrl
+    });
+    
+    await club.save();
+    res.status(200).json({ message: "Expense logged successfully." });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 2. EDIT EXPENSE (Flags it as edited)
+router.put('/:id/expenses/:expenseId', upload.single('receipt'), async (req, res) => {
+  try {
+    const { title, amount, description, date, userId } = req.body;
+    const club = await Club.findById(req.params.id);
+
+    const isTreasury = club.topBoard?.some(b => (b.user?._id?.toString() === userId || b.user?.toString() === userId) && ['Treasurer', 'Assistant Treasurer'].includes(b.role));
+    if (!isTreasury) return res.status(403).json({ message: "Access Denied." });
+
+    const expense = club.expenses.id(req.params.expenseId);
+    if (!expense) return res.status(404).json({ message: "Expense not found." });
+
+    expense.title = title || expense.title;
+    expense.amount = amount ? Number(amount) : expense.amount;
+    expense.description = description || expense.description;
+    expense.date = date || expense.date;
+    expense.isEdited = true; // FLAG IT!
+
+    if (req.file) expense.receiptUrl = `/uploads/${req.file.filename}`;
+
+    await club.save();
+    res.status(200).json({ message: "Expense updated and flagged." });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 3. DELETE EXPENSE (Soft Delete)
+router.delete('/:id/expenses/:expenseId', async (req, res) => {
+  try {
+    const { userId } = req.body;
+    const club = await Club.findById(req.params.id);
+
+    const isTreasury = club.topBoard?.some(b => (b.user?._id?.toString() === userId || b.user?.toString() === userId) && ['Treasurer', 'Assistant Treasurer'].includes(b.role));
+    if (!isTreasury) return res.status(403).json({ message: "Access Denied." });
+
+    const expense = club.expenses.id(req.params.expenseId);
+    if (!expense) return res.status(404).json({ message: "Expense not found." });
+
+    // SOFT DELETE: Don't pull it, just hide it!
+    expense.isDeleted = true; 
+    await club.save();
+
+    res.status(200).json({ message: "Expense soft-deleted and archived." });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 4. THE ULTIMATE FINANCIAL ANALYTICS ALGORITHM (Segmented Revenue)
+router.get('/:id/analytics', async (req, res) => {
+  try {
+    const clubId = new mongoose.Types.ObjectId(req.params.id);
+    const club = await Club.findById(clubId);
+    if (!club) return res.status(404).json({ message: "Club not found." });
+
+    // A. Fetch All 3 Revenue/Expense Streams
+    const feeAnalytics = await Club.aggregate([
+      { $match: { _id: clubId } }, { $unwind: "$feeRecords" }, { $match: { "feeRecords.status": "Paid" } },
+      { $group: { _id: { month: { $month: "$feeRecords.lastUpdated" } }, total: { $sum: "$feeRecords.amountPaid" } } }
+    ]);
+
+    const pledgeAnalytics = await Club.aggregate([
+      { $match: { _id: clubId } }, { $unwind: "$proposals" }, { $unwind: "$proposals.pledges" }, { $match: { "proposals.pledges.status": "Accepted" } },
+      { $group: { _id: { month: { $month: "$proposals.pledges.date" } }, total: { $sum: "$proposals.pledges.amount" } } }
+    ]);
+
+   const expenseAnalytics = await Club.aggregate([
+      { $match: { _id: clubId } }, 
+      { $unwind: "$expenses" },
+      { $match: { "expenses.isDeleted": { $ne: true } } }, // THE FIX: Only count active expenses!
+      { $group: { _id: { month: { $month: "$expenses.date" } }, total: { $sum: "$expenses.amount" } } }
+    ]);
+
+    // B. Build the 12-Month Segmented Array
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    let chartData = months.map((month) => ({ 
+      name: month, 
+      monthlyFees: 0, 
+      monthlySponsorships: 0, 
+      monthlyExpenses: 0 
+    }));
+
+    // Inject exact monthly data into their specific buckets
+    feeAnalytics.forEach(r => { chartData[r._id.month - 1].monthlyFees += r.total; });
+    pledgeAnalytics.forEach(r => { chartData[r._id.month - 1].monthlySponsorships += r.total; });
+    expenseAnalytics.forEach(r => { chartData[r._id.month - 1].monthlyExpenses += r.total; });
+
+    // C. Process Cumulative YTD Totals for the Area Chart
+    let ytdFees = 0;
+    let ytdSponsorships = 0;
+    let ytdExpenses = 0;
+
+    chartData = chartData.map(data => {
+      ytdFees += data.monthlyFees;
+      ytdSponsorships += data.monthlySponsorships;
+      ytdExpenses += data.monthlyExpenses;
+      
+      return {
+        ...data,
+        ytdFees,
+        ytdSponsorships,
+        ytdExpenses,
+        ytdRevenue: ytdFees + ytdSponsorships, // Kept for the PDF Generator
+      };
+    });
+
+    res.status(200).json({ chartData, expenses: club.expenses });
+  } catch (err) {
+    console.error("Analytics Pipeline Error:", err);
+    res.status(500).json({ message: err.message });
+  }
+});
 
 module.exports = router;
