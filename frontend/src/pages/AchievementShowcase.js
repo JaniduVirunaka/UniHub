@@ -5,6 +5,7 @@ import ClubNavigation from '../components/ClubNavigation';
 
 const ImageCarousel = ({ images, title }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
+// doesn't cause the entire main page to re-render every time a user clicks "Next Image".
 
   if (!images || images.length === 0) {
     return (
@@ -14,6 +15,7 @@ const ImageCarousel = ({ images, title }) => {
     );
   }
 
+  //loop
   const handlePrev = () => setCurrentIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
   const handleNext = () => setCurrentIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
 
@@ -26,7 +28,7 @@ const ImageCarousel = ({ images, title }) => {
         onError={(e) => { e.target.src = 'https://via.placeholder.com/400x200?text=Image+Not+Found' }}
       />
       
-      {images.length > 1 && (
+      {images.length > 1 && ( //navigation arrows only visible if more than 1 image
         <>
           <button onClick={handlePrev} style={{
             position: 'absolute', top: '50%', left: '10px', transform: 'translateY(-50%)',
@@ -46,7 +48,7 @@ const ImageCarousel = ({ images, title }) => {
             &rarr;
           </button>
 
-          <div style={{
+          <div style={{ // image counter
             position: 'absolute', bottom: '10px', right: '10px',
             backgroundColor: 'rgba(0,0,0,0.7)', color: '#fff', padding: '2px 8px', 
             borderRadius: 'var(--radius-md)', fontSize: '0.8rem', border: '1px solid rgba(255,255,255,0.2)'
@@ -80,6 +82,7 @@ function AchievementShowcase() {
       .catch(err => console.log(err));
   };
 
+  //RBAC
   const isSupervisor = club?.supervisor === currentUser?.id;
   const isActualPresident = club?.president?._id === currentUser?.id;
   const isVP = club?.topBoard?.some(b => b.user?._id === currentUser?.id && b.role === 'Vice President');
@@ -91,18 +94,22 @@ function AchievementShowcase() {
   const handleSubmit = (e) => {
     e.preventDefault();
     
+    // Because we are sending raw image files alongside text, standard JSON will not work.
+    // We must construct a native FormData object.
     const data = new FormData();
     data.append('userId', currentUser?.id);
     data.append('title', formData.title);
     data.append('description', formData.description);
     data.append('dateAwarded', formData.dateAwarded);
     
+    // Loop through the array of selected files and add each one to the payload
     if (formData.images && formData.images.length > 0) {
       formData.images.forEach(file => {
         data.append('images', file);
       });
     }
 
+    // tell the backend to expect a multipart file stream, not a JSON string
     const config = { headers: { 'Content-Type': 'multipart/form-data' } };
 
     if (editingId) {
@@ -183,7 +190,7 @@ function AchievementShowcase() {
               <small style={{ color: 'var(--text-muted)' }}>Hold CTRL (or CMD) to select multiple photos at once.</small>
             </div>
 
-            {/* THE FIX: .flex-mobile-stack allows these buttons to stack perfectly on mobile */}
+            {/* .flex-mobile-stack allows these buttons to stack perfectly on mobile */}
             <div className="flex-mobile-stack" style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
               <button type="submit" className="btn btn-success" style={{ margin: 0 }}>{editingId ? 'Save Changes' : 'Publish Achievement'}</button>
               <button type="button" className="btn btn-outline" style={{ margin: 0 }} onClick={resetForm}>Cancel</button>
