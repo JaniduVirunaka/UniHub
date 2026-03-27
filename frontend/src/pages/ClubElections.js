@@ -201,7 +201,7 @@ function ClubElections() {
                               </div>
                             )}
                           </div>
-                           //show vote button or restricted warning
+                          {/*show vote button or restricted warning*/}
                           {election.isActive && !hasVoted && (
                             hasPaidFees ? (
                               <button className="btn btn-success" style={{ padding: '8px 20px', width: '100%' }} onClick={() => handleVote(election._id, c._id)}>
