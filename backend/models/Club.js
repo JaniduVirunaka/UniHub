@@ -10,7 +10,7 @@ const announcementSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
-// 2. Incoming Company Offers (NEW)
+// 2. Incoming Company Offers 
 const pledgeSchema = new mongoose.Schema({
   companyName: { type: String, required: true },
   contactEmail: { type: String, required: true },

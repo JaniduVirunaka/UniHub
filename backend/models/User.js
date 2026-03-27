@@ -6,7 +6,6 @@ const userSchema = new mongoose.Schema({
   password: { type: String, required: true },
   role: { 
     type: String, 
-    // The exact 3-tier hierarchy you defined
     enum: ['student', 'president', 'supervisor'], 
     default: 'student' // All new signups default to normal students
   }

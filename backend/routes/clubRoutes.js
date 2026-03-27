@@ -9,7 +9,7 @@ const User = require('../models/User'); // We need the user model to fetch names
 // --- MULTER CONFIGURATION ---
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, 'uploads/'); // Saves to the folder we created
+    cb(null, 'uploads/'); // Saves to the folder 
   },
   filename: function (req, file, cb) {
     // Gives the file a unique timestamped name
@@ -48,7 +48,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// 1. Create a new club (SUPERVISOR ONLY - Now supports Logo Upload)
+// 1. Create a new club (SUPERVISOR ONLY)
 router.post('/', upload.single('logo'), async (req, res) => {
   try {
     const { name, description, mission, membershipFee, supervisorId, presidentId, rulesAndRegulations } = req.body;
