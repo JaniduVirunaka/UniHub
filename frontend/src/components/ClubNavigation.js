@@ -2,13 +2,15 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
 function ClubNavigation({ club }) {
-  const location = useLocation();
+  const location = useLocation(); // to know exactly which page the user is on
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   if (!club) return null;
 
   const currentUser = JSON.parse(localStorage.getItem('user'));
 
+  // --- Frontend RBAC ---
+  // We check the user's ID against the club's arrays to figure out exactly what they are allowed to see
   const isSupervisor = currentUser?.role === 'supervisor';
   const isPresident = club.president?._id === currentUser?.id || club.president === currentUser?.id;
   const isTopBoard = club.topBoard?.some(b => (b.user?._id || b.user) === currentUser?.id);
@@ -18,8 +20,9 @@ function ClubNavigation({ club }) {
   
   const canViewAnalytics = isSupervisor || isPresident || club.topBoard?.some(b => 
     (b.user?._id || b.user) === currentUser?.id && ['Treasurer', 'Assistant Treasurer', 'Vice President'].includes(b.role)
-  );
+  ); // can view analytics in financial hub
 
+  //highlights the tab the user is in
   const getTabStyle = (path, hash) => {
     const isActive = location.pathname === path && location.hash === hash;
     return {
@@ -63,7 +66,7 @@ function ClubNavigation({ club }) {
           onMouseEnter={() => setDropdownOpen(true)} 
           onMouseLeave={() => setDropdownOpen(false)}
         >
-          {/* THE FIX: Added onClick so mobile users can tap to open! */}
+          {/*Added onClick so mobile users can tap to open! */}
           <button 
             className="btn btn-outline" 
             style={{ border: 'none', padding: '8px 15px', margin: 0, boxShadow: 'none' }}

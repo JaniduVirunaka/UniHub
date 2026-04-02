@@ -8,6 +8,8 @@ function ClubElections() {
   const navigate = useNavigate();
   const [club, setClub] = useState(null);
 
+  // We use these states to temporarily hold the election data in the browser's memory
+  // while the Supervisor builds the ballot, minimizing unnecessary API calls to the database.
   const [electionData, setElectionData] = useState({ position: '', candidates: [] });
   const [tempCandidate, setTempCandidate] = useState({ candidateUserId: '', manifesto: '' });
   const [editingElectionId, setEditingElectionId] = useState(null);
@@ -28,6 +30,7 @@ function ClubElections() {
       .then(res => setClub(res.data)).catch(err => console.log(err));
   };
 
+  // Pushes a candidate from the dropdown into the local React state array
   const handleAddTempCandidate = (e, isEdit = false) => {
     e.preventDefault();
     const targetState = isEdit ? editTempCandidate : tempCandidate;
@@ -42,6 +45,7 @@ function ClubElections() {
     }
   };
 
+  // Removes a candidate from the local React state array
   const handleRemoveTempCandidate = (index, isEdit = false) => {
     if (isEdit) {
       const newCands = [...editElectionData.candidates];
@@ -54,9 +58,12 @@ function ClubElections() {
     }
   };
 
+  //---------Election CRUD----------
   const handleCreateElection = (e) => {
     e.preventDefault();
     if (!electionData.position) return alert("Please select a position.");
+    
+    // Warn the user if they typed a candidate but forgot to press "Add to list"
     if (tempCandidate.candidateUserId || tempCandidate.manifesto) {
       const proceed = window.confirm("Hold on! You entered candidate details but didn't click 'Add to List'. Do you want to create the election WITHOUT adding them?");
       if (!proceed) return;
@@ -101,6 +108,7 @@ function ClubElections() {
       .then(res => fetchClubData()).catch(err => alert("Error deleting election."));
   };
 
+  //Member list shows normal members first, and the exco
   let normalMembers = [];
   let excoMembers = [];
 
@@ -121,11 +129,13 @@ function ClubElections() {
 
   if (!club) return <div style={{ textAlign: 'center', marginTop: '50px' }}>Loading Election Data...</div>;
 
+  // ======== Role Based Access Control =========
   const isSupervisor = currentUser?.role === 'supervisor';
   const isMember = club.members?.some(member => member._id === currentUser?.id);
   const isTopBoard = club.topBoard?.some(b => b.user?._id === currentUser?.id) || club.president?._id === currentUser?.id;
   const hasFullAccess = isSupervisor || isTopBoard || isMember;
 
+  //Checks whether the user has paid membership fees  
   const userFeeRecord = club.feeRecords?.find(record => (record.user?._id || record.user) === currentUser?.id);
   const hasPaidFees = (userFeeRecord && ['Paid', 'Exempt'].includes(userFeeRecord.status));
 
@@ -157,6 +167,8 @@ function ClubElections() {
         {club.elections && club.elections.filter(e => e.isActive || e.isPublished).length > 0 ? (
           <div style={{ display: 'grid', gap: '15px' }}>
             {club.elections.filter(e => e.isActive || e.isPublished).map((election) => {
+              
+              //has the user voted??
               const hasVoted = election.votedUsers.includes(currentUser?.id);
               const totalVotes = election.votedUsers.length;
 
@@ -179,6 +191,7 @@ function ClubElections() {
                           <div style={{ flex: 1, width: '100%' }}>
                             <strong style={{ display: 'block', fontSize: '1.1rem', color: 'var(--text-main)', marginBottom: '4px' }}>{candidateName}</strong>
                             <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>"{c.manifesto}"</span>
+                            
                             {election.isPublished && (
                               <div style={{ marginTop: '12px' }}>
                                 <div style={{ width: '100%', backgroundColor: 'var(--border-color)', borderRadius: '99px', height: '8px', overflow: 'hidden', marginBottom: '4px' }}>
@@ -188,7 +201,7 @@ function ClubElections() {
                               </div>
                             )}
                           </div>
-
+                          {/*show vote button or restricted warning*/}
                           {election.isActive && !hasVoted && (
                             hasPaidFees ? (
                               <button className="btn btn-success" style={{ padding: '8px 20px', width: '100%' }} onClick={() => handleVote(election._id, c._id)}>
@@ -237,6 +250,8 @@ function ClubElections() {
 
             <div style={{ marginBottom: '20px', padding: '20px', backgroundColor: 'var(--bg-color)', borderRadius: 'var(--radius-md)', border: '1px dashed var(--border-color)' }}>
               <label style={{ display: 'block', fontSize: '0.9rem', fontWeight: 'bold', marginBottom: '10px', color: 'var(--text-secondary)' }}>Build the Ballot (Candidates)</label>
+              
+              //display temoporary candidates
               {electionData.candidates.length > 0 && (
                 <ul style={{ paddingLeft: '20px', fontSize: '0.95rem', marginBottom: '15px', color: 'var(--text-main)' }}>
                   {electionData.candidates.map((c, idx) => {
@@ -251,7 +266,7 @@ function ClubElections() {
                 </ul>
               )}
               
-              {/* THE FIX: Added .flex-mobile-stack to fix squished form inputs */}
+              {/* .flex-mobile-stack to fix squished form inputs */}
               <div className="flex-mobile-stack" style={{ display: 'flex', gap: '10px' }}>
                 <select className="form-control" value={tempCandidate.candidateUserId} onChange={(e) => setTempCandidate({ ...tempCandidate, candidateUserId: e.target.value })} style={{ margin: 0, flex: 1 }}>
                   <option value="">-- Select Member --</option>

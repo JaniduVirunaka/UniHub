@@ -1,12 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
-const User = require('../models/User'); // The model we created earlier
+const User = require('../models/User'); 
 
 // SIGNUP ROUTE
 router.post('/signup', async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const email = req.body.email.toLowerCase();  //emails must be lowercase
+    const { name, password } = req.body;
 
     // 1. Check if user already exists
     const existingUser = await User.findOne({ email });
@@ -14,7 +15,7 @@ router.post('/signup', async (req, res) => {
       return res.status(400).json({ message: 'User with this email already exists.' });
     }
 
-    // 2. Hash the password
+    // 2. Hash the password with salt value
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
@@ -36,7 +37,8 @@ router.post('/signup', async (req, res) => {
 // LOGIN ROUTE
 router.post('/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const email = req.body.email.toLowerCase();
+    const password = req.body.password;
 
     // 1. Find the user by email
     const user = await User.findOne({ email });

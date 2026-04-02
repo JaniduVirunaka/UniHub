@@ -6,13 +6,15 @@ import ClubNavigation from '../components/ClubNavigation';
 function ClubAbout() {
   const { id } = useParams();
   const [club, setClub] = useState(null);
-
+  
+  // List of all available roles in the club for display purposes. This ensures we show all possible positions, even if currently vacant.
   const availableRoles = [
     "President", "Vice President", "Secretary", "Assistant Secretary",
     "Treasurer", "Assistant Treasurer", "Event Coordinator",
     "Public Relations", "Editor"
   ];
 
+  // Fetch the club's profile data as soon as the page loads
   useEffect(() => {
     axios.get(`http://localhost:5000/api/clubs/${id}`)
       .then(res => setClub(res.data))
@@ -24,7 +26,6 @@ function ClubAbout() {
  return (
     <div className="container">
       
-      {/* THE FIX: Added flexWrap: 'wrap' to prevent logo squishing */}
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '20px', marginBottom: '20px' }}>
         <div style={{ width: '80px', height: '80px', borderRadius: '50%', backgroundColor: 'var(--bg-color)', overflow: 'hidden', display: 'flex', justifyContent: 'center', alignItems: 'center', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)', flexShrink: 0 }}>
           {club.logoUrl ? (
@@ -53,7 +54,7 @@ function ClubAbout() {
           <h3 style={{ color: 'var(--primary-color)', marginTop: 0, borderBottom: '2px solid rgba(79, 70, 229, 0.2)', paddingBottom: '10px' }}>👔 Executive Board</h3>
           
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '15px', marginTop: '20px' }}>
-            {availableRoles.map(role => {
+            {availableRoles.map(role => { //loop through roles and get names
               let personName = 'Vacant';
               if (role === 'President') {
                 personName = club.president?.name || 'Vacant';
