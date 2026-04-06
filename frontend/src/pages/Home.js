@@ -18,31 +18,51 @@ function Home() {
 
  return (
     <div>
-      {/* Hero Section */}
+      {/* 1. UPGRADED HERO SECTION */}
       <div className="card" style={{ 
         textAlign: 'center', 
-        padding: '5rem 2rem', 
+        padding: '6rem 2rem', 
         background: 'linear-gradient(135deg, var(--primary-color), #8B5CF6)', 
         color: 'white',
         border: 'none',
-        boxShadow: 'var(--shadow-lg)'
+        boxShadow: 'var(--shadow-lg)',
+        position: 'relative',
+        overflow: 'hidden'
       }}>
-        <h1 style={{ fontSize: '3rem', margin: '0 0 1rem 0', color: 'white' }}>Welcome to UniHub</h1>
-        <p style={{ fontSize: '1.25rem', marginBottom: '2.5rem', opacity: 0.9, maxWidth: '600px', margin: '0 auto 2.5rem auto' }}>
-          Discover events, join clubs, and connect with your campus community.
+        <h1 style={{ fontSize: '3.5rem', margin: '0 0 1rem 0', color: 'white', letterSpacing: '-1px' }}>
+          Your Campus. <span style={{ color: '#FDE047' }}>Connected.</span>
+        </h1>
+        <p style={{ fontSize: '1.25rem', marginBottom: '2.5rem', opacity: 0.9, maxWidth: '600px', margin: '0 auto 2.5rem auto', lineHeight: '1.8' }}>
+          UniHub is the ultimate student experience platform. Discover upcoming events, join elite clubs, and track your campus legacy all in one place.
         </p>
         <div className="flex-mobile-stack" style={{ display: 'flex', justifyContent: 'center', gap: '15px' }}>
-          <Link to="/signup" className="btn" style={{ backgroundColor: 'white', color: 'var(--primary-color)' }}>
-            Get Started
+          <Link to="/signup" className="btn" style={{ backgroundColor: 'white', color: 'var(--primary-color)', padding: '12px 24px', fontSize: '1.1rem' }}>
+            Create Student Account
           </Link>
-          <Link to="/login" className="btn btn-outline" style={{ color: 'white', borderColor: 'white' }}>
+          <Link to="/login" className="btn btn-outline" style={{ color: 'white', borderColor: 'white', padding: '12px 24px', fontSize: '1.1rem' }}>
             Log In
           </Link>
         </div>
       </div>
 
-      {/* THE FIX: Replaced the inline flex with our responsive grid class */}
-      <div className="dashboard-grid-split" style={{ marginTop: '3rem' }}>
+      {/* 2. NEW: CAMPUS IMPACT METRICS (Eye Candy for the Invigilator) */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginTop: '-40px', padding: '0 20px', position: 'relative', zIndex: 10 }}>
+        <div className="card" style={{ textAlign: 'center', padding: '20px', marginBottom: 0, boxShadow: 'var(--shadow-md)' }}>
+          <h2 style={{ fontSize: '2.5rem', margin: 0, color: 'var(--primary-color)' }}>50+</h2>
+          <p style={{ margin: 0, color: 'var(--text-secondary)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px', fontSize: '0.85rem' }}>Active Clubs</p>
+        </div>
+        <div className="card" style={{ textAlign: 'center', padding: '20px', marginBottom: 0, boxShadow: 'var(--shadow-md)' }}>
+          <h2 style={{ fontSize: '2.5rem', margin: 0, color: 'var(--success)' }}>10k+</h2>
+          <p style={{ margin: 0, color: 'var(--text-secondary)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px', fontSize: '0.85rem' }}>Student Members</p>
+        </div>
+        <div className="card" style={{ textAlign: 'center', padding: '20px', marginBottom: 0, boxShadow: 'var(--shadow-md)' }}>
+          <h2 style={{ fontSize: '2.5rem', margin: 0, color: 'var(--warning)' }}>24/7</h2>
+          <p style={{ margin: 0, color: 'var(--text-secondary)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px', fontSize: '0.85rem' }}>Campus Events</p>
+        </div>
+      </div>
+
+      {/* 3. MAIN DASHBOARD CONTENT */}
+      <div className="dashboard-grid-split" style={{ marginTop: '4rem' }}>
         
         {/* --- LEFT COLUMN: CLUBS --- */}
         <div>
@@ -63,9 +83,9 @@ function Home() {
             )}
           </div>
           
-          <div style={{ textAlign: 'center', marginTop: '2rem' }}>
-            <Link to="/clubs" className="btn" style={{ backgroundColor: 'var(--text-secondary)' }}>
-              View All Clubs Directory →
+          <div style={{ textAlign: 'center', marginTop: '2.5rem' }}>
+            <Link to="/clubs" className="btn" style={{ backgroundColor: 'var(--text-secondary)', padding: '12px 30px' }}>
+              Explore the Full Directory &rarr;
             </Link>
           </div>
         </div>

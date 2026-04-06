@@ -40,6 +40,7 @@ function App() {
           <Route path="/signup" element={<Signup />} />
         
           <Route path="/events" element={<Events />} />
+          {/* <Route path="/sports" element={<Sports />} /> */} {/* Reusing Events component for Sports */}
           <Route path="/profile" element={<Profile />} />
       
         </Routes>

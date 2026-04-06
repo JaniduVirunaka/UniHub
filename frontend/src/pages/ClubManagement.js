@@ -7,15 +7,18 @@ function ClubManagement() {
   const [users, setUsers] = useState([]);
   const [formData, setFormData] = useState({ name: '', description: '', mission: '', presidentId: '', rulesAndRegulations: '', logoFile: null });
   const [editingClubId, setEditingClubId] = useState(null);
-  const [announcementData, setAnnouncementData] = useState({ title: '', content: '' });
   const [showCreateForm, setShowCreateForm] = useState(false);
   const navigate = useNavigate();
 
   const currentUser = JSON.parse(localStorage.getItem('user'));
 
+  // --- NEW: SEARCH & SORT STATES ---
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortOption, setSortOption] = useState('name-asc');
+  const [viewFilter, setViewFilter] = useState('all'); // 'all' or 'my-clubs'
+
   useEffect(() => {
     fetchClubs();
-    // Supervisors need the full user list to assign presidents to clubs
     if (currentUser && currentUser.role === 'supervisor') {
       axios.get('http://localhost:5000/api/auth/users')
         .then(res => setUsers(res.data))
@@ -29,7 +32,7 @@ function ClubManagement() {
       .catch(err => console.log(err));
   };
 
-  if (!currentUser) {  // must be logged in to view club directory
+  if (!currentUser) {
     return (
       <div className="card" style={{ textAlign: 'center', marginTop: '2rem' }}>
         <h2>Access Denied</h2>
@@ -39,7 +42,7 @@ function ClubManagement() {
     );
   }
 
-  //uses formdata so that files can be sent
+  // --- SUPERVISOR FORMS & LOGIC (Unchanged) ---
   const handleCreateClub = (e) => {
     e.preventDefault();
     const data = new FormData();
@@ -88,13 +91,10 @@ function ClubManagement() {
       .catch(err => alert(err.response?.data?.message || "Error updating club."));
   };
 
-  //filter logic to omit current presidents when assigning new presidents
   const eligibleUsers = users.filter(user => {
     if (user.role !== 'student') return false;
-    
     const isBusyElsewhere = clubs.some(c => {
       if (editingClubId && c._id === editingClubId) return false;
-      
       const isPres = (c.president?._id === user._id) || (c.president === user._id);
       const isVP = c.topBoard?.some(b => ((b.user?._id === user._id) || (b.user === user._id)) && b.role === 'Vice President');
       return isPres || isVP;
@@ -102,7 +102,6 @@ function ClubManagement() {
 
     if (isBusyElsewhere) return false;
 
-    //if club already has members, show only the current members to the list
     const currentClub = editingClubId ? clubs.find(c => c._id === editingClubId) : null;
     const hasMembers = currentClub?.members?.length > 0;
     const isCurrentPresident = editingClubId && formData.presidentId === user._id;
@@ -138,13 +137,46 @@ function ClubManagement() {
     (club.announcements || []).filter(ann => !ann.isApproved).map(ann => ({ ...ann, clubName: club.name, clubId: club._id }))
   );
 
+
+  // --- NEW: THE LIVE SEARCH & SORT ENGINE ---
+  
+  // 1. First, we filter based on the Tabs (All vs My Clubs) and the Search Bar
+  const filteredClubs = clubs.filter(club => {
+    // Tab Filter
+    if (viewFilter === 'my-clubs') {
+      const isMember = club.members.some(m => m._id === currentUser.id);
+      const isPresident = club.president?._id === currentUser.id;
+      if (!isMember && !isPresident) return false;
+    }
+
+    // Search Bar Filter (Checks if typed text is in the name or description)
+    if (searchTerm) {
+      const lowerCaseSearch = searchTerm.toLowerCase();
+      const matchName = club.name.toLowerCase().includes(lowerCaseSearch);
+      const matchDesc = club.description.toLowerCase().includes(lowerCaseSearch);
+      if (!matchName && !matchDesc) return false;
+    }
+
+    return true;
+  });
+
+  // 2. Second, we sort the filtered array based on the Dropdown selection
+  const filteredAndSortedClubs = filteredClubs.sort((a, b) => {
+    if (sortOption === 'name-asc') return a.name.localeCompare(b.name);
+    if (sortOption === 'name-desc') return b.name.localeCompare(a.name);
+    if (sortOption === 'members-desc') return (b.members?.length || 0) - (a.members?.length || 0);
+    if (sortOption === 'fee-desc') return (b.membershipFee || 0) - (a.membershipFee || 0);
+    if (sortOption === 'fee-asc') return (a.membershipFee || 0) - (b.membershipFee || 0);
+    return 0;
+  });
+
+
   return (
     <div>
       {/* SUPERVISOR DASHBOARD */}
       {currentUser.role === 'supervisor' && (
         <div style={{ marginBottom: '30px' }}>
           
-          {/* BIG DATA GLOBAL ANALYTICS BUTTON */}
           <div className="card flex-mobile-stack" style={{ backgroundColor: 'var(--primary-light)', border: '1px solid var(--primary-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px' }}>
             <div>
               <h3 style={{ color: 'var(--primary-color)', margin: '0 0 5px 0' }}>📈 Global Financial Matrix</h3>
@@ -185,7 +217,6 @@ function ClubManagement() {
             )}
           </div>
 
-          {/* CLUB MANAGEMENT TOGGLE */}
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '15px' }}>
             <button 
               className="btn" 
@@ -232,30 +263,75 @@ function ClubManagement() {
         </div>
       )}
 
-    {/* ------ GLOBAL CLUB DIRECTORY -------- */}
+    {/* --- GLOBAL CLUB DIRECTORY --- */}
       <div className="card">
-        <div className="flex-mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid var(--border-color)', paddingBottom: '15px', marginBottom: '25px', flexWrap: 'wrap', gap: '15px' }}>
+        
+        {/* HEADER & TABS */}
+        <div className="flex-mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '15px' }}>
           <h2 style={{ margin: 0, color: 'var(--text-main)' }}>Club Directory</h2>
           
-          {/* Filtering Tabs */}
           {currentUser.role === 'student' && (
             <div className="flex-mobile-stack" style={{ display: 'flex', gap: '10px' }}>
-              <button className="btn" style={{ padding: '8px 16px', fontSize: '0.9rem' }} onClick={() => fetchClubs()}>Explore All Clubs</button>
-              <button className="btn btn-success" style={{ padding: '8px 16px', fontSize: '0.9rem' }} onClick={() => {
-                  const myClubs = clubs.filter(club => club.members.some(m => m._id === currentUser.id));
-                  setClubs(myClubs);
-                }}>My Registered Clubs</button>
+              <button 
+                className={viewFilter === 'all' ? "btn" : "btn btn-outline"} 
+                style={{ padding: '8px 16px', fontSize: '0.9rem' }} 
+                onClick={() => setViewFilter('all')}
+              >
+                Explore All Clubs
+              </button>
+              <button 
+                className={viewFilter === 'my-clubs' ? "btn btn-success" : "btn btn-outline"} 
+                style={{ padding: '8px 16px', fontSize: '0.9rem' }} 
+                onClick={() => setViewFilter('my-clubs')}
+              >
+                My Registered Clubs
+              </button>
             </div>
           )}
         </div>
 
-        {clubs.length === 0 ? (
+        {/* --- NEW: SEARCH & SORT UI BAR --- */}
+        <div className="flex-mobile-stack" style={{ display: 'flex', gap: '15px', marginBottom: '30px', backgroundColor: 'var(--bg-color)', padding: '15px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+          <div style={{ flex: 2, position: 'relative' }}>
+            <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }}>🔍</span>
+            <input 
+              type="text" 
+              className="form-control" 
+              placeholder="Search for a club by name or description..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{ paddingLeft: '35px', margin: 0 }}
+            />
+          </div>
+          
+          <div style={{ flex: 1, minWidth: '200px' }}>
+            <select 
+              className="form-control" 
+              value={sortOption} 
+              onChange={(e) => setSortOption(e.target.value)}
+              style={{ margin: 0, cursor: 'pointer' }}
+            >
+              <option value="name-asc">Sort: A-Z</option>
+              <option value="name-desc">Sort: Z-A</option>
+              <option value="members-desc">Sort: Most Members</option>
+              <option value="fee-desc">Sort: Highest Fee</option>
+              <option value="fee-asc">Sort: Lowest Fee</option>
+            </select>
+          </div>
+        </div>
+
+        {/* --- DYNAMIC GRID --- */}
+        {/* Notice we map over 'filteredAndSortedClubs', NOT the original 'clubs' array */}
+        {filteredAndSortedClubs.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '3rem', backgroundColor: 'var(--bg-color)', borderRadius: 'var(--radius-md)' }}>
-            <p style={{ color: 'var(--text-muted)', margin: 0 }}>No clubs found in this view.</p>
+            <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: '1.1rem' }}>No clubs match your search criteria.</p>
+            {searchTerm && (
+              <button className="btn btn-outline" style={{ marginTop: '15px' }} onClick={() => setSearchTerm('')}>Clear Search</button>
+            )}
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '25px' }}>
-            {clubs.map(club => (
+            {filteredAndSortedClubs.map(club => (
               <div key={club._id} className="card card-hover" style={{ marginBottom: 0, padding: '1.5rem', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
                 
                 {/* Visual Badges */}
@@ -271,8 +347,14 @@ function ClubManagement() {
                   <h3 style={{ color: 'var(--text-main)', margin: 0, fontSize: '1.2rem', paddingRight: '70px' }}>{club.name}</h3>
                 </div>
 
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', flex: 1, margin: '0 0 20px 0' }}>{club.description.substring(0, 120)}...</p>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', flex: 1, margin: '0 0 15px 0' }}>{club.description.substring(0, 120)}...</p>
                 
+                {/* Quick Stats for the UI */}
+                <div style={{ display: 'flex', gap: '15px', marginBottom: '20px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>👥 {club.members?.length || 0} Members</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>💳 Rs. {club.membershipFee || 0}</span>
+                </div>
+
                 <div className="flex-mobile-stack" style={{ display: 'flex', gap: '10px', marginTop: 'auto' }}>
                   <button className="btn btn-outline" style={{ flex: 1 }} onClick={() => navigate(`/clubs/${club._id}`)}>View Hub</button>
                   
