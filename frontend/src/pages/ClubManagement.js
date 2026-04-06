@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 function ClubManagement() {
   const [clubs, setClubs] = useState([]);
   const [users, setUsers] = useState([]);
-  const [formData, setFormData] = useState({ name: '', description: '', mission: '', presidentId: '', rulesAndRegulations: '', logoFile: null });
+  const [formData, setFormData] = useState({ name: '', description: '', mission: '', presidentId: '', rulesAndRegulations: '', membershipFee: '', logoFile: null });
   const [editingClubId, setEditingClubId] = useState(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const navigate = useNavigate();
@@ -51,6 +51,7 @@ function ClubManagement() {
     data.append('description', formData.description);
     data.append('mission', formData.mission);
     data.append('rulesAndRegulations', formData.rulesAndRegulations);
+    data.append('membershipFee', formData.membershipFee);
     if (formData.presidentId) data.append('presidentId', formData.presidentId);
     if (formData.logoFile) data.append('logo', formData.logoFile); 
 
@@ -68,7 +69,7 @@ function ClubManagement() {
     setEditingClubId(club._id);
     setFormData({
       name: club.name, description: club.description, mission: club.mission,
-      rulesAndRegulations: club.rulesAndRegulations || '', presidentId: club.president?._id || '', logoFile: null
+      rulesAndRegulations: club.rulesAndRegulations || '', membershipFee: club.membershipFee || 0, presidentId: club.president?._id || '', logoFile: null
     });
     window.scrollTo(0, 0); 
   };
@@ -81,12 +82,13 @@ function ClubManagement() {
     data.append('description', formData.description);
     data.append('mission', formData.mission);
     data.append('rulesAndRegulations', formData.rulesAndRegulations);
+    data.append('membershipFee', formData.membershipFee);
     data.append('presidentId', formData.presidentId);
     if (formData.logoFile) data.append('logo', formData.logoFile);
 
     axios.put(`http://localhost:5000/api/clubs/${editingClubId}`, data, { headers: { 'Content-Type': 'multipart/form-data' } })
       .then(() => {
-        fetchClubs(); setEditingClubId(null); setFormData({ name: '', description: '', mission: '', presidentId: '', rulesAndRegulations: '', logoFile: null }); setShowCreateForm(false); alert("Club updated successfully!");
+        fetchClubs(); setEditingClubId(null); setFormData({ name: '', description: '', mission: '', presidentId: '', rulesAndRegulations: '', membershipFee: '', logoFile: null }); setShowCreateForm(false); alert("Club updated successfully!");
       })
       .catch(err => alert(err.response?.data?.message || "Error updating club."));
   };
@@ -241,6 +243,10 @@ function ClubManagement() {
                 <div className="form-group"><textarea className="form-control" placeholder="Rules & Regulations" value={formData.rulesAndRegulations} onChange={(e) => setFormData({...formData, rulesAndRegulations: e.target.value})} rows="4" required /></div>
                 
                 <div className="form-group">
+                  <input type="number" className="form-control" placeholder="Annual Membership Fee (Rs.)" value={formData.membershipFee} onChange={(e) => setFormData({...formData, membershipFee: e.target.value})} required min="0" />
+                </div>
+
+                <div className="form-group">
                   <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '5px' }}>Club Logo (Optional)</label>
                   <input type="file" className="form-control" accept="image/*" onChange={(e) => setFormData({...formData, logoFile: e.target.files[0]})} />
                 </div>
@@ -334,10 +340,28 @@ function ClubManagement() {
             {filteredAndSortedClubs.map(club => (
               <div key={club._id} className="card card-hover" style={{ marginBottom: 0, padding: '1.5rem', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
                 
-                {/* Visual Badges */}
-                <div style={{ position: 'absolute', top: '15px', right: '15px', display: 'flex', gap: '5px' }}>
-                  {club.members?.some(m => m._id === currentUser.id) && <span className="badge" style={{ backgroundColor: 'var(--success-bg)', color: 'var(--success)' }}>Member</span>}
-                  {club.president?._id === currentUser.id && <span className="badge" style={{ backgroundColor: 'var(--primary-light)', color: 'var(--primary-color)' }}>President</span>}
+               {/* --- UPGRADED: Visual Badges & Automated Health Metrics --- */}
+                <div style={{ position: 'absolute', top: '15px', right: '15px', display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', gap: '5px', maxWidth: '60%' }}>
+                  
+                  {/* 1. User Role Badges */}
+                  {club.president?._id === currentUser.id && <span className="badge" style={{ backgroundColor: 'var(--primary-light)', color: 'var(--primary-color)' }}>👑 President</span>}
+                  {club.members?.some(m => m._id === currentUser.id) && club.president?._id !== currentUser.id && <span className="badge" style={{ backgroundColor: 'var(--success-bg)', color: 'var(--success)' }}>Member</span>}
+                  
+                  {/* 2. Automated "Smart" Badges */}
+                  {/* Triggers if the club has 3 or more members */}
+                  {club.members?.length >= 3 && (
+                    <span className="badge" style={{ backgroundColor: '#fee2e2', color: '#ef4444' }}>🔥 Trending</span>
+                  )}
+                  
+                  {/* Triggers if the backend election array has an active voting session */}
+                  {club.elections?.some(e => e.isActive) && (
+                    <span className="badge" style={{ backgroundColor: '#fef3c7', color: '#d97706' }}>🗳️ Elections Live</span>
+                  )}
+                  
+                  {/* Triggers if the club has an active corporate funding proposal */}
+                  {club.proposals?.some(p => p.isActive) && (
+                    <span className="badge" style={{ backgroundColor: '#e0e7ff', color: '#2563eb' }}>🤝 Seeking Sponsors</span>
+                  )}
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '15px' }}>

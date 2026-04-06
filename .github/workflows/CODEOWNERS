@@ -1,0 +1,29 @@
+# This file dictates who owns the core architectural files.
+# No one can merge changes to these files without approval from the Tech Lead.
+
+# Frontend Files
+/frontend/src/components/Navbar.js @JaniduVirunaka
+/frontend/src/components/ClubNavigation.js @JaniduVirunaka
+
+/frontend/src/pages/AchievementShowcase.js @JaniduVirunaka
+/frontend/src/pages/ClubAbout.js @JaniduVirunaka
+/frontend/src/pages/ClubDetail.js @JaniduVirunaka
+/frontend/src/pages/ClubElection.js @JaniduVirunaka
+/frontend/src/pages/ClubFinanceHub.js @JaniduVirunaka
+/frontend/src/pages/ClubManagement.js @JaniduVirunaka
+/frontend/src/pages/GlobalAnalytics.js @JaniduVirunaka
+/frontend/src/pages/Sponsorships.js @JaniduVirunaka
+/frontend/src/pages/Home.js @JaniduVirunaka
+
+/frontend/src/pages/Login.js @JaniduVirunaka
+/frontend/src/pages/Signup.js @JaniduVirunaka
+
+/frontend/src/App.js @JaniduVirunaka  
+
+
+# Backend Files
+/backend/routes/authRoutes.js @JaniduVirunaka
+/backend/routes/clubRoutes.js @JaniduVirunaka
+
+/backend/models/User.js @JaniduVirunaka
+/backend/models/Club.js @JaniduVirunaka

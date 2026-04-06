@@ -186,8 +186,12 @@ router.post('/', upload.single('logo'), async (req, res) => {
 // 2. Update a club (SUPERVISOR ONLY)
 router.put('/:id', upload.single('logo'), async (req, res) => {
   try {
-    const { name, description, mission, presidentId, supervisorId, rulesAndRegulations } = req.body;
+    // We explicitly extract membershipFee from req.body
+    const { name, description, mission, presidentId, supervisorId, rulesAndRegulations, membershipFee } = req.body;
     
+    // DEBUG TOOL: This will print the incoming data to your VS Code terminal!
+    console.log("INCOMING UPDATE DATA:", req.body); 
+
     const requestor = await User.findById(supervisorId);
     if (!requestor || requestor.role !== 'supervisor') {
       return res.status(403).json({ message: "Access Denied." });
@@ -216,8 +220,12 @@ router.put('/:id', upload.single('logo'), async (req, res) => {
     club.description = description || club.description;
     club.mission = mission || club.mission;
     club.rulesAndRegulations = rulesAndRegulations || club.rulesAndRegulations;
+    
+    // Apply the membership fee update securely
+    if (membershipFee !== undefined) {
+      club.membershipFee = Number(membershipFee);
+    }
 
-    // Update the logo only if a new file was uploaded
     if (req.file) {
       club.logoUrl = `/uploads/${req.file.filename}`;
     }
