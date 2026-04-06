@@ -6,8 +6,8 @@ frontend terminal ----> cd frontend
 
 
 
-ClubAdmin@gmail.com
-ClubAdmin
+clubadmin@gmail.com
+clubadmin
 
 business@gmail.com
 business
@@ -30,11 +30,11 @@ john
 maya@gmail.com   --> rotaract member
 maya
 
-sath@gmail.com  --> member of all clubs
-sath
-
 alex@gmail.com  --> photography president
 alex
+
+sath@gmail.com  --> photography treasurer/member of all clubs 
+sath
 
 jordan@gmail.com  --> gaming president
 jordan

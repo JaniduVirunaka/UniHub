@@ -28,6 +28,10 @@ function Navbar() {
         <Link to="/" className="nav-link">Home</Link>
         <Link to="/clubs" className="nav-link">Clubs</Link>
         <Link to="/events" className="nav-link">Events</Link>
+        
+        {/* NEW: Added the Sports Route for your teammate right here! */}
+        <Link to="/sports" className="nav-link">Sports</Link>
+        
         <Link to="/profile" className="nav-link">Profile</Link>
 
         {/* Theme Toggle Button */}
@@ -42,7 +46,7 @@ function Navbar() {
           {theme === 'light' ? '🌙' : '☀️'}
         </button>
 
-        {/* Auth Buttons - USING NEW RESPONSIVE DIVIDER CLASS */}
+        {/* Auth Buttons */}
         <div className="nav-divider"></div>
         <Link to="/login" className="nav-link" style={{ fontWeight: '700' }}>Login</Link>
         <Link to="/signup" className="btn" style={{ padding: '0.5rem 1.25rem' }}>Sign Up</Link>

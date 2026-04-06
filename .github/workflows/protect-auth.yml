@@ -1,0 +1,29 @@
+name: 🛡️ Protect Core Architecture
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  block_unauthorized_edits:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Scan PR for Restricted Files
+        run: |
+          # This checks the PR for any changes to the core auth files
+          RESTRICTED_FILES=$(git diff --name-only origin/main...${{ github.event.pull_request.head.sha }} | grep -E 'Login\.js|Signup\.js|App\.js|auth\.js|User\.js' || true)
+          
+          if [ -n "$RESTRICTED_FILES" ]; then
+            echo "🚨 ARCHITECTURE VIOLATION DETECTED 🚨"
+            echo "You have modified core authentication or routing files:"
+            echo "$RESTRICTED_FILES"
+            echo "Please remove these files from your commit before merging!"
+            exit 1 # This command instantly fails the GitHub Action and blocks the merge!
+          else
+            echo "✅ No core files touched. Safe to proceed."
+          fi
