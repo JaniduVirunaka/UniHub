@@ -1,5 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { GoogleOAuthProvider } from '@react-oauth/google';
+
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import ClubManagement from './pages/ClubManagement';
@@ -19,6 +21,7 @@ import './App.css';
 
 function App() {
   return (
+    <GoogleOAuthProvider clientId="565636881036-t3jicm0kuom2b1o9b5avkf62ijbpjo6n.apps.googleusercontent.com">
     <Router>
       <Navbar /> 
       <div className="container">
@@ -46,6 +49,7 @@ function App() {
         </Routes>
       </div>
     </Router>
+    </GoogleOAuthProvider>
   );
 }
 

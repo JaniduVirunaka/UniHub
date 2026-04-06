@@ -3,6 +3,9 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const User = require('../models/User'); 
 
+const { OAuth2Client } = require('google-auth-library');
+const googleClient = new OAuth2Client("565636881036-t3jicm0kuom2b1o9b5avkf62ijbpjo6n.apps.googleusercontent.com");
+
 // SIGNUP ROUTE
 router.post('/signup', async (req, res) => {
   try {
@@ -71,6 +74,52 @@ router.get('/users', async (req, res) => {
     res.status(200).json(users);
   } catch (err) {
     res.status(500).json({ message: err.message });
+  }
+});
+
+// --- NEW: GOOGLE OAUTH ROUTE ---
+router.post('/google', async (req, res) => {
+  try {
+    const { token } = req.body;
+
+    // 1. Verify the VIP ticket with Google's servers
+    const ticket = await googleClient.verifyIdToken({
+      idToken: token,
+      audience: "565636881036-t3jicm0kuom2b1o9b5avkf62ijbpjo6n.apps.googleusercontent.com",
+    });
+    
+    // Extract their payload (Name and Email) from the verified ticket
+    const payload = ticket.getPayload();
+    const email = payload.email.toLowerCase();
+    const name = payload.name;
+
+    // 2. Check if this person already exists in our database
+    let user = await User.findOne({ email });
+
+    if (user) {
+      // SCENARIO A: They exist! (Even if they originally signed up via email, we let them in)
+      return res.status(200).json({ 
+        message: 'Google Login successful', 
+        user: { id: user._id, name: user.name, email: user.email, role: user.role } 
+      });
+    } else {
+      // SCENARIO B: Brand new user! Create them silently.
+      user = new User({
+        name: name,
+        email: email,
+        authProvider: 'google'
+        // Notice we DO NOT save a password here!
+      });
+      
+      await user.save();
+      return res.status(201).json({ 
+        message: 'Google Signup successful', 
+        user: { id: user._id, name: user.name, email: user.email, role: user.role } 
+      });
+    }
+  } catch (err) {
+    console.error("Google Auth Error:", err);
+    res.status(500).json({ message: "Failed to authenticate with Google." });
   }
 });
 
