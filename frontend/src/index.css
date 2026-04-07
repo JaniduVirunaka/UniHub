@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
@@ -5,6 +9,13 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  /* Dark background for sport pages; club pages override locally */
+  background: radial-gradient(circle at top left, rgba(38, 208, 124, 0.12), transparent 30%),
+              radial-gradient(circle at top right, rgba(59, 130, 246, 0.10), transparent 28%),
+              linear-gradient(135deg, #071019 0%, #0c1624 45%, #08131d 100%);
+  min-height: 100vh;
+  color: #e5eef7;
 }
 
 code {

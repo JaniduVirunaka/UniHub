@@ -1,26 +1,15 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 function Profile() {
   const navigate = useNavigate();
-  
-  // Grab the current logged-in user to display their details
-  const currentUser = JSON.parse(localStorage.getItem('user'));
+  const { user: currentUser, logout } = useAuth();
 
-  // If someone tries to access /profile without logging in, boot them to login
-  if (!currentUser) {
-    return (
-      <div className="card" style={{ textAlign: 'center', marginTop: '2rem' }}>
-        <h2>Access Denied</h2>
-        <p>You must be logged in to view your profile.</p>
-        <button className="btn" onClick={() => navigate('/login')}>Go to Login</button>
-      </div>
-    );
-  }
+  if (!currentUser) return <Navigate to="/login" replace />;
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    logout();
     navigate('/login');
   };
 
