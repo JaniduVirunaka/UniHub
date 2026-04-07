@@ -1,10 +1,14 @@
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
-const User = require('../models/User'); 
+const jwt = require('jsonwebtoken');
+const User = require('../models/User');
 
 const { OAuth2Client } = require('google-auth-library');
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+const signToken = (user) =>
+  jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
 
 // SIGNUP ROUTE
 router.post('/signup', async (req, res) => {
@@ -30,7 +34,8 @@ router.post('/signup', async (req, res) => {
     });
     
     await newUser.save();
-    res.status(201).json({ message: 'User created successfully!' });
+    const token = signToken(newUser);
+    res.status(201).json({ token, user: { id: newUser._id, name: newUser.name, email: newUser.email, role: newUser.role } });
 
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -55,11 +60,9 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ message: 'Invalid email or password.' });
     }
 
-    // 3. If successful, send back the user data (excluding the password)
-    res.status(200).json({ 
-      message: 'Login successful', 
-      user: { id: user._id, name: user.name, email: user.email, role: user.role } 
-    });
+    // 3. If successful, issue JWT and return user data
+    const token = signToken(user);
+    res.status(200).json({ token, user: { id: user._id, name: user.name, email: user.email, role: user.role } });
 
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -97,25 +100,15 @@ router.post('/google', async (req, res) => {
     let user = await User.findOne({ email });
 
     if (user) {
-      // SCENARIO A: They exist! (Even if they originally signed up via email, we let them in)
-      return res.status(200).json({ 
-        message: 'Google Login successful', 
-        user: { id: user._id, name: user.name, email: user.email, role: user.role } 
-      });
+      // SCENARIO A: They exist — issue token and return user
+      const token = signToken(user);
+      return res.status(200).json({ token, user: { id: user._id, name: user.name, email: user.email, role: user.role } });
     } else {
-      // SCENARIO B: Brand new user! Create them silently.
-      user = new User({
-        name: name,
-        email: email,
-        authProvider: 'google'
-        // Notice we DO NOT save a password here!
-      });
-      
+      // SCENARIO B: Brand new user — create silently then issue token
+      user = new User({ name, email, authProvider: 'google' });
       await user.save();
-      return res.status(201).json({ 
-        message: 'Google Signup successful', 
-        user: { id: user._id, name: user.name, email: user.email, role: user.role } 
-      });
+      const token = signToken(user);
+      return res.status(201).json({ token, user: { id: user._id, name: user.name, email: user.email, role: user.role } });
     }
   } catch (err) {
     console.error("Google Auth Error:", err);

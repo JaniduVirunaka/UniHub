@@ -17,6 +17,7 @@ function Login() {
             const user = response.data.user;
 
             // Save user info to local storage
+            localStorage.setItem('token', response.data.token);
             localStorage.setItem('user', JSON.stringify(user));
             alert(`Welcome back, ${user.name}!`);
 
@@ -50,6 +51,7 @@ function Login() {
       });
       
       const user = res.data.user;
+      localStorage.setItem('token', res.data.token);
       localStorage.setItem('user', JSON.stringify(user));
       alert(`Welcome, ${user.name}!`);
 

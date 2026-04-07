@@ -18,7 +18,11 @@ function Profile() {
     );
   }
 
-  // TODO: [Teammate Name] - Add functions for logging out or editing profile details
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    navigate('/login');
+  };
 
   return (
     <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
@@ -35,8 +39,7 @@ function Profile() {
         </span>
         
         <div style={{ marginTop: '20px' }}>
-          {/* TODO: [Teammate Name] - Wire up a real logout function that clears localStorage */}
-          <button className="btn" style={{ backgroundColor: '#ef4444', width: '100%' }}>Log Out</button>
+          <button className="btn" style={{ backgroundColor: '#ef4444', width: '100%' }} onClick={handleLogout}>Log Out</button>
         </div>
       </div>
 

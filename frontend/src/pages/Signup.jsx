@@ -30,6 +30,7 @@ function Signup() {
       });
       
       const user = res.data.user;
+      localStorage.setItem('token', res.data.token);
       localStorage.setItem('user', JSON.stringify(user));
       alert(`Welcome, ${user.name}!`);
 

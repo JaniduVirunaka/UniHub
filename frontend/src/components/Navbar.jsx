@@ -29,7 +29,7 @@ function Navbar() {
         <Link to="/clubs" className="nav-link">Clubs</Link>
         <Link to="/events" className="nav-link">Events</Link>
         
-        {/* NEW: Added the Sports Route for your teammate right here! */}
+        {/* Sports link — route provided by sport-management module */}
         <Link to="/sports" className="nav-link">Sports</Link>
         
         <Link to="/profile" className="nav-link">Profile</Link>

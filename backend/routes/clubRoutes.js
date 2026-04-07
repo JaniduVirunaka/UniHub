@@ -4,7 +4,11 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const Club = require('../models/Club');
-const User = require('../models/User'); // We need the user model to fetch names
+const User = require('../models/User');
+const { protect } = require('../middleware/authMiddleware');
+
+// All club routes require a valid JWT
+router.use(protect);
 
 
 // --- MULTER CONFIGURATION ---
