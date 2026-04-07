@@ -1,112 +1,114 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import axios from 'axios';
-import { GoogleLogin } from '@react-oauth/google';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { authService } from '../services/services';
 
-function Login() {
-    const [formData, setFormData] = useState({ email: '', password: '' });
-    const [error, setError] = useState('');
-    const navigate = useNavigate();
+export const Login = () => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+  const { login } = useAuth();
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setError('');
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
 
-        try {
-            const response = await axios.post('http://localhost:5000/api/auth/login', formData);
-            const user = response.data.user;
-
-            // Save user info to local storage
-            localStorage.setItem('user', JSON.stringify(user));
-            alert(`Welcome back, ${user.name}!`);
-
-            // --- SMART ROUTING LOGIC ---
-            if (user.role === 'president') {
-                // Fetch all clubs to find which one this president owns
-                const clubsRes = await axios.get('http://localhost:5000/api/clubs');
-                const myClub = clubsRes.data.find(c => c.president?._id === user.id || c.president === user.id);
-
-                if (myClub) {
-                    navigate(`/clubs/${myClub._id}`); // Send directly to their club page
-                } else {
-                    navigate('/clubs'); // Fallback just in case
-                }
-            } else {
-                // Students and Supervisors go to the main directory
-                navigate('/clubs');
-            }
-
-        } catch (err) {
-            setError(err.response?.data?.message || 'Invalid email or password.');
-        }
-    };
-
-    // --- NEW: GOOGLE SUCCESS HANDLER ---
-  const handleGoogleSuccess = async (credentialResponse) => {
     try {
-      // We send the secure Google token to our new backend route
-      const res = await axios.post('http://localhost:5000/api/auth/google', {
-        token: credentialResponse.credential
-      });
-      
-      const user = res.data.user;
-      localStorage.setItem('user', JSON.stringify(user));
-      alert(`Welcome, ${user.name}!`);
+      const response = await authService.login(email, password);
+      const { user, token } = response.data;
 
-      // SMART ROUTING
-      if (user.role === 'president') {
-        const clubsRes = await axios.get('http://localhost:5000/api/clubs');
-        const myClub = clubsRes.data.find(c => c.president?._id === user.id || c.president === user.id);
-        if (myClub) navigate(`/clubs/${myClub._id}`);
-        else navigate('/clubs');
-      } else {
-        navigate('/clubs');
-      }
+      // Store token and user data
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user));
+
+      // Update auth context
+      login(user);
+
+      // Redirect to home
+      navigate('/');
     } catch (err) {
-      setError('Google Authentication Failed.');
+      setError(err?.response?.data?.message || 'Login failed. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
-    return (
-        <div className="card" style={{ maxWidth: '400px', margin: '4rem auto' }}>
-        <h2 style={{ textAlign: 'center', color: 'var(--primary-color)' }}>Welcome Back</h2>
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center px-4">
+      <div className="w-full max-w-md">
+        <div className="bg-white rounded-lg shadow-2xl p-8">
+          <div className="text-center mb-8">
+            <h1 className="text-4xl font-bold text-blue-600 mb-2">UniHub</h1>
+            <p className="text-gray-600">University Event & Club Management</p>
+          </div>
 
-        {error && <div style={{ color: 'red', marginBottom: '1rem', textAlign: 'center' }}>{error}</div>}
+          <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">Login</h2>
 
-        <form onSubmit={handleSubmit}>
-            <div className="form-group">
-                <input type="email" className="form-control" placeholder="University Email" required
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
+          {error && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg mb-4">
+              {error}
             </div>
-            <div className="form-group">
-                <input type="password" className="form-control" placeholder="Password" required
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })} />
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-gray-700 font-medium mb-2">Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                placeholder="your@email.com"
+                required
+              />
             </div>
-            <button type="submit" className="btn" style={{ width: '100%' }}>Log In</button>
-        </form>
 
-        {/* --- NEW: THE GOOGLE BUTTON --- */}
-        <div style={{ display: 'flex', alignItems: 'center', margin: '1.5rem 0' }}>
-            <hr style={{ flex: 1, borderColor: 'var(--border-color)', margin: 0 }} />
-            <span style={{ padding: '0 10px', color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: 'bold' }}>OR</span>
-            <hr style={{ flex: 1, borderColor: 'var(--border-color)', margin: 0 }} />
-        </div>
+            <div>
+              <label className="block text-gray-700 font-medium mb-2">Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                placeholder="••••••••"
+                required
+              />
+            </div>
 
-        <div style={{ display: 'flex', justifyContent: 'center' }}>
-            <GoogleLogin 
-              onSuccess={handleGoogleSuccess} 
-              onError={() => setError('Google Login Failed')} 
-              theme="outline"
-              size="large"
-            />
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-bold py-2 px-4 rounded-lg transition duration-200"
+            >
+              {loading ? 'Logging in...' : 'Login'}
+            </button>
+          </form>
+
+          <div className="mt-6 text-center">
+            <p className="text-gray-600">
+              Don't have an account?{' '}
+              <button
+                onClick={() => navigate('/register')}
+                className="text-blue-600 hover:text-blue-800 font-semibold"
+              >
+                Register here
+              </button>
+            </p>
+          </div>
+
+          {/* Demo credentials hint */}
+          <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <p className="text-sm text-gray-700 text-center">
+              <strong>Test Account:</strong> <br/>
+              Email: student@unihub.test <br/>
+              Password: Password123!
+            </p>
+          </div>
         </div>
-        {/* ----------------------------- */}
-        
-        <p style={{ textAlign: 'center', marginTop: '1rem' }}>
-            Don't have an account? <Link to="/signup">Sign up here</Link>
-        </p>
+      </div>
     </div>
-);
-}
-
-export default Login;
+  );
+};

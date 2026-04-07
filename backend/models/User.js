@@ -1,24 +1,50 @@
 const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  email: { type: String, required: true, unique: true },
-  
-  // THE FIX: Password is no longer 'required: true' because Google users won't have one!
-  password: { type: String }, 
-  
-  role: { 
-    type: String, 
-    enum: ['student', 'president', 'supervisor'], 
-    default: 'student'
-  },
-
-  // NEW: We add an authProvider tag so we know how they created their account
-  authProvider: {
+  name: {
     type: String,
-    enum: ['local', 'google'],
-    default: 'local'
+    required: true
+  },
+  email: {
+    type: String,
+    required: true,
+    unique: true
+  },
+  password: {
+    type: String,
+    required: true
+  },
+  studentId: {
+    type: String,
+    required: true,
+    unique: true
+  },
+  department: String,
+  year: Number,
+  phone: String,
+  profilePicture: String,
+  role: {
+    type: String,
+    enum: ['user', 'admin'],
+    default: 'user'
+  },
+  registeredAt: {
+    type: Date,
+    default: Date.now
   }
 });
+
+// Hash password before saving
+userSchema.pre('save', async function(next) {
+  if (!this.isModified('password')) return next();
+  this.password = await bcrypt.hash(this.password, 10);
+  next();
+});
+
+// Compare password method
+userSchema.methods.comparePassword = async function(password) {
+  return bcrypt.compare(password, this.password);
+};
 
 module.exports = mongoose.model('User', userSchema);
