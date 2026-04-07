@@ -4,29 +4,33 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const Club = require('../models/Club');
-const User = require('../models/User'); // We need the user model to fetch names
+const User = require('../models/User');
+const { protect } = require('../middleware/authMiddleware');
+
+// All club routes require a valid JWT
+router.use(protect);
 
 
 // --- MULTER CONFIGURATION ---
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, 'uploads/'); // Saves to the folder 
+    cb(null, 'uploads/'); // Saves to the folder
   },
   filename: function (req, file, cb) {
     // Gives the file a unique timestamped name
-    cb(null, Date.now() + path.extname(file.originalname)); 
+    cb(null, Date.now() + path.extname(file.originalname));
   }
 });
 const upload = multer({ storage: storage });
 
 
-// Get all clubs 
+// Get all clubs
 router.get('/', async (req, res) => {
   try {
     const clubs = await Club.find()
       .populate('president', 'name')
       .populate('pendingMembers', 'name email')
-      .populate('members', 'name email'); 
+      .populate('members', 'name email');
     res.json(clubs);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -39,15 +43,15 @@ router.get('/global/analytics', async (req, res) => {
   try {
     // 1. Add up all 'Paid' fees in all clubs
     const globalFees = await Club.aggregate([
-      { $unwind: "$feeRecords" }, 
+      { $unwind: "$feeRecords" },
       { $match: { "feeRecords.status": "Paid" } },
       { $group: { _id: { month: { $month: "$feeRecords.lastUpdated" } }, total: { $sum: "$feeRecords.amountPaid" } } }
     ]);
 
     // 2. Add up all 'Accepted' pledges in all clbs
     const globalPledges = await Club.aggregate([
-      { $unwind: "$proposals" }, 
-      { $unwind: "$proposals.pledges" }, 
+      { $unwind: "$proposals" },
+      { $unwind: "$proposals.pledges" },
       { $match: { "proposals.pledges.status": "Accepted" } },
       { $group: { _id: { month: { $month: "$proposals.pledges.date" } }, total: { $sum: "$proposals.pledges.amount" } } }
     ]);
@@ -61,10 +65,10 @@ router.get('/global/analytics', async (req, res) => {
 
     // 4. Add the totals in a monthly order
     const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    let masterChart = months.map((month) => ({ 
-      name: month, 
-      monthlyRevenue: 0, 
-      monthlyExpenses: 0 
+    let masterChart = months.map((month) => ({
+      name: month,
+      monthlyRevenue: 0,
+      monthlyExpenses: 0
     }));
 
     globalFees.forEach(r => { masterChart[r._id.month - 1].monthlyRevenue += r.total; });
@@ -84,29 +88,29 @@ router.get('/global/analytics', async (req, res) => {
     const allClubs = await Club.find().populate('members');
     const leaderboard = allClubs.map(club => {
       let clubRev = 0;
-      let clubExp = 0; 
-      
+      let clubExp = 0;
+
       // Calculate Revenue
       club.feeRecords.forEach(f => { if (f.status === 'Paid') clubRev += f.amountPaid; });
       club.proposals.forEach(p => p.pledges.forEach(pl => { if (pl.status === 'Accepted') clubRev += pl.amount; }));
-      
+
       // Calculate Expenses
       if (club.expenses) {
         club.expenses.forEach(e => { clubExp += e.amount; });
       }
-      
+
       return {
         id: club._id,
         name: club.name,
         totalRevenue: clubRev,
-        totalExpenses: clubExp, 
+        totalExpenses: clubExp,
         memberCount: club.members.length
       };
     }).sort((a, b) => b.totalRevenue - a.totalRevenue).slice(0, 5); // Get Top 5
-    
-    res.status(200).json({ 
-      masterChart, 
-      leaderboard, 
+
+    res.status(200).json({
+      masterChart,
+      leaderboard,
       totalClubs: allClubs.length,
       totalUniversityMembers: allClubs.reduce((acc, club) => acc + club.members.length, 0)
     });
@@ -126,7 +130,7 @@ router.get('/:id', async (req, res) => {
       .populate('members', 'name email')
       .populate('topBoard.user', 'name email')
       .populate('feeRecords.user', 'name email'); // for the ledger to show names
-      
+
     if (!club) return res.status(404).json({ message: "Club not found" });
 
     // failsafe : If this is an old club, force it to have the default category before sending it to the frontend!
@@ -145,8 +149,7 @@ router.post('/', upload.single('logo'), async (req, res) => {
   try {
     const { name, description, mission, membershipFee, supervisorId, presidentId, rulesAndRegulations } = req.body;
 
-    const requestor = await User.findById(supervisorId);
-    if (!requestor || requestor.role !== 'supervisor') {
+    if (req.user.role !== 'supervisor') {
       return res.status(403).json({ message: "Access Denied: Only Supervisors can create clubs." });
     }
 
@@ -174,7 +177,7 @@ router.post('/', upload.single('logo'), async (req, res) => {
       supervisor: supervisorId,
       president: presidentId || null
     });
-    
+
     await newClub.save();
     res.status(201).json({ message: "Club created successfully!", club: newClub });
 
@@ -187,13 +190,9 @@ router.post('/', upload.single('logo'), async (req, res) => {
 router.put('/:id', upload.single('logo'), async (req, res) => {
   try {
     // We explicitly extract membershipFee from req.body
-    const { name, description, mission, presidentId, supervisorId, rulesAndRegulations, membershipFee } = req.body;
-    
-    // DEBUG TOOL: This will print the incoming data to your VS Code terminal!
-    console.log("INCOMING UPDATE DATA:", req.body); 
+    const { name, description, mission, presidentId, rulesAndRegulations, membershipFee } = req.body;
 
-    const requestor = await User.findById(supervisorId);
-    if (!requestor || requestor.role !== 'supervisor') {
+    if (req.user.role !== 'supervisor') {
       return res.status(403).json({ message: "Access Denied." });
     }
 
@@ -220,7 +219,7 @@ router.put('/:id', upload.single('logo'), async (req, res) => {
     club.description = description || club.description;
     club.mission = mission || club.mission;
     club.rulesAndRegulations = rulesAndRegulations || club.rulesAndRegulations;
-    
+
     // Apply the membership fee update securely
     if (membershipFee !== undefined) {
       club.membershipFee = Number(membershipFee);
@@ -240,10 +239,7 @@ router.put('/:id', upload.single('logo'), async (req, res) => {
 // Delete a club
 router.delete('/:id', async (req, res) => {
   try {
-    const { supervisorId } = req.body; 
-    
-    const requestor = await User.findById(supervisorId);
-    if (!requestor || requestor.role !== 'supervisor') {
+    if (req.user.role !== 'supervisor') {
       return res.status(403).json({ message: "Access Denied." });
     }
 
@@ -270,7 +266,7 @@ router.delete('/:id', async (req, res) => {
 router.post('/:id/request-join', async (req, res) => {
   try {
     const club = await Club.findById(req.params.id);
-    const { userId } = req.body;
+    const userId = req.user._id;
 
     if (!club.members) club.members = [];
     if (!club.pendingMembers) club.pendingMembers = [];
@@ -284,7 +280,7 @@ router.post('/:id/request-join', async (req, res) => {
     await club.save();
     res.status(200).json({ message: "Request sent to club president!" });
   } catch (err) {
-    console.error("Join Error:", err); 
+    console.error("Join Error:", err);
     res.status(500).json({ message: err.message });
   }
 });
@@ -293,10 +289,11 @@ router.post('/:id/request-join', async (req, res) => {
 router.post('/:id/approve', async (req, res) => {
   try {
     const club = await Club.findById(req.params.id);
-    const { studentId, presidentId } = req.body; // 'presidentId' is the ID of the user making the request
+    const { studentId } = req.body;
+    const requestorId = req.user._id.toString();
 
-    const isPres = club.president?.toString() === presidentId;
-    const isVP = club.topBoard.some(b => b.user?.toString() === presidentId && b.role === 'Vice President');
+    const isPres = club.president?.toString() === requestorId;
+    const isVP = club.topBoard.some(b => b.user?.toString() === requestorId && b.role === 'Vice President');
 
     if (!isPres && !isVP) {
       return res.status(403).json({ message: "Only the President or Vice President can approve members." });
@@ -304,7 +301,7 @@ router.post('/:id/approve', async (req, res) => {
 
     club.pendingMembers = club.pendingMembers.filter(id => id.toString() !== studentId);
     club.members.push(studentId);
-    
+
     await club.save();
     res.status(200).json({ message: "Student approved successfully!" });
   } catch (err) {
@@ -316,10 +313,11 @@ router.post('/:id/approve', async (req, res) => {
 router.post('/:id/reject-request', async (req, res) => {
   try {
     const club = await Club.findById(req.params.id);
-    const { studentId, presidentId } = req.body;
+    const { studentId } = req.body;
+    const requestorId = req.user._id.toString();
 
-    const isPres = club.president?.toString() === presidentId;
-    const isVP = club.topBoard.some(b => b.user?.toString() === presidentId && b.role === 'Vice President');
+    const isPres = club.president?.toString() === requestorId;
+    const isVP = club.topBoard.some(b => b.user?.toString() === requestorId && b.role === 'Vice President');
 
     if (!isPres && !isVP) {
       return res.status(403).json({ message: "Only the President or Vice President can reject requests." });
@@ -336,11 +334,12 @@ router.post('/:id/reject-request', async (req, res) => {
 // 1. ADD an Achievement + Multiple Photos
 router.post('/:id/achievements', upload.array('images', 10), async (req, res) => {
   try {
-    const { title, description, dateAwarded, userId } = req.body;
+    const { title, description, dateAwarded } = req.body;
     const club = await Club.findById(req.params.id);
+    const requestorId = req.user._id.toString();
 
-    const isPres = club.president?.toString() === userId;
-    const isAuthorizedBoard = club.topBoard?.some(b => b.user?.toString() === userId && ['Vice President', 'Secretary', 'Assistant Secretary'].includes(b.role));
+    const isPres = club.president?.toString() === requestorId;
+    const isAuthorizedBoard = club.topBoard?.some(b => b.user?.toString() === requestorId && ['Vice President', 'Secretary', 'Assistant Secretary'].includes(b.role));
 
     if (!isPres && !isAuthorizedBoard) {
       return res.status(403).json({ message: "Access Denied: Only Exco can post achievements." });
@@ -353,7 +352,7 @@ router.post('/:id/achievements', upload.array('images', 10), async (req, res) =>
     // Map through ALL uploaded files and create an array of paths
     const imageUrls = req.files.map(file => `/uploads/${file.filename}`);
 
-    club.achievements.push({ title, description, dateAwarded, imageUrls, addedBy: userId });
+    club.achievements.push({ title, description, dateAwarded, imageUrls, addedBy: req.user._id });
     await club.save();
 
     res.status(200).json({ message: "Achievement added to the Trophy Room!" });
@@ -365,11 +364,12 @@ router.post('/:id/achievements', upload.array('images', 10), async (req, res) =>
 // 2. EDIT an Achievement (Handles optional new images)
 router.put('/:id/achievements/:achvId', upload.array('images', 10), async (req, res) => {
   try {
-    const { title, description, dateAwarded, userId } = req.body;
+    const { title, description, dateAwarded } = req.body;
     const club = await Club.findById(req.params.id);
+    const requestorId = req.user._id.toString();
 
-    const isPres = club.president?.toString() === userId;
-    const isAuthorizedBoard = club.topBoard?.some(b => b.user?.toString() === userId && ['Vice President', 'Secretary', 'Assistant Secretary'].includes(b.role));
+    const isPres = club.president?.toString() === requestorId;
+    const isAuthorizedBoard = club.topBoard?.some(b => b.user?.toString() === requestorId && ['Vice President', 'Secretary', 'Assistant Secretary'].includes(b.role));
 
     if (!isPres && !isAuthorizedBoard) {
       return res.status(403).json({ message: "Access Denied." });
@@ -381,7 +381,7 @@ router.put('/:id/achievements/:achvId', upload.array('images', 10), async (req, 
     achievement.title = title || achievement.title;
     achievement.description = description || achievement.description;
     achievement.dateAwarded = dateAwarded || achievement.dateAwarded;
-    
+
     // If they uploaded NEW photos, overwrite the old array
     if (req.files && req.files.length > 0) {
       achievement.imageUrls = req.files.map(file => `/uploads/${file.filename}`);
@@ -397,13 +397,13 @@ router.put('/:id/achievements/:achvId', upload.array('images', 10), async (req, 
 // 3. DELETE an Achievement
 router.delete('/:id/achievements/:achvId', async (req, res) => {
   try {
-    const { requestorId } = req.body; // Can be Supervisor or Exco
     const club = await Club.findById(req.params.id);
+    const requestorId = req.user._id.toString();
 
-    const isSupervisor = club.supervisor?.toString() === requestorId;
+    const isSupervisor = req.user.role === 'supervisor';
     const isPres = club.president?.toString() === requestorId;
     const isAuthorizedBoard = club.topBoard?.some(b => b.user?.toString() === requestorId && ['Vice President', 'Secretary', 'Assistant Secretary'].includes(b.role));
-    
+
     if (!isSupervisor && !isPres && !isAuthorizedBoard) {
       return res.status(403).json({ message: "Access Denied." });
     }
@@ -422,19 +422,19 @@ router.get('/:id/fees', async (req, res) => {
   try {
     const club = await Club.findById(req.params.id)
       .populate('members', 'name email')
-      .populate('president', 'name email') 
+      .populate('president', 'name email')
       .populate('topBoard.user', 'name email')
       .populate('feeRecords.user', 'name email');
 
     if (!club) return res.status(404).json({ message: "Club not found." });
-    
+
     // Send back the club's required fee, the list of members, and the ledger
-    res.status(200).json({ 
-      membershipFee: club.membershipFee, 
-      members: club.members, 
+    res.status(200).json({
+      membershipFee: club.membershipFee,
+      members: club.members,
       president: club.president,
       topBoard: club.topBoard,
-      feeRecords: club.feeRecords 
+      feeRecords: club.feeRecords
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -444,7 +444,7 @@ router.get('/:id/fees', async (req, res) => {
 // 2. Student Submits a Payment with receipt
 router.post('/:id/fees/pay', upload.single('receipt'), async (req, res) => {
   try {
-    const { userId, amount, category } = req.body;
+    const { amount, category } = req.body;
     const club = await Club.findById(req.params.id);
 
     let receiptUrl = '';
@@ -456,7 +456,7 @@ router.post('/:id/fees/pay', upload.single('receipt'), async (req, res) => {
 
     // member can add multiple payments
     club.feeRecords.push({
-      user: userId,
+      user: req.user._id,
       category: category || 'Membership Fee',
       receiptUrl: receiptUrl,
       status: 'Pending Verification',
@@ -477,8 +477,9 @@ router.post('/:id/fees/pay', upload.single('receipt'), async (req, res) => {
 router.put('/:id/fees/update', async (req, res) => {
   try {
     //retrieves record ID, not student ID
-    const { recordId, status, amountPaid, requestorId } = req.body; 
+    const { recordId, status, amountPaid } = req.body;
     const club = await Club.findById(req.params.id);
+    const requestorId = req.user._id.toString();
 
     const isPres = club.president?.toString() === requestorId;
     const isTreasury = club.topBoard.some(b => (b.user?._id?.toString() === requestorId || b.user?.toString() === requestorId) && ['Treasurer', 'Assistant Treasurer'].includes(b.role));
@@ -507,13 +508,14 @@ router.put('/:id/fees/update', async (req, res) => {
 // Exec Board drafts a new announcement (Pres, VP, Sec, Asst Sec)
 router.post('/:id/announcements', async (req, res) => {
   try {
-    const { title, content, presidentId } = req.body;
+    const { title, content } = req.body;
     const club = await Club.findById(req.params.id);
     if (!club) return res.status(404).json({ message: "Club not found." });
-    
-    const isPres = club.president?.toString() === presidentId;
-    const isVP = club.topBoard.some(b => b.user?.toString() === presidentId && b.role === 'Vice President');
-    const isSec = club.topBoard.some(b => b.user?.toString() === presidentId && ['Secretary', 'Assistant Secretary'].includes(b.role));
+    const requestorId = req.user._id.toString();
+
+    const isPres = club.president?.toString() === requestorId;
+    const isVP = club.topBoard.some(b => b.user?.toString() === requestorId && b.role === 'Vice President');
+    const isSec = club.topBoard.some(b => b.user?.toString() === requestorId && ['Secretary', 'Assistant Secretary'].includes(b.role));
 
     if (!isPres && !isVP && !isSec) {
       return res.status(403).json({ message: "Access Denied: You do not have permission to post announcements." });
@@ -530,21 +532,19 @@ router.post('/:id/announcements', async (req, res) => {
 // Supervisor APPROVES an announcement
 router.put('/:clubId/announcements/:annId/approve', async (req, res) => {
   try {
-    const { supervisorId } = req.body;
-    const requestor = await User.findById(supervisorId);
-    if (!requestor || requestor.role !== 'supervisor') {
+    if (req.user.role !== 'supervisor') {
       return res.status(403).json({ message: "Access Denied." });
     }
 
     const club = await Club.findById(req.params.clubId);
     // Find the specific announcement inside the club's array
-    const announcement = club.announcements.id(req.params.annId); 
-    
+    const announcement = club.announcements.id(req.params.annId);
+
     if (!announcement) return res.status(404).json({ message: "Announcement not found." });
 
     announcement.isApproved = true; // Flip the flag!
     await club.save();
-    
+
     res.status(200).json({ message: "Announcement approved and is now live!" });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -554,14 +554,13 @@ router.put('/:clubId/announcements/:annId/approve', async (req, res) => {
 // Supervisor OR Exec Board EDITS an announcement
 router.put('/:id/announcements/:annId/edit', async (req, res) => {
   try {
-    // Look for userId (from students) OR supervisorId (from admins)
-    const { title, content, userId, supervisorId } = req.body;
-    const requestorId = userId || supervisorId; 
+    const { title, content } = req.body;
+    const requestorId = req.user._id.toString();
 
     const club = await Club.findById(req.params.id);
 
     // Strict RBAC: Supervisor, President, VP, Secretaries
-    const isSupervisor = club.supervisor?.toString() === requestorId;
+    const isSupervisor = req.user.role === 'supervisor';
     const isPres = club.president?.toString() === requestorId;
     const isAuthorizedBoard = club.topBoard.some(b => b.user?.toString() === requestorId && ['Vice President', 'Secretary', 'Assistant Secretary'].includes(b.role));
 
@@ -575,10 +574,10 @@ router.put('/:id/announcements/:annId/edit', async (req, res) => {
     // Update data
     announcement.title = title;
     announcement.content = content;
-    
+
     // If a student edits it, it needs re-approval. If the Supervisor edits it, it stays approved!
     if (!isSupervisor) {
-      announcement.isApproved = false; 
+      announcement.isApproved = false;
     }
 
     await club.save();
@@ -591,13 +590,11 @@ router.put('/:id/announcements/:annId/edit', async (req, res) => {
 // Supervisor OR Exec Board DELETES an announcement
 router.delete('/:clubId/announcements/:annId', async (req, res) => {
   try {
-    // Check for either supervisorId (from Global Dash) or userId (from Club Hub)
-    const { supervisorId, userId } = req.body; 
-    const requestorId = supervisorId || userId;
-    
+    const requestorId = req.user._id.toString();
+
     const club = await Club.findById(req.params.clubId);
 
-    const isSupervisor = club.supervisor?.toString() === requestorId;
+    const isSupervisor = req.user.role === 'supervisor';
     const isPres = club.president?.toString() === requestorId;
     const isAuthorizedBoard = club.topBoard.some(b => b.user?.toString() === requestorId && ['Vice President', 'Secretary', 'Assistant Secretary'].includes(b.role));
 
@@ -607,10 +604,10 @@ router.delete('/:clubId/announcements/:annId', async (req, res) => {
 
     const announcement = club.announcements.id(req.params.annId);
     if (!announcement) return res.status(404).json({ message: "Announcement not found." });
-    
+
     announcement.isDeleted = true; // Hides it from the UI but keeps the record
     await club.save();
-    
+
     res.status(200).json({ message: "Announcement deleted." });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -620,11 +617,12 @@ router.delete('/:clubId/announcements/:annId', async (req, res) => {
 // Assign a Board Member (President OR Vice President)
 router.post('/:id/board', async (req, res) => {
   try {
-    const { userId, role, presidentId } = req.body;
+    const { userId, role } = req.body;
     const club = await Club.findById(req.params.id);
+    const requestorId = req.user._id.toString();
 
-    const isPres = club.president?.toString() === presidentId;
-    const isVP = club.topBoard.some(b => b.user?.toString() === presidentId && b.role === 'Vice President');
+    const isPres = club.president?.toString() === requestorId;
+    const isVP = club.topBoard.some(b => b.user?.toString() === requestorId && b.role === 'Vice President');
 
     if (!isPres && !isVP) {
       return res.status(403).json({ message: "Only the President or Vice President can assign board roles." });
@@ -633,10 +631,10 @@ router.post('/:id/board', async (req, res) => {
     // Remove anyone currently holding this role, and strip this specific user of any old roles
     club.topBoard = club.topBoard.filter(b => b.role !== role);
     club.topBoard = club.topBoard.filter(b => b.user.toString() !== userId);
-    
+
     club.topBoard.push({ user: userId, role });
     await club.save();
-    
+
     res.status(200).json({ message: `${role} assigned successfully!` });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -646,11 +644,11 @@ router.post('/:id/board', async (req, res) => {
 // Remove a Board Member (President OR Vice President)
 router.delete('/:id/board/:userId', async (req, res) => {
   try {
-    const { presidentId } = req.body;
     const club = await Club.findById(req.params.id);
+    const requestorId = req.user._id.toString();
 
-    const isPres = club.president?.toString() === presidentId;
-    const isVP = club.topBoard.some(b => b.user?.toString() === presidentId && b.role === 'Vice President');
+    const isPres = club.president?.toString() === requestorId;
+    const isVP = club.topBoard.some(b => b.user?.toString() === requestorId && b.role === 'Vice President');
 
     if (!isPres && !isVP) {
       return res.status(403).json({ message: "Only the President or Vice President can remove board members." });
@@ -669,16 +667,17 @@ router.delete('/:id/board/:userId', async (req, res) => {
 // 1. Exec & Treasury publishes a new Proposal
 router.post('/:id/proposals', async (req, res) => {
   try {
-    const { title, description, targetAmount, proposalDocumentUrl, userId } = req.body;
-    
+    const { title, description, targetAmount, proposalDocumentUrl } = req.body;
+
     const club = await Club.findById(req.params.id);
     if (!club) return res.status(404).json({ message: "Club not found." });
+    const requestorId = req.user._id.toString();
 
     // Strict RBAC: Only President, VP, Secretaries, and Treasurers
-    const isPres = club.president?.toString() === userId;
+    const isPres = club.president?.toString() === requestorId;
     const allowedRoles = ['Vice President', 'Secretary', 'Assistant Secretary', 'Treasurer', 'Assistant Treasurer'];
-    const isAuthorizedBoard = club.topBoard && club.topBoard.some(b => b.user?.toString() === userId && allowedRoles.includes(b.role));
-    
+    const isAuthorizedBoard = club.topBoard && club.topBoard.some(b => b.user?.toString() === requestorId && allowedRoles.includes(b.role));
+
     if (!isPres && !isAuthorizedBoard) {
       return res.status(403).json({ message: "Access Denied: Only Executive Officers and Treasurers can publish proposals." });
     }
@@ -690,7 +689,7 @@ router.post('/:id/proposals', async (req, res) => {
           description,
           targetAmount,
           proposalDocumentUrl,
-          isActive: true, 
+          isActive: true,
           pledges: []
         }
       }
@@ -698,7 +697,7 @@ router.post('/:id/proposals', async (req, res) => {
 
     res.status(200).json({ message: "Proposal published successfully!" });
   } catch (err) {
-    console.error("Proposal Error:", err); 
+    console.error("Proposal Error:", err);
     res.status(500).json({ message: err.message });
   }
 });
@@ -708,7 +707,7 @@ router.put('/:id/proposals/:proposalId/edit', async (req, res) => {
   try {
     const { title, description, targetAmount, proposalDocumentUrl, isActive } = req.body;
     const club = await Club.findById(req.params.id);
-    
+
     if (!club) return res.status(404).json({ message: "Club not found" });
 
     // Find the specific proposal inside the club's array
@@ -720,7 +719,7 @@ router.put('/:id/proposals/:proposalId/edit', async (req, res) => {
     proposal.description = description || proposal.description;
     proposal.targetAmount = targetAmount || proposal.targetAmount;
     proposal.proposalDocumentUrl = proposalDocumentUrl || proposal.proposalDocumentUrl;
-    
+
     // We explicitly check for undefined because isActive is a boolean (false is a valid state)
     if (isActive !== undefined) {
       proposal.isActive = isActive;
@@ -740,9 +739,9 @@ router.delete('/:id/proposals/:proposalId', async (req, res) => {
     const club = await Club.findById(req.params.id);
     if (!club) return res.status(404).json({ message: "Club not found" });
 
-    // Remove the proposal from the array 
+    // Remove the proposal from the array
     club.proposals.pull(req.params.proposalId);
-    
+
     await club.save();
     res.json({ message: "Proposal deleted successfully." });
   } catch (error) {
@@ -776,21 +775,22 @@ router.post('/:clubId/proposals/:proposalId/pledge', async (req, res) => {
 // 3. Exec & Treasury Accepts/Rejects a Pledge
 router.put('/:clubId/proposals/:proposalId/pledge/:pledgeId', async (req, res) => {
   try {
-    const { status, userId } = req.body; 
+    const { status } = req.body;
     const club = await Club.findById(req.params.clubId);
+    const requestorId = req.user._id.toString();
 
     // Strict RBAC: Only President, VP, Secretaries, and Treasurers
-    const isPres = club.president?.toString() === userId;
+    const isPres = club.president?.toString() === requestorId;
     const allowedRoles = ['Vice President', 'Secretary', 'Assistant Secretary', 'Treasurer', 'Assistant Treasurer'];
-    const isAuthorizedBoard = club.topBoard && club.topBoard.some(b => b.user?.toString() === userId && allowedRoles.includes(b.role));
-    
+    const isAuthorizedBoard = club.topBoard && club.topBoard.some(b => b.user?.toString() === requestorId && allowedRoles.includes(b.role));
+
     if (!isPres && !isAuthorizedBoard) {
       return res.status(403).json({ message: "Access Denied: You do not have permission to manage financial pledges." });
     }
 
     const proposal = club.proposals.id(req.params.proposalId);
     const pledge = proposal.pledges.id(req.params.pledgeId);
-    
+
     pledge.status = status;
     await club.save();
 
@@ -806,10 +806,10 @@ router.put('/:clubId/proposals/:proposalId/pledge/:pledgeId', async (req, res) =
 // 1. Supervisor Creates Election & Ballot ALL AT ONCE
 router.post('/:id/elections', async (req, res) => {
   try {
-    const { position, candidates, supervisorId } = req.body;
+    const { position, candidates } = req.body;
     const club = await Club.findById(req.params.id);
 
-    if (club.supervisor?.toString() !== supervisorId) {
+    if (req.user.role !== 'supervisor') {
       return res.status(403).json({ message: "Access Denied." });
     }
     if (!club.elections) club.elections = [];
@@ -839,13 +839,13 @@ router.post('/:id/elections', async (req, res) => {
 // 2. Supervisor Edits Entire Election
 router.put('/:id/elections/:electionId/edit', async (req, res) => {
   try {
-    const { position, candidates, supervisorId } = req.body;
-    
+    const { position, candidates } = req.body;
+
     // 1. Authenticate Request
     const club = await Club.findById(req.params.id);
     if (!club) return res.status(404).json({ message: "Club not found." });
 
-    if (club.supervisor?.toString() !== supervisorId) {
+    if (req.user.role !== 'supervisor') {
       return res.status(403).json({ message: "Access Denied." });
     }
 
@@ -859,7 +859,7 @@ router.put('/:id/elections/:electionId/edit', async (req, res) => {
 
     // 3. Format Array strictly for DB injection
     const formattedCandidates = candidates.map(c => ({
-      user: c.candidateUserId || c.user, 
+      user: c.candidateUserId || c.user,
       manifesto: c.manifesto,
       voteCount: 0
     }));
@@ -868,11 +868,11 @@ router.put('/:id/elections/:electionId/edit', async (req, res) => {
     // The `$` targets the exact election matched in the query.
     await Club.updateOne(
       { _id: req.params.id, "elections._id": req.params.electionId },
-      { 
-        $set: { 
+      {
+        $set: {
           "elections.$.position": position,
           "elections.$.candidates": formattedCandidates
-        } 
+        }
       }
     );
 
@@ -886,23 +886,23 @@ router.put('/:id/elections/:electionId/edit', async (req, res) => {
 // Auto assign election winners to the board when results are published
 router.put('/:id/elections/:electionId/status', async (req, res) => {
   try {
-    const { isActive, isPublished, supervisorId } = req.body;
+    const { isActive, isPublished } = req.body;
     const club = await Club.findById(req.params.id);
 
-    if (club.supervisor?.toString() !== supervisorId) {
+    if (req.user.role !== 'supervisor') {
       return res.status(403).json({ message: "Access Denied." });
     }
 
     const election = club.elections.id(req.params.electionId);
     if (isActive !== undefined) election.isActive = isActive;
-    
+
     // --- SMART AUTO-ASSIGNMENT LOGIC (With Strict Overwrite) ---
     // If the Supervisor is revealing the results for the first time,
     // automatically calculate the winner and assign them to the Top Board.
     if (isPublished === true && election.isPublished === false) {
       let winningCandidate = null;
       let maxVotes = -1;
-      
+
       // Tally the votes to find the highest score
       election.candidates.forEach(candidate => {
         if (candidate.voteCount > maxVotes) {
@@ -916,7 +916,7 @@ router.put('/:id/elections/:electionId/status', async (req, res) => {
         club.topBoard = club.topBoard.filter(b => b.role !== election.position);
         // 2. Strip the winner of any lesser roles they currently hold
         club.topBoard = club.topBoard.filter(b => b.user?.toString() !== winningCandidate.toString());
-        
+
         // 3. Crown the winner
         club.topBoard.push({ user: winningCandidate, role: election.position });
       }
@@ -936,7 +936,8 @@ router.put('/:id/elections/:electionId/status', async (req, res) => {
 // 4. Approved Member Casts a Secure Vote
 router.post('/:id/elections/:electionId/vote', async (req, res) => {
   try {
-    const { userId, candidateId } = req.body;
+    const { candidateId } = req.body;
+    const userId = req.user._id;
     const club = await Club.findById(req.params.id);
 
     // 1. Is the election actually open?
@@ -947,8 +948,8 @@ router.post('/:id/elections/:electionId/vote', async (req, res) => {
 
     // 2. Is the user actually an approved member? (Top Board & President are also members)
     const isMember = club.members.includes(userId);
-    const isPresident = club.president?.toString() === userId;
-    const isTopBoard = club.topBoard.some(b => b.user?.toString() === userId);
+    const isPresident = club.president?.toString() === userId.toString();
+    const isTopBoard = club.topBoard.some(b => b.user?.toString() === userId.toString());
 
     if (!isMember && !isPresident && !isTopBoard) {
       return res.status(403).json({ message: "Only approved club members can vote." });
@@ -978,10 +979,9 @@ router.post('/:id/elections/:electionId/vote', async (req, res) => {
 // 5. Supervisor Deletes an Old Election
 router.delete('/:id/elections/:electionId', async (req, res) => {
   try {
-    const { supervisorId } = req.body; // Sent via axios data payload
     const club = await Club.findById(req.params.id);
 
-    if (club.supervisor?.toString() !== supervisorId) {
+    if (req.user.role !== 'supervisor') {
       return res.status(403).json({ message: "Access Denied." });
     }
 
@@ -998,15 +998,16 @@ router.delete('/:id/elections/:electionId', async (req, res) => {
 // --- MANAGE PAYMENT CATEGORIES (TREASURY & PRESIDENT) ---
 router.post('/:id/categories', async (req, res) => {
   try {
-    const { newCategory, userId } = req.body;
+    const { newCategory } = req.body;
     const club = await Club.findById(req.params.id);
+    const requestorId = req.user._id.toString();
 
-    const isPres = club.president?.toString() === userId;
-    const isTreasury = club.topBoard?.some(b => (b.user?._id?.toString() === userId || b.user?.toString() === userId) && ['Treasurer', 'Assistant Treasurer'].includes(b.role));
+    const isPres = club.president?.toString() === requestorId;
+    const isTreasury = club.topBoard?.some(b => (b.user?._id?.toString() === requestorId || b.user?.toString() === requestorId) && ['Treasurer', 'Assistant Treasurer'].includes(b.role));
     if (!isPres && !isTreasury) return res.status(403).json({ message: "Access Denied: You do not have treasury permissions." });
 
     if (!club.paymentCategories) club.paymentCategories = ['Membership Fee'];
-    
+
     // Prevent duplicates
     if (!club.paymentCategories.includes(newCategory)) {
       club.paymentCategories.push(newCategory);
@@ -1023,11 +1024,12 @@ router.post('/:id/categories', async (req, res) => {
 // EDIT a category
 router.put('/:id/categories', async (req, res) => {
   try {
-    const { oldCategory, newCategory, userId } = req.body;
+    const { oldCategory, newCategory } = req.body;
     const club = await Club.findById(req.params.id);
+    const requestorId = req.user._id.toString();
 
-    const isPres = club.president?.toString() === userId;
-    const isTreasury = club.topBoard?.some(b => (b.user?._id?.toString() === userId || b.user?.toString() === userId) && ['Treasurer', 'Assistant Treasurer'].includes(b.role));
+    const isPres = club.president?.toString() === requestorId;
+    const isTreasury = club.topBoard?.some(b => (b.user?._id?.toString() === requestorId || b.user?.toString() === requestorId) && ['Treasurer', 'Assistant Treasurer'].includes(b.role));
     if (!isPres && !isTreasury) return res.status(403).json({ message: "Access Denied." });
 
     if (oldCategory === 'Membership Fee') return res.status(400).json({ message: "Cannot rename the default category." });
@@ -1052,11 +1054,11 @@ router.put('/:id/categories', async (req, res) => {
 // DELETE a category
 router.delete('/:id/categories/:categoryName', async (req, res) => {
   try {
-    const { userId } = req.body;
     const club = await Club.findById(req.params.id);
+    const requestorId = req.user._id.toString();
 
-    const isPres = club.president?.toString() === userId;
-    const isTreasury = club.topBoard?.some(b => (b.user?._id?.toString() === userId || b.user?.toString() === userId) && ['Treasurer', 'Assistant Treasurer'].includes(b.role));
+    const isPres = club.president?.toString() === requestorId;
+    const isTreasury = club.topBoard?.some(b => (b.user?._id?.toString() === requestorId || b.user?.toString() === requestorId) && ['Treasurer', 'Assistant Treasurer'].includes(b.role));
     if (!isPres && !isTreasury) return res.status(403).json({ message: "Access Denied." });
 
     if (req.params.categoryName === 'Membership Fee') return res.status(400).json({ message: "Cannot delete the default category." });
@@ -1071,13 +1073,14 @@ router.delete('/:id/categories/:categoryName', async (req, res) => {
 
 
 // --- MANAGE EXPENSES (TREASURY ONLY) ---
-// 1. ADD EXPENSE 
+// 1. ADD EXPENSE
 router.post('/:id/expenses', upload.single('receipt'), async (req, res) => {
   try {
-    const { title, amount, description, date, userId } = req.body;
+    const { title, amount, description, date } = req.body;
     const club = await Club.findById(req.params.id);
+    const requestorId = req.user._id.toString();
 
-    const isTreasury = club.topBoard?.some(b => (b.user?._id?.toString() === userId || b.user?.toString() === userId) && ['Treasurer', 'Assistant Treasurer'].includes(b.role));
+    const isTreasury = club.topBoard?.some(b => (b.user?._id?.toString() === requestorId || b.user?.toString() === requestorId) && ['Treasurer', 'Assistant Treasurer'].includes(b.role));
     if (!isTreasury) return res.status(403).json({ message: "Access Denied: Only Treasury can log expenses." });
 
     if (!club.expenses) club.expenses = [];
@@ -1085,15 +1088,15 @@ router.post('/:id/expenses', upload.single('receipt'), async (req, res) => {
     let receiptUrl = '';
     if (req.file) receiptUrl = `/uploads/${req.file.filename}`;
 
-    club.expenses.push({ 
-      title, 
-      amount: Number(amount), 
-      description, 
-      date: date || new Date(), 
-      loggedBy: userId,
+    club.expenses.push({
+      title,
+      amount: Number(amount),
+      description,
+      date: date || new Date(),
+      loggedBy: req.user._id,
       receiptUrl
     });
-    
+
     await club.save();
     res.status(200).json({ message: "Expense logged successfully." });
   } catch (err) {
@@ -1104,10 +1107,11 @@ router.post('/:id/expenses', upload.single('receipt'), async (req, res) => {
 // 2. EDIT EXPENSE (Flags it as edited)
 router.put('/:id/expenses/:expenseId', upload.single('receipt'), async (req, res) => {
   try {
-    const { title, amount, description, date, userId } = req.body;
+    const { title, amount, description, date } = req.body;
     const club = await Club.findById(req.params.id);
+    const requestorId = req.user._id.toString();
 
-    const isTreasury = club.topBoard?.some(b => (b.user?._id?.toString() === userId || b.user?.toString() === userId) && ['Treasurer', 'Assistant Treasurer'].includes(b.role));
+    const isTreasury = club.topBoard?.some(b => (b.user?._id?.toString() === requestorId || b.user?.toString() === requestorId) && ['Treasurer', 'Assistant Treasurer'].includes(b.role));
     if (!isTreasury) return res.status(403).json({ message: "Access Denied." });
 
     const expense = club.expenses.id(req.params.expenseId);
@@ -1131,17 +1135,17 @@ router.put('/:id/expenses/:expenseId', upload.single('receipt'), async (req, res
 // 3. DELETE EXPENSE (Soft Delete)
 router.delete('/:id/expenses/:expenseId', async (req, res) => {
   try {
-    const { userId } = req.body;
     const club = await Club.findById(req.params.id);
+    const requestorId = req.user._id.toString();
 
-    const isTreasury = club.topBoard?.some(b => (b.user?._id?.toString() === userId || b.user?.toString() === userId) && ['Treasurer', 'Assistant Treasurer'].includes(b.role));
+    const isTreasury = club.topBoard?.some(b => (b.user?._id?.toString() === requestorId || b.user?.toString() === requestorId) && ['Treasurer', 'Assistant Treasurer'].includes(b.role));
     if (!isTreasury) return res.status(403).json({ message: "Access Denied." });
 
     const expense = club.expenses.id(req.params.expenseId);
     if (!expense) return res.status(404).json({ message: "Expense not found." });
 
     // SOFT DELETE: Don't pull it, just hide it!
-    expense.isDeleted = true; 
+    expense.isDeleted = true;
     await club.save();
 
     res.status(200).json({ message: "Expense soft-deleted and archived." });
@@ -1150,7 +1154,7 @@ router.delete('/:id/expenses/:expenseId', async (req, res) => {
   }
 });
 
-// 4. Single club FINANCIAL ANALYTICS ALGORITHM 
+// 4. Single club FINANCIAL ANALYTICS ALGORITHM
 router.get('/:id/analytics', async (req, res) => {
   try {
     const clubId = new mongoose.Types.ObjectId(req.params.id);
@@ -1169,7 +1173,7 @@ router.get('/:id/analytics', async (req, res) => {
     ]);
 
    const expenseAnalytics = await Club.aggregate([
-      { $match: { _id: clubId } }, 
+      { $match: { _id: clubId } },
       { $unwind: "$expenses" },
       { $match: { "expenses.isDeleted": { $ne: true } } }, // THE FIX: Only count active expenses!
       { $group: { _id: { month: { $month: "$expenses.date" } }, total: { $sum: "$expenses.amount" } } }
@@ -1177,11 +1181,11 @@ router.get('/:id/analytics', async (req, res) => {
 
     // B. Build the 12-Month Segmented Array
     const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    let chartData = months.map((month) => ({ 
-      name: month, 
-      monthlyFees: 0, 
-      monthlySponsorships: 0, 
-      monthlyExpenses: 0 
+    let chartData = months.map((month) => ({
+      name: month,
+      monthlyFees: 0,
+      monthlySponsorships: 0,
+      monthlyExpenses: 0
     }));
 
     // Inject exact monthly data into their specific buckets
@@ -1198,7 +1202,7 @@ router.get('/:id/analytics', async (req, res) => {
       ytdFees += data.monthlyFees;
       ytdSponsorships += data.monthlySponsorships;
       ytdExpenses += data.monthlyExpenses;
-      
+
       return {
         ...data,
         ytdFees,
