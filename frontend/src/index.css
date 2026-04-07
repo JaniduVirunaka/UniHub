@@ -1,5 +1,4 @@
-@tailwind base;
-@tailwind components;
+/* Tailwind v3 — utilities only; preflight disabled in tailwind.config.js */
 @tailwind utilities;
 
 body {
