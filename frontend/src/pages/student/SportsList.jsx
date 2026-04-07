@@ -1,0 +1,90 @@
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { ArrowRight, Trophy, Users, Layers3 } from "lucide-react";
+import axiosInstance from "../../api/axios";
+import PageWrapper from "../../components/PageWrapper";
+import LoadingSpinner from "../../components/LoadingSpinner";
+import GlassCard from "../../components/GlassCard";
+
+function SportsList() {
+  const [sports, setSports] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchSports = async () => {
+    try {
+      const response = await axiosInstance.get("/sports");
+      setSports(response.data);
+    } catch (error) {
+      console.error(error);
+      alert("Failed to load sports");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchSports();
+  }, []);
+
+  if (loading) {
+    return (
+      <PageWrapper
+        title="Explore Sports"
+        subtitle="Browse all available sports and find the team you want to join."
+      >
+        <LoadingSpinner text="Loading sports..." />
+      </PageWrapper>
+    );
+  }
+
+  return (
+    <PageWrapper
+      title="Explore Sports"
+      subtitle="Browse all available sports and choose the team that matches your skills and interests."
+    >
+      {sports.length === 0 ? (
+        <GlassCard>
+          <p className="text-slate-300">No sports found.</p>
+        </GlassCard>
+      ) : (
+        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+          {sports.map((sport) => (
+            <GlassCard key={sport._id} className="transition hover:-translate-y-1 hover:bg-white/10">
+              <div className="mb-4 inline-flex rounded-2xl bg-emerald-400/15 p-3 text-emerald-300">
+                <Trophy size={22} />
+              </div>
+
+              <h3 className="text-2xl font-bold text-white">{sport.name}</h3>
+
+              <p className="mt-3 min-h-[48px] text-sm leading-6 text-slate-300">
+                {sport.description || "No description available for this sport yet."}
+              </p>
+
+              <div className="mt-5 grid gap-3">
+                <div className="flex items-center gap-3 text-sm text-slate-300">
+                  <Layers3 size={16} className="text-cyan-300" />
+                  <span>Category: {sport.category || "Not specified"}</span>
+                </div>
+
+                <div className="flex items-center gap-3 text-sm text-slate-300">
+                  <Users size={16} className="text-cyan-300" />
+                  <span>Members: {sport.members?.length || 0}</span>
+                </div>
+              </div>
+
+              <Link
+                to={`/student/sports/${sport._id}`}
+                className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-emerald-400 px-4 py-3 font-semibold text-slate-950 transition hover:bg-emerald-300"
+              >
+                View Details
+                <ArrowRight size={16} />
+              </Link>
+            </GlassCard>
+          ))}
+        </div>
+      )}
+    </PageWrapper>
+  );
+}
+
+export default SportsList;
