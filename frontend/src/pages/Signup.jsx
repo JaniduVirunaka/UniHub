@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../config/api';
 import { GoogleLogin } from '@react-oauth/google';
 
 function Signup() {
@@ -13,7 +13,7 @@ function Signup() {
     setError(''); // Clear previous errors
     
     try {
-      await axios.post('http://localhost:5000/api/auth/signup', formData);
+      await api.post('/auth/signup', formData);
       alert('Account created! Please log in.');
       navigate('/login'); // Redirect to login page
     } catch (err) {
@@ -25,7 +25,7 @@ function Signup() {
   const handleGoogleSuccess = async (credentialResponse) => {
     try {
       // We send the secure Google token to our new backend route
-      const res = await axios.post('http://localhost:5000/api/auth/google', {
+      const res = await api.post('/auth/google', {
         token: credentialResponse.credential
       });
       
@@ -35,7 +35,7 @@ function Signup() {
 
       // SMART ROUTING
       if (user.role === 'president') {
-        const clubsRes = await axios.get('http://localhost:5000/api/clubs');
+        const clubsRes = await api.get('/clubs');
         const myClub = clubsRes.data.find(c => c.president?._id === user.id || c.president === user.id);
         if (myClub) navigate(`/clubs/${myClub._id}`);
         else navigate('/clubs');

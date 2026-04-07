@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../config/api';
 import ClubNavigation from '../components/ClubNavigation'; 
 
 function ClubElections() {
@@ -26,8 +26,8 @@ function ClubElections() {
   useEffect(() => { fetchClubData(); }, [id]);
 
   const fetchClubData = () => {
-    axios.get(`http://localhost:5000/api/clubs/${id}`)
-      .then(res => setClub(res.data)).catch(err => console.log(err));
+    api.get(`/clubs/${id}`)
+      .then(res => setClub(res.data)).catch(err => console.error(err));
   };
 
   // Pushes a candidate from the dropdown into the local React state array
@@ -68,7 +68,7 @@ function ClubElections() {
       const proceed = window.confirm("Hold on! You entered candidate details but didn't click 'Add to List'. Do you want to create the election WITHOUT adding them?");
       if (!proceed) return;
     }
-    axios.post(`http://localhost:5000/api/clubs/${id}/elections`, { ...electionData, supervisorId: currentUser?.id })
+    api.post(`/clubs/${id}/elections`, { ...electionData, supervisorId: currentUser?.id })
       .then(res => {
         alert(res.data.message);
         setElectionData({ position: '', candidates: [] });
@@ -83,7 +83,7 @@ function ClubElections() {
       const proceed = window.confirm("Hold on! You entered candidate details but didn't click the '+' button. Do you want to save changes WITHOUT adding them?");
       if (!proceed) return;
     }
-    axios.put(`http://localhost:5000/api/clubs/${id}/elections/${electionId}/edit`, { ...editElectionData, supervisorId: currentUser?.id })
+    api.put(`/clubs/${id}/elections/${electionId}/edit`, { ...editElectionData, supervisorId: currentUser?.id })
       .then(res => {
         alert(res.data.message); setEditingElectionId(null); setEditTempCandidate({ candidateUserId: '', manifesto: '' }); fetchClubData();
       }).catch(err => alert(err.response?.data?.message || "Error updating election."));
@@ -91,20 +91,20 @@ function ClubElections() {
 
   const handleToggleElection = (electionId, isActive, isPublished) => {
     if (!window.confirm("Are you sure you want to change the election status?")) return;
-    axios.put(`http://localhost:5000/api/clubs/${id}/elections/${electionId}/status`, { isActive, isPublished, supervisorId: currentUser?.id })
+    api.put(`/clubs/${id}/elections/${electionId}/status`, { isActive, isPublished, supervisorId: currentUser?.id })
       .then(res => fetchClubData()).catch(err => alert("Error updating election status."));
   };
 
   const handleVote = (electionId, candidateId) => {
     if (!window.confirm("Are you sure? Your vote is final and anonymous.")) return;
-    axios.post(`http://localhost:5000/api/clubs/${id}/elections/${electionId}/vote`, { userId: currentUser?.id, candidateId })
+    api.post(`/clubs/${id}/elections/${electionId}/vote`, { userId: currentUser?.id, candidateId })
       .then(res => { alert(res.data.message); fetchClubData(); })
       .catch(err => alert(err.response?.data?.message || "Error casting vote."));
   };
 
   const handleDeleteElection = (electionId) => {
     if (!window.confirm("Are you sure you want to permanently delete this election record?")) return;
-    axios.delete(`http://localhost:5000/api/clubs/${id}/elections/${electionId}`, { data: { supervisorId: currentUser?.id } })
+    api.delete(`/clubs/${id}/elections/${electionId}`, { data: { supervisorId: currentUser?.id } })
       .then(res => fetchClubData()).catch(err => alert("Error deleting election."));
   };
 

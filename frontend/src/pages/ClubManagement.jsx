@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../config/api';
 import { useNavigate } from 'react-router-dom';
 import { useScrollAnimation } from '../hooks/useScrollAnimation';
 
@@ -25,16 +25,16 @@ function ClubManagement() {
   useEffect(() => {
     fetchClubs();
     if (currentUser && currentUser.role === 'supervisor') {
-      axios.get('http://localhost:5000/api/auth/users')
+      api.get('/auth/users')
         .then(res => setUsers(res.data))
-        .catch(err => console.log("Error fetching users:", err));
+        .catch(err => console.error("Error fetching users:", err));
     }
   }, []);
 
   const fetchClubs = () => {
-    axios.get('http://localhost:5000/api/clubs')
+    api.get('/clubs')
       .then(res => setClubs(res.data))
-      .catch(err => console.log(err));
+      .catch(err => console.error(err));
   };
 
   if (!currentUser) {
@@ -60,7 +60,7 @@ function ClubManagement() {
     if (formData.presidentId) data.append('presidentId', formData.presidentId);
     if (formData.logoFile) data.append('logo', formData.logoFile); 
 
-    axios.post('http://localhost:5000/api/clubs', data, { headers: { 'Content-Type': 'multipart/form-data' } })
+    api.post('/clubs', data, { headers: { 'Content-Type': 'multipart/form-data' } })
       .then(() => {
         fetchClubs();
         setFormData({ name: '', description: '', mission: '', presidentId: '', rulesAndRegulations: '', logoFile: null });
@@ -91,7 +91,7 @@ function ClubManagement() {
     data.append('presidentId', formData.presidentId);
     if (formData.logoFile) data.append('logo', formData.logoFile);
 
-    axios.put(`http://localhost:5000/api/clubs/${editingClubId}`, data, { headers: { 'Content-Type': 'multipart/form-data' } })
+    api.put(`/clubs/${editingClubId}`, data, { headers: { 'Content-Type': 'multipart/form-data' } })
       .then(() => {
         fetchClubs(); setEditingClubId(null); setFormData({ name: '', description: '', mission: '', presidentId: '', rulesAndRegulations: '', membershipFee: '', logoFile: null }); setShowCreateForm(false); alert("Club updated successfully!");
       })
@@ -100,20 +100,20 @@ function ClubManagement() {
 
   const handleDeleteClub = (clubId) => {
     if (window.confirm("Are you sure you want to delete this club? This action cannot be undone.")) {
-      axios.delete(`http://localhost:5000/api/clubs/${clubId}`, { data: { supervisorId: currentUser.id } })
+      api.delete(`/clubs/${clubId}`, { data: { supervisorId: currentUser.id } })
         .then(() => { fetchClubs(); alert("Club deleted."); })
         .catch(err => alert("Error deleting club."));
     }
   };
 
   const handleApproveAnnouncement = (clubId, annId) => {
-    axios.put(`http://localhost:5000/api/clubs/${clubId}/announcements/${annId}/approve`, { supervisorId: currentUser.id })
+    api.put(`/clubs/${clubId}/announcements/${annId}/approve`, { supervisorId: currentUser.id })
       .then(res => { fetchClubs(); }).catch(err => alert("Error approving announcement."));
   };
 
   const handleRejectAnnouncement = (clubId, annId) => {
     if(window.confirm("Reject and delete this announcement?")) {
-      axios.delete(`http://localhost:5000/api/clubs/${clubId}/announcements/${annId}`, { data: { supervisorId: currentUser.id } })
+      api.delete(`/clubs/${clubId}/announcements/${annId}`, { data: { supervisorId: currentUser.id } })
         .then(res => { fetchClubs(); }).catch(err => alert("Error rejecting announcement."));
     }
   };

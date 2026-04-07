@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../config/api';
 import { useNavigate } from 'react-router-dom';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from 'recharts';
 import jsPDF from 'jspdf';
@@ -17,7 +17,7 @@ function GlobalAnalytics() {
       return;
     }
 
-    axios.get('http://localhost:5000/api/clubs/global/analytics')
+    api.get('/clubs/global/analytics')
       .then(res => setGlobalData(res.data))
       .catch(err => console.error("Error fetching global matrix:", err));
   }, []);

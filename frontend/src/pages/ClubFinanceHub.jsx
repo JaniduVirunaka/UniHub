@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../config/api';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import ClubNavigation from '../components/ClubNavigation';
@@ -61,11 +61,11 @@ function ClubFinanceHub() {
   }, [club]); 
 
   const fetchClubData = () => {
-    axios.get(`http://localhost:5000/api/clubs/${id}`).then(res => setClub(res.data)).catch(err => console.log(err));
+    api.get(`/clubs/${id}`).then(res => setClub(res.data)).catch(err => console.error(err));
   };
 
   const fetchAnalytics = () => {
-    axios.get(`http://localhost:5000/api/clubs/${id}/analytics`).then(res => setAnalytics(res.data)).catch(err => console.error("Error fetching analytics:", err));
+    api.get(`/clubs/${id}/analytics`).then(res => setAnalytics(res.data)).catch(err => console.error("Error fetching analytics:", err));
   };
 
   if (!club) return <div style={{ textAlign: 'center', marginTop: '50px' }}>Loading Financial Hub...</div>;
@@ -99,7 +99,7 @@ function ClubFinanceHub() {
     data.append('category', paymentData.category);
     data.append('receipt', paymentData.receipt);
 
-    axios.post(`http://localhost:5000/api/clubs/${id}/fees/pay`, data, { headers: { 'Content-Type': 'multipart/form-data' } })
+    api.post(`/clubs/${id}/fees/pay`, data, { headers: { 'Content-Type': 'multipart/form-data' } })
       .then(res => {
         alert(res.data.message);
         setPaymentData({ category: safeCategories[0], amount: '', receipt: null }); 
@@ -109,7 +109,7 @@ function ClubFinanceHub() {
 
   //-----Financial portal----
   const handleVerifyPayment = (recordId) => {
-    axios.put(`http://localhost:5000/api/clubs/${id}/fees/update`, {
+    api.put(`/clubs/${id}/fees/update`, {
       recordId: recordId, status: editForm.status, amountPaid: Number(editForm.amountPaid), requestorId: currentUser?.id
     }).then(res => { alert(res.data.message); setEditingId(null); fetchClubData(); fetchAnalytics(); })
       .catch(err => alert(err.response?.data?.message || "Error updating record."));
@@ -118,7 +118,7 @@ function ClubFinanceHub() {
   const handleAddCategory = (e) => {
     e.preventDefault();
     if(!newCategory) return;
-    axios.post(`http://localhost:5000/api/clubs/${id}/categories`, { newCategory, userId: currentUser?.id })
+    api.post(`/clubs/${id}/categories`, { newCategory, userId: currentUser?.id })
       .then(res => { setNewCategory(''); fetchClubData(); }).catch(err => alert(err.response?.data?.message || "Error adding category."));
   };
 
@@ -126,14 +126,14 @@ function ClubFinanceHub() {
     if (oldCat === 'Membership Fee') return alert("Cannot rename the default category.");
     const newCat = window.prompt("Enter new category name:", oldCat);
     if (newCat && newCat.trim() !== "" && newCat !== oldCat) {
-      axios.put(`http://localhost:5000/api/clubs/${id}/categories`, { oldCategory: oldCat, newCategory: newCat, userId: currentUser?.id })
+      api.put(`/clubs/${id}/categories`, { oldCategory: oldCat, newCategory: newCat, userId: currentUser?.id })
         .then(res => fetchClubData()).catch(err => alert(err.response?.data?.message || "Error renaming category."));
     }
   };
 
   const handleDeleteCategory = (catName) => {
     if(!window.confirm(`Delete the category "${catName}"?`)) return;
-    axios.delete(`http://localhost:5000/api/clubs/${id}/categories/${catName}`, { data: { userId: currentUser?.id } })
+    api.delete(`/clubs/${id}/categories/${catName}`, { data: { userId: currentUser?.id } })
       .then(res => fetchClubData()).catch(err => alert(err.response?.data?.message || "Error deleting category."));
   };
 
@@ -147,11 +147,11 @@ function ClubFinanceHub() {
     if (expenseData.receipt) data.append('receipt', expenseData.receipt);
 
     if (editingExpenseId) {
-      axios.put(`http://localhost:5000/api/clubs/${id}/expenses/${editingExpenseId}`, data, { headers: { 'Content-Type': 'multipart/form-data' } })
+      api.put(`/clubs/${id}/expenses/${editingExpenseId}`, data, { headers: { 'Content-Type': 'multipart/form-data' } })
         .then(res => { alert(res.data.message); setEditingExpenseId(null); setShowExpenseForm(false); fetchAnalytics(); })
         .catch(err => alert("Error updating expense."));
     } else {
-      axios.post(`http://localhost:5000/api/clubs/${id}/expenses`, data, { headers: { 'Content-Type': 'multipart/form-data' } })
+      api.post(`/clubs/${id}/expenses`, data, { headers: { 'Content-Type': 'multipart/form-data' } })
         .then(res => { alert(res.data.message); setExpenseData({ title: '', amount: '', description: '', date: '', receipt: null }); setShowExpenseForm(false); fetchAnalytics(); })
         .catch(err => alert("Error logging expense."));
     }
@@ -166,7 +166,7 @@ function ClubFinanceHub() {
 
   const handleDeleteExpense = (expenseId) => {
     if (!window.confirm("Are you sure you want to delete this expense record?")) return;
-    axios.delete(`http://localhost:5000/api/clubs/${id}/expenses/${expenseId}`, { data: { userId: currentUser?.id } })
+    api.delete(`/clubs/${id}/expenses/${expenseId}`, { data: { userId: currentUser?.id } })
       .then(res => fetchAnalytics()).catch(err => alert("Error deleting expense."));
   };
 

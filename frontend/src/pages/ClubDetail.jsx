@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate , useLocation } from 'react-router-dom';
-import axios from 'axios';
+import api from '../config/api';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import ClubNavigation from '../components/ClubNavigation';
@@ -36,9 +36,9 @@ function ClubDetail() {
   }, [id]);
 
   const fetchClubData = () => {
-    axios.get(`http://localhost:5000/api/clubs/${id}`)
+    api.get(`/clubs/${id}`)
       .then(res => setClub(res.data))
-      .catch(err => console.log(err));
+      .catch(err => console.error(err));
   };
 //scroll to announcements if user clicks "View Announcements" from the main hub or any other page
   useEffect(() => {
@@ -55,20 +55,20 @@ function ClubDetail() {
 
   //--------Member Management------
   const handleJoinRequest = () => {
-    axios.post(`http://localhost:5000/api/clubs/${id}/request-join`, { userId: currentUser.id })
+    api.post(`/clubs/${id}/request-join`, { userId: currentUser.id })
       .then(res => { alert(res.data.message); fetchClubData(); })
       .catch(err => alert(err.response?.data?.message || "Error requesting to join."));
   };
 
   const handleApprove = (studentId) => {
-    axios.post(`http://localhost:5000/api/clubs/${id}/approve`, { studentId, presidentId: currentUser.id })
+    api.post(`/clubs/${id}/approve`, { studentId, presidentId: currentUser.id })
       .then(res => { alert(res.data.message); fetchClubData(); })
       .catch(err => alert("Error approving member."));
   };
 
   const handleRejectRequest = (studentId) => {
     if (!window.confirm("Are you sure you want to decline this request?")) return;
-    axios.post(`http://localhost:5000/api/clubs/${id}/reject-request`, { studentId, presidentId: currentUser.id })
+    api.post(`/clubs/${id}/reject-request`, { studentId, presidentId: currentUser.id })
       .then(res => { alert(res.data.message); fetchClubData(); })
       .catch(err => alert("Error rejecting member."));
   };
@@ -76,35 +76,35 @@ function ClubDetail() {
   //--------Announcement Management------
   const handlePostAnnouncement = (e) => {
     e.preventDefault();
-    axios.post(`http://localhost:5000/api/clubs/${id}/announcements`, { ...announcementData, presidentId: currentUser.id })
+    api.post(`/clubs/${id}/announcements`, { ...announcementData, presidentId: currentUser.id })
       .then(res => { alert(res.data.message); setAnnouncementData({ title: '', content: '' }); fetchClubData(); })
       .catch(err => alert(err.response?.data?.message || "Error posting announcement."));
   };
 
   const handleEditAnnouncement = (annId) => {
     if (!editAnnData.title || !editAnnData.content) return alert("Fields cannot be empty.");
-    axios.put(`http://localhost:5000/api/clubs/${id}/announcements/${annId}/edit`, { ...editAnnData, userId: currentUser?.id })
+    api.put(`/clubs/${id}/announcements/${annId}/edit`, { ...editAnnData, userId: currentUser?.id })
       .then(res => { alert(res.data.message); setEditingAnnId(null); fetchClubData(); })
       .catch(err => alert("Error updating announcement."));
   };
 
   const handleDeleteAnnouncement = (annId) => {
     if (!window.confirm("Are you sure you want to permanently delete this announcement?")) return;
-    axios.delete(`http://localhost:5000/api/clubs/${id}/announcements/${annId}`, { data: { userId: currentUser?.id } })
+    api.delete(`/clubs/${id}/announcements/${annId}`, { data: { userId: currentUser?.id } })
       .then(res => fetchClubData()).catch(err => alert("Error deleting announcement."));
   };
 
   //--------Board Management------
   const handleAssignBoard = (e) => {
     e.preventDefault();
-    axios.post(`http://localhost:5000/api/clubs/${id}/board`, { ...boardData, presidentId: currentUser.id })
+    api.post(`/clubs/${id}/board`, { ...boardData, presidentId: currentUser.id })
       .then(res => { alert(res.data.message); setBoardData({ userId: '', role: '' }); fetchClubData(); })
       .catch(err => alert(err.response?.data?.message || "Error assigning role."));
   };
 
   const handleRemoveBoard = (userId) => {
     if (window.confirm("Are you sure you want to remove this member from the board?")) {
-      axios.delete(`http://localhost:5000/api/clubs/${id}/board/${userId}`, { data: { presidentId: currentUser.id } })
+      api.delete(`/clubs/${id}/board/${userId}`, { data: { presidentId: currentUser.id } })
         .then(res => fetchClubData()).catch(err => alert("Error removing board member."));
     }
   };
@@ -355,7 +355,7 @@ function ClubDetail() {
       const proceed = window.confirm("Hold on! You entered candidate details but didn't click 'Add to List'. Do you want to create the election WITHOUT adding them?");
       if (!proceed) return;
     }
-    axios.post(`http://localhost:5000/api/clubs/${id}/elections`, { ...electionData, supervisorId: currentUser?.id })
+    api.post(`/clubs/${id}/elections`, { ...electionData, supervisorId: currentUser?.id })
       .then(res => { alert(res.data.message); setElectionData({ position: '', candidates: [] }); setTempCandidate({ candidateUserId: '', manifesto: '' }); fetchClubData(); })
       .catch(err => alert(err.response?.data?.message || "Error creating election."));
   };
@@ -366,26 +366,26 @@ function ClubDetail() {
       const proceed = window.confirm("Hold on! You entered candidate details but didn't click the '+' button. Do you want to save changes WITHOUT adding them?");
       if (!proceed) return;
     }
-    axios.put(`http://localhost:5000/api/clubs/${id}/elections/${electionId}/edit`, { ...editElectionData, supervisorId: currentUser?.id })
+    api.put(`/clubs/${id}/elections/${electionId}/edit`, { ...editElectionData, supervisorId: currentUser?.id })
       .then(res => { alert(res.data.message); setEditingElectionId(null); setEditTempCandidate({ candidateUserId: '', manifesto: '' }); fetchClubData(); })
       .catch(err => alert(err.response?.data?.message || "Error updating election."));
   };
 
   const handleToggleElection = (electionId, isActive, isPublished) => {
     if (!window.confirm("Are you sure you want to change the election status?")) return;
-    axios.put(`http://localhost:5000/api/clubs/${id}/elections/${electionId}/status`, { isActive, isPublished, supervisorId: currentUser?.id })
+    api.put(`/clubs/${id}/elections/${electionId}/status`, { isActive, isPublished, supervisorId: currentUser?.id })
       .then(res => fetchClubData()).catch(err => alert("Error updating election status."));
   };
 
   const handleVote = (electionId, candidateId) => {
     if (!window.confirm("Are you sure? Your vote is final and anonymous.")) return;
-    axios.post(`http://localhost:5000/api/clubs/${id}/elections/${electionId}/vote`, { userId: currentUser?.id, candidateId })
+    api.post(`/clubs/${id}/elections/${electionId}/vote`, { userId: currentUser?.id, candidateId })
       .then(res => { alert(res.data.message); fetchClubData(); }).catch(err => alert(err.response?.data?.message || "Error casting vote."));
   };
 
   const handleDeleteElection = (electionId) => {
     if (!window.confirm("Are you sure you want to permanently delete this election record?")) return;
-    axios.delete(`http://localhost:5000/api/clubs/${id}/elections/${electionId}`, { data: { supervisorId: currentUser?.id } })
+    api.delete(`/clubs/${id}/elections/${electionId}`, { data: { supervisorId: currentUser?.id } })
       .then(res => { alert(res.data.message); fetchClubData(); }).catch(err => alert("Error deleting election."));
   };
 

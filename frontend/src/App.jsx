@@ -21,7 +21,7 @@ import './App.css';
 
 function App() {
   return (
-    <GoogleOAuthProvider clientId="565636881036-t3jicm0kuom2b1o9b5avkf62ijbpjo6n.apps.googleusercontent.com">
+    <GoogleOAuthProvider clientId={process.env.REACT_APP_GOOGLE_CLIENT_ID}>
     <Router>
       <Navbar /> 
       <div className="container">

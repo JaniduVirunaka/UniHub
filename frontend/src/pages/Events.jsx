@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-// import axios from 'axios'; // Teammate will need to uncomment this when ready
+// import api from '../config/api'; // Teammate will need to uncomment this when ready
 
 function Events() {
   // TODO: [Teammate Name] - Initialize state for events
@@ -8,7 +8,7 @@ function Events() {
   useEffect(() => {
     // TODO: [Teammate Name] - Fetch all events from your backend endpoint
     // Example:
-    // axios.get('http://localhost:5000/api/events')
+    // api.get('/events')
     //   .then(res => setEvents(res.data))
     //   .catch(err => console.error("Error fetching events:", err));
   }, []);

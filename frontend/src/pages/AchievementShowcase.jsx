@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../config/api';
 import ClubNavigation from '../components/ClubNavigation';
 
 const ImageCarousel = ({ images, title }) => {
@@ -77,9 +77,9 @@ function AchievementShowcase() {
   }, [id]);
 
   const fetchClubData = () => {
-    axios.get(`http://localhost:5000/api/clubs/${id}`)
+    api.get(`/clubs/${id}`)
       .then(res => setClub(res.data))
-      .catch(err => console.log(err));
+      .catch(err => console.error(err));
   };
 
   //RBAC
@@ -113,11 +113,11 @@ function AchievementShowcase() {
     const config = { headers: { 'Content-Type': 'multipart/form-data' } };
 
     if (editingId) {
-      axios.put(`http://localhost:5000/api/clubs/${id}/achievements/${editingId}`, data, config)
+      api.put(`/clubs/${id}/achievements/${editingId}`, data, config)
         .then(res => { alert(res.data.message); resetForm(); fetchClubData(); })
         .catch(err => alert(err.response?.data?.message || "Error updating achievement."));
     } else {
-      axios.post(`http://localhost:5000/api/clubs/${id}/achievements`, data, config)
+      api.post(`/clubs/${id}/achievements`, data, config)
         .then(res => { alert(res.data.message); resetForm(); fetchClubData(); })
         .catch(err => alert(err.response?.data?.message || "Error uploading achievement."));
     }
@@ -125,7 +125,7 @@ function AchievementShowcase() {
 
   const handleDelete = (achvId) => {
     if (!window.confirm("Are you sure you want to delete this achievement? The photos will be removed.")) return;
-    axios.delete(`http://localhost:5000/api/clubs/${id}/achievements/${achvId}`, { data: { requestorId: currentUser?.id } })
+    api.delete(`/clubs/${id}/achievements/${achvId}`, { data: { requestorId: currentUser?.id } })
     .then(res => { alert(res.data.message); fetchClubData(); })
     .catch(err => alert("Error deleting achievement."));
   };

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../config/api';
 import ClubNavigation from '../components/ClubNavigation';
 
 function Sponsorships() {
@@ -21,8 +21,8 @@ function Sponsorships() {
   useEffect(() => { fetchClubData(); }, [id]);
 
   const fetchClubData = () => {
-    axios.get(`http://localhost:5000/api/clubs/${id}`)
-      .then(res => setClub(res.data)).catch(err => console.log(err));
+    api.get(`/clubs/${id}`)
+      .then(res => setClub(res.data)).catch(err => console.error(err));
   };
 
   if (!club) return <div style={{ textAlign: 'center', marginTop: '50px' }}>Loading Corporate Portal...</div>;
@@ -36,7 +36,7 @@ function Sponsorships() {
   //-----Proposal management actions-----
   const handlePublishProposal = (e) => {
     e.preventDefault();
-    axios.post(`http://localhost:5000/api/clubs/${id}/proposals`, { ...proposalData, userId: currentUser?.id })
+    api.post(`/clubs/${id}/proposals`, { ...proposalData, userId: currentUser?.id })
       .then(res => {
         alert(res.data.message);
         setProposalData({ title: '', description: '', targetAmount: '', proposalDocumentUrl: '' }); 
@@ -46,28 +46,28 @@ function Sponsorships() {
 
   const handleUpdateProposal = (proposalId) => {
     if (!editProposalData.title || !editProposalData.targetAmount) return alert("Title and Target Amount are required.");
-    axios.put(`http://localhost:5000/api/clubs/${id}/proposals/${proposalId}/edit`, { ...editProposalData, userId: currentUser?.id })
+    api.put(`/clubs/${id}/proposals/${proposalId}/edit`, { ...editProposalData, userId: currentUser?.id })
       .then(res => { alert(res.data.message || "Proposal updated successfully!"); setEditingProposalId(null); fetchClubData(); })
       .catch(err => alert("Error updating proposal."));
   };
 
   const handleDeleteProposal = (proposalId) => {
     if (!window.confirm("Are you sure you want to permanently delete this proposal and all associated pledges?")) return;
-    axios.delete(`http://localhost:5000/api/clubs/${id}/proposals/${proposalId}`, { data: { userId: currentUser?.id } })
+    api.delete(`/clubs/${id}/proposals/${proposalId}`, { data: { userId: currentUser?.id } })
       .then(res => fetchClubData()).catch(err => alert("Error deleting proposal."));
   };
 
   //-------Pledge actions (public accessible)-------
   const handleSubmitPledge = (e, proposalId) => {
     e.preventDefault();
-    axios.post(`http://localhost:5000/api/clubs/${id}/proposals/${proposalId}/pledge`, pledgeData)
+    api.post(`/clubs/${id}/proposals/${proposalId}/pledge`, pledgeData)
       .then(res => {
         alert(res.data.message); setPledgeData({ companyName: '', contactEmail: '', amount: '', message: '' }); setActivePledgeForm(null); fetchClubData();
       }).catch(err => alert("Error submitting pledge."));
   };
 
   const handlePledgeStatus = (proposalId, pledgeId, status) => {
-    axios.put(`http://localhost:5000/api/clubs/${id}/proposals/${proposalId}/pledge/${pledgeId}`, { status, userId: currentUser?.id })
+    api.put(`/clubs/${id}/proposals/${proposalId}/pledge/${pledgeId}`, { status, userId: currentUser?.id })
       .then(res => fetchClubData()).catch(err => alert("Error updating pledge."));
   };
 

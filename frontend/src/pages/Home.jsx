@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
+import api from '../config/api';
 import { useScrollAnimation } from '../hooks/useScrollAnimation';
 
 function Home() {
@@ -12,9 +12,9 @@ function Home() {
   const [eventsRef, eventsVisible] = useScrollAnimation();
 
   useEffect(() => {
-    axios.get('http://localhost:5000/api/clubs')
+    api.get('/clubs')
       .then(res => setClubs(res.data.slice(0, 3)))
-      .catch(err => console.log(err));
+      .catch(err => console.error(err));
   }, []);
 
  return (

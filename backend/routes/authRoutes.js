@@ -4,7 +4,7 @@ const bcrypt = require('bcryptjs');
 const User = require('../models/User'); 
 
 const { OAuth2Client } = require('google-auth-library');
-const googleClient = new OAuth2Client("565636881036-t3jicm0kuom2b1o9b5avkf62ijbpjo6n.apps.googleusercontent.com");
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 // SIGNUP ROUTE
 router.post('/signup', async (req, res) => {
@@ -85,7 +85,7 @@ router.post('/google', async (req, res) => {
     // 1. Verify the VIP ticket with Google's servers
     const ticket = await googleClient.verifyIdToken({
       idToken: token,
-      audience: "565636881036-t3jicm0kuom2b1o9b5avkf62ijbpjo6n.apps.googleusercontent.com",
+      audience: process.env.GOOGLE_CLIENT_ID,
     });
     
     // Extract their payload (Name and Email) from the verified ticket

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import axios from 'axios';
+import api from '../config/api';
 import ClubNavigation from '../components/ClubNavigation';
 
 function ClubAbout() {
@@ -16,9 +16,9 @@ function ClubAbout() {
 
   // Fetch the club's profile data as soon as the page loads
   useEffect(() => {
-    axios.get(`http://localhost:5000/api/clubs/${id}`)
+    api.get(`/clubs/${id}`)
       .then(res => setClub(res.data))
-      .catch(err => console.log(err));
+      .catch(err => console.error(err));
   }, [id]);
 
   if (!club) return <div style={{ textAlign: 'center', marginTop: '50px' }}>Loading...</div>;
