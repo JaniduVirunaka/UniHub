@@ -13,14 +13,14 @@ import Profile from './pages/Profile';
 import Register from './pages/auth/Register';
 
 // Club module
-import ClubManagement from './pages/ClubManagement';
-import ClubDetail from './pages/ClubDetail';
-import ClubAbout from './pages/ClubAbout';
-import ClubElections from './pages/ClubElections';
-import ClubFinanceHub from './pages/ClubFinanceHub';
-import AchievementShowcase from './pages/AchievementShowcase';
-import Sponsorships from './pages/Sponsorships';
-import GlobalAnalytics from './pages/GlobalAnalytics';
+import ClubManagement from './pages/clubs/ClubManagement';
+import ClubDetail from './pages/clubs/ClubDetail';
+import ClubAbout from './pages/clubs/ClubAbout';
+import ClubElections from './pages/clubs/ClubElections';
+import ClubFinanceHub from './pages/clubs/ClubFinanceHub';
+import AchievementShowcase from './pages/clubs/AchievementShowcase';
+import Sponsorships from './pages/clubs/Sponsorships';
+import GlobalAnalytics from './pages/clubs/GlobalAnalytics';
 
 // Sport module — admin
 import AdminDashboard from './pages/admin/AdminDashboard';

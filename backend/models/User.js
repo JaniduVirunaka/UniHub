@@ -39,10 +39,10 @@ const userSchema = new mongoose.Schema({
 });
 
 // Hash password before saving — guard for Google OAuth users who have no password
-userSchema.pre('save', async function (next) {
-  if (!this.isModified('password') || !this.password) return next();
+// Mongoose 7+: async hooks don't receive next(); just return to signal completion
+userSchema.pre('save', async function () {
+  if (!this.isModified('password') || !this.password) return;
   this.password = await require('bcryptjs').hash(this.password, 10);
-  next();
 });
 
 userSchema.methods.comparePassword = function (password) {

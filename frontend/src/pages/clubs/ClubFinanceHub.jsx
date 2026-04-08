@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import api from '../config/api';
+import api from '../../config/api';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import ClubNavigation from '../components/ClubNavigation';
+import ClubNavigation from '../../components/ClubNavigation';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 function ClubFinanceHub() {
