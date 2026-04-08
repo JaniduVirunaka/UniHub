@@ -1,33 +1,39 @@
 import React, { useState, useEffect } from 'react';
-// import api from '../config/api'; // Teammate will need to uncomment this when ready
+import { eventService } from '../services/services';
+import { EventCard } from '../components/EventCard';
 
 function Events() {
-  // TODO: [Teammate Name] - Initialize state for events
   const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // TODO: [Teammate Name] - Fetch all events from your backend endpoint
-    // Example:
-    // api.get('/events')
-    //   .then(res => setEvents(res.data))
-    //   .catch(err => console.error("Error fetching events:", err));
+    eventService.getAllEvents()
+      .then(res => setEvents(res.data))
+      .catch(err => console.error('Error fetching events:', err))
+      .finally(() => setLoading(false));
   }, []);
 
-  return (
-    <div className="card" style={{ padding: '2rem' }}>
-      <h2 style={{ color: 'var(--primary-color)', borderBottom: '2px solid var(--border-color)', paddingBottom: '10px' }}>
-        Campus Events
-      </h2>
-      
-      <p style={{ color: 'var(--text-muted)', marginBottom: '20px' }}>
-        Discover and RSVP to upcoming workshops, guest lectures, and social gatherings.
-      </p>
-
-      {/* TODO: [Teammate Name] - Build the UI to map through the 'events' array here */}
-      <div style={{ padding: '20px', backgroundColor: '#f9fafb', border: '1px dashed #d1d5db', borderRadius: '8px', textAlign: 'center' }}>
-        <h3 style={{ color: '#6b7280' }}>🚧 Events Module Under Construction 🚧</h3>
-        <p style={{ color: '#9ca3af' }}>Sakurani is currently developing this feature. Check back soon!</p>
+  if (loading) {
+    return (
+      <div className="p-8 text-center">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto mb-3"></div>
+        <p className="text-gray-600">Loading events...</p>
       </div>
+    );
+  }
+
+  return (
+    <div className="p-8">
+      <h2 className="text-2xl font-bold mb-6">Campus Events</h2>
+      {events.length === 0 ? (
+        <p className="text-gray-500">No events available yet.</p>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {events.map(event => (
+            <EventCard key={event._id} event={event} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
