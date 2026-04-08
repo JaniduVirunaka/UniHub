@@ -127,10 +127,19 @@ const removeMember = async (req, res) => {
     if (!isMember) return res.status(400).json({ message: 'Student is not a member of this sport' });
 
     sport.members = sport.members.filter(mid => mid.toString() !== studentId);
-    if (sport.captain && sport.captain.toString() === studentId) { sport.captain = null; }
-    if (sport.viceCaptain && sport.viceCaptain.toString() === studentId) { sport.viceCaptain = null; }
+    if (sport.captain && sport.captain.toString() === studentId) {
+      sport.captain = null;
+      student.role = 'student';
+    }
+    if (sport.viceCaptain && sport.viceCaptain.toString() === studentId) {
+      sport.viceCaptain = null;
+      student.role = 'student';
+    }
     student.sport = null;
-    student.role = 'student';
+    // Only demote to student if they aren't still a captain/vc in another sport
+    if (student.role !== 'captain' && student.role !== 'vice_captain') {
+      student.role = 'student';
+    }
 
     await sport.save();
     await student.save();

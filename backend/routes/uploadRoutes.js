@@ -2,6 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const router = express.Router();
+const { protect } = require('../middleware/authMiddleware');
 
 // Storage config
 const storage = multer.diskStorage({
@@ -24,17 +25,17 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 // Routes
-router.post('/profile-picture', upload.single('profilePicture'), (req, res) => {
+router.post('/profile-picture', protect, upload.single('profilePicture'), (req, res) => {
   if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
   res.json({ message: 'Profile picture uploaded', filename: req.file.filename });
 });
 
-router.post('/event-poster', upload.single('posterImage'), (req, res) => {
+router.post('/event-poster', protect, upload.single('posterImage'), (req, res) => {
   if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
   res.json({ message: 'Poster uploaded', filename: req.file.filename });
 });
 
-router.post('/logo', upload.single('logo'), (req, res) => {
+router.post('/logo', protect, upload.single('logo'), (req, res) => {
   if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
   res.json({ message: 'Logo uploaded', filename: req.file.filename });
 });

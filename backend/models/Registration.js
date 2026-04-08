@@ -26,4 +26,10 @@ const registrationSchema = new mongoose.Schema({
   }
 });
 
+// Prevent duplicate active registrations at DB level
+registrationSchema.index(
+  { userId: 1, eventId: 1 },
+  { unique: true, partialFilterExpression: { status: { $in: ['registered', 'pending_payment'] } } }
+);
+
 module.exports = mongoose.model('Registration', registrationSchema);

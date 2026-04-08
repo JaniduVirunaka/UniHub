@@ -163,4 +163,18 @@ router.put('/profile', protect, async (req, res) => {
   }
 });
 
+// MAKE SPORT ADMIN — promote any user to sport_admin role
+router.put('/make-sport-admin', async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email: email.toLowerCase() });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    user.role = 'sport_admin';
+    await user.save();
+    res.json({ message: 'User promoted to sport_admin', user: { id: user._id, name: user.name, email: user.email, role: user.role } });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 module.exports = router;

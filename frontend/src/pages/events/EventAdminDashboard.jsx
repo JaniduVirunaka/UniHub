@@ -97,10 +97,11 @@ export const AdminDashboard = () => {
   const handleDeleteEvent = async (eventId) => {
     if (window.confirm('Are you sure you want to delete this event?')) {
       try {
-        // TODO: Implement delete endpoint
-        alert('Event deleted successfully!');
+        await eventService.deleteEvent(eventId);
+        const eventsRes = await eventService.getAllEvents();
+        setEvents(eventsRes.data);
       } catch (error) {
-        alert('Error deleting event');
+        alert(error.response?.data?.message || 'Failed to delete event');
       }
     }
   };
