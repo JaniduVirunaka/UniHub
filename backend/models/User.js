@@ -7,10 +7,10 @@ const userSchema = new mongoose.Schema({
   // Password optional — Google OAuth users don't have one
   password: { type: String },
 
-  // Unified role enum covering both club and sport modules
+  // Unified role enum covering club, sport, and event modules
   role: {
     type: String,
-    enum: ['student', 'president', 'supervisor', 'sport_admin', 'captain', 'vice_captain'],
+    enum: ['student', 'president', 'supervisor', 'sport_admin', 'captain', 'vice_captain', 'admin'],
     default: 'student'
   },
 
@@ -21,14 +21,32 @@ const userSchema = new mongoose.Schema({
     default: 'local'
   },
 
+  // Event-module fields (optional — only set for event/registration users)
+  studentId:      { type: String, unique: true, sparse: true },
+  department:     { type: String },
+  year:           { type: Number },
+  profilePicture: { type: String },
+  registeredAt:   { type: Date, default: Date.now },
+
   // Sport-module fields (optional — only set for sport participants)
-  nic: { type: String },
+  nic:                { type: String },
   registrationNumber: { type: String },
-  phone: { type: String },
-  height: { type: Number },
-  weight: { type: Number },
-  extraSkills: { type: String },
-  sport: { type: mongoose.Schema.Types.ObjectId, ref: 'Sport' }
+  phone:              { type: String },
+  height:             { type: Number },
+  weight:             { type: Number },
+  extraSkills:        { type: String },
+  sport:              { type: mongoose.Schema.Types.ObjectId, ref: 'Sport' }
 });
+
+// Hash password before saving — guard for Google OAuth users who have no password
+userSchema.pre('save', async function (next) {
+  if (!this.isModified('password') || !this.password) return next();
+  this.password = await require('bcryptjs').hash(this.password, 10);
+  next();
+});
+
+userSchema.methods.comparePassword = function (password) {
+  return require('bcryptjs').compare(password, this.password);
+};
 
 module.exports = mongoose.model('User', userSchema);
