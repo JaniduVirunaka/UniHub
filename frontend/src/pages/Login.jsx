@@ -11,6 +11,7 @@ const getDefaultPath = (role) => {
     case 'sport_admin':  return '/admin';
     case 'captain':      return '/captain';
     case 'vice_captain': return '/vice-captain';
+    case 'admin':        return '/events/admin'; // event organiser
     default:             return '/clubs'; // student
   }
 };
