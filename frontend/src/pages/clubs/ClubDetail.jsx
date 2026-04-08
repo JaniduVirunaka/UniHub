@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate , useLocation } from 'react-router-dom';
-import api from '../config/api';
+import api from '../../config/api';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import ClubNavigation from '../components/ClubNavigation';
+import ClubNavigation from '../../components/ClubNavigation';
 
 function ClubDetail() {
   const { id } = useParams();

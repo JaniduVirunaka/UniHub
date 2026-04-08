@@ -1,0 +1,35 @@
+const mongoose = require('mongoose');
+
+const registrationSchema = new mongoose.Schema({
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  eventId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Event',
+    required: true
+  },
+  registeredAt: {
+    type: Date,
+    default: Date.now
+  },
+  status: {
+    type: String,
+    enum: ['registered', 'cancelled', 'pending_payment'],
+    default: 'registered'
+  },
+  ticketsBooked: {
+    type: Number,
+    default: 1
+  }
+});
+
+// Prevent duplicate active registrations at DB level
+registrationSchema.index(
+  { userId: 1, eventId: 1 },
+  { unique: true, partialFilterExpression: { status: { $in: ['registered', 'pending_payment'] } } }
+);
+
+module.exports = mongoose.model('Registration', registrationSchema);

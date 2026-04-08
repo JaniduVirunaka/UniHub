@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import api from '../config/api';
-import ClubNavigation from '../components/ClubNavigation';
+import api from '../../config/api';
+import ClubNavigation from '../../components/ClubNavigation';
 
 function ClubAbout() {
   const { id } = useParams();
