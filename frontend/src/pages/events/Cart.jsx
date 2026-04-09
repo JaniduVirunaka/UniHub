@@ -52,7 +52,7 @@ export const Cart = () => {
       const payloadItems = cart.map((item) => ({ eventId: item.eventId, quantity: item.quantity }));
       const res = await cartService.checkout(payloadItems);
       clearCart();
-      navigate('/checkout', { state: res.data });
+      navigate('/events/checkout', { state: res.data });
       setSelectedEventId(null);
     } catch (error) {
       alert(error?.response?.data?.message || error.message || 'Checkout failed');

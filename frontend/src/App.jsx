@@ -1,10 +1,11 @@
 import React from 'react';
 import { Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
-import { Home, LogIn, UserPlus, LayoutDashboard, LogOut, Users, Trophy, Calendar, Ticket, ShoppingCart } from 'lucide-react';
+import { Home as HomeIcon, LogIn, UserPlus, LayoutDashboard, LogOut, Users, Trophy, Calendar, Ticket, ShoppingCart, User } from 'lucide-react';
 import { useAuth } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 
 // Shared pages
+import HomePage from './pages/Home';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Profile from './pages/Profile';
@@ -131,6 +132,7 @@ function AppNav() {
               )}
 
               <NavLink to={getDashboardPath(user)} icon={<LayoutDashboard size={16} />}>Dashboard</NavLink>
+              <NavLink to="/profile" icon={<User size={16} />}>Profile</NavLink>
 
               <div className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-200">
                 {user.name} · {user.role}
@@ -159,8 +161,11 @@ function App() {
       <AppNav />
 
       <Routes>
-        {/* Root redirect */}
-        <Route path="/" element={<Navigate to={getDashboardPath(user)} replace />} />
+        {/* Root: landing page for guests, dashboard redirect for authenticated users */}
+        <Route
+          path="/"
+          element={user ? <Navigate to={getDashboardPath(user)} replace /> : <HomePage />}
+        />
 
         {/* Auth routes */}
         <Route path="/login"    element={user ? <Navigate to={getDashboardPath(user)} replace /> : <Login />} />
