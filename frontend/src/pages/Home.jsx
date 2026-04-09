@@ -5,7 +5,8 @@ import { useScrollAnimation } from '../hooks/useScrollAnimation';
 
 function Home() {
   const [clubs, setClubs] = useState([]);
-  
+  const [events, setEvents] = useState([]);
+
   const [heroRef, heroVisible] = useScrollAnimation();
   const [metricsRef, metricsVisible] = useScrollAnimation();
   const [clubsRef, clubsVisible] = useScrollAnimation();
@@ -14,6 +15,9 @@ function Home() {
   useEffect(() => {
     api.get('/clubs')
       .then(res => setClubs(res.data.slice(0, 3)))
+      .catch(err => console.error(err));
+    api.get('/events')
+      .then(res => setEvents(res.data.slice(0, 2)))
       .catch(err => console.error(err));
   }, []);
 
@@ -99,14 +103,19 @@ function Home() {
           <div className="card card-hover" style={{ borderTop: '4px solid var(--warning)', margin: 0 }}>
             <h3 style={{ marginTop: 0, color: 'var(--text-main)' }}>📅 Upcoming Events</h3>
             <ul style={{ listStyleType: 'none', padding: 0, margin: 0 }}>
-              <li style={{ padding: '12px 0', borderBottom: '1px solid var(--border-color)' }}>
-                <strong style={{ color: 'var(--text-main)' }}>Tech Symposium 2026</strong><br/>
-                <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Tomorrow at 10:00 AM | Main Hall</span>
-              </li>
-              <li style={{ padding: '12px 0', borderBottom: 'none' }}>
-                <strong style={{ color: 'var(--text-main)' }}>Photography Walk</strong><br/>
-                <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Friday at 4:00 PM | Campus Gardens</span>
-              </li>
+              {events.length === 0 ? (
+                <li style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontStyle: 'italic' }}>Loading events...</li>
+              ) : (
+                events.map((ev, i) => (
+                  <li key={ev._id} style={{ padding: '12px 0', borderBottom: i < events.length - 1 ? '1px solid var(--border-color)' : 'none' }}>
+                    <strong style={{ color: 'var(--text-main)' }}>{ev.title}</strong><br/>
+                    <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                      {ev.date ? new Date(ev.date).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }) : 'Date TBA'}
+                      {ev.location ? ` | ${ev.location}` : ''}
+                    </span>
+                  </li>
+                ))
+              )}
             </ul>
             <Link to="/events" style={{ display: 'block', textAlign: 'center', marginTop: '15px', textDecoration: 'none', color: 'var(--primary-color)', fontWeight: '600', fontSize: '0.9rem' }}>
               See all events →

@@ -77,7 +77,7 @@ export const UserDashboard = () => {
     addToCart(selectedTicketEvent, 1);
     setShowTicketConfirm(false);
     setSelectedTicketEvent(null);
-    navigate('/cart');
+    navigate('/events/cart');
   };
 
   const handleBuyTicket = (event) => {
