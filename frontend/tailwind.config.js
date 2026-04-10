@@ -1,6 +1,11 @@
 module.exports = {
-  content: ['./src/**/*.{js,jsx,ts,tsx}'],
-  corePlugins: {
-    preflight: false, // disable reset so existing club CSS is unaffected
+  darkMode: 'class',
+  content: ['./index.html', './src/**/*.{js,jsx,ts,tsx}'],
+  theme: {
+    extend: {
+      fontFamily: {
+        sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+      },
+    },
   },
 };

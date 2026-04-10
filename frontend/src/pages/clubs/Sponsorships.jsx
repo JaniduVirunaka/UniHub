@@ -1,265 +1,227 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
+import { ExternalLink, PenLine, Trash2, CheckCircle, XCircle, Plus, X } from 'lucide-react';
 import api from '../../config/api';
 import ClubNavigation from '../../components/ClubNavigation';
+import PageWrapper from '../../components/PageWrapper';
+import Card from '../../components/ui/Card';
+import Button from '../../components/ui/Button';
+import FormInput from '../../components/FormInput';
+import StatusBadge from '../../components/StatusBadge';
+import LoadingSpinner from '../../components/LoadingSpinner';
+import { AnimatePresence, motion } from 'framer-motion';
+import { staggerContainer, staggerItem, scaleUp } from '../../hooks/animationVariants';
+
+const inputCls = 'w-full rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/30 dark:border-white/10 dark:bg-slate-950/40 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500';
 
 function Sponsorships() {
   const { id } = useParams();
-  const navigate = useNavigate();
   const [club, setClub] = useState(null);
-  
-  //States for creating new proposals and pledges
   const [proposalData, setProposalData] = useState({ title: '', description: '', targetAmount: '', proposalDocumentUrl: '' });
   const [pledgeData, setPledgeData] = useState({ companyName: '', contactEmail: '', amount: '', message: '' });
   const [activePledgeForm, setActivePledgeForm] = useState(null);
-
   const [editingProposalId, setEditingProposalId] = useState(null);
   const [editProposalData, setEditProposalData] = useState({ title: '', description: '', targetAmount: '', proposalDocumentUrl: '', isActive: true });
-
   const currentUser = JSON.parse(localStorage.getItem('user'));
 
   useEffect(() => { fetchClubData(); }, [id]);
+  const fetchClubData = () => api.get(`/clubs/${id}`).then(r => setClub(r.data)).catch(console.error);
 
-  const fetchClubData = () => {
-    api.get(`/clubs/${id}`)
-      .then(res => setClub(res.data)).catch(err => console.error(err));
-  };
+  if (!club) return <div className="flex min-h-[60vh] items-center justify-center"><LoadingSpinner text="Loading Corporate Portal…" /></div>;
 
-  if (!club) return <div style={{ textAlign: 'center', marginTop: '50px' }}>Loading Corporate Portal...</div>;
-
-  //---RBAC---
   const isSupervisor = currentUser?.role === 'supervisor';
   const isPresident = club.president?._id === currentUser?.id;
-  const allowedSponsorshipRoles = ['Vice President', 'Secretary', 'Assistant Secretary', 'Treasurer', 'Assistant Treasurer'];
-  const canManageSponsorships = isPresident || isSupervisor || club.topBoard?.some(b => b.user?._id === currentUser?.id && allowedSponsorshipRoles.includes(b.role));
+  const canManage = isPresident || isSupervisor || club.topBoard?.some(b => b.user?._id === currentUser?.id && ['Vice President', 'Secretary', 'Assistant Secretary', 'Treasurer', 'Assistant Treasurer'].includes(b.role));
 
-  //-----Proposal management actions-----
   const handlePublishProposal = (e) => {
     e.preventDefault();
     api.post(`/clubs/${id}/proposals`, { ...proposalData, userId: currentUser?.id })
-      .then(res => {
-        alert(res.data.message);
-        setProposalData({ title: '', description: '', targetAmount: '', proposalDocumentUrl: '' }); 
-        fetchClubData(); 
-      }).catch(err => alert(err.response?.data?.message || "Error publishing proposal."));
+      .then(r => { alert(r.data.message); setProposalData({ title: '', description: '', targetAmount: '', proposalDocumentUrl: '' }); fetchClubData(); })
+      .catch(err => alert(err.response?.data?.message || 'Error.'));
   };
 
   const handleUpdateProposal = (proposalId) => {
-    if (!editProposalData.title || !editProposalData.targetAmount) return alert("Title and Target Amount are required.");
     api.put(`/clubs/${id}/proposals/${proposalId}/edit`, { ...editProposalData, userId: currentUser?.id })
-      .then(res => { alert(res.data.message || "Proposal updated successfully!"); setEditingProposalId(null); fetchClubData(); })
-      .catch(err => alert("Error updating proposal."));
+      .then(() => { setEditingProposalId(null); fetchClubData(); })
+      .catch(() => alert('Error updating.'));
   };
 
   const handleDeleteProposal = (proposalId) => {
-    if (!window.confirm("Are you sure you want to permanently delete this proposal and all associated pledges?")) return;
+    if (!window.confirm('Delete this proposal and all pledges?')) return;
     api.delete(`/clubs/${id}/proposals/${proposalId}`, { data: { userId: currentUser?.id } })
-      .then(res => fetchClubData()).catch(err => alert("Error deleting proposal."));
+      .then(() => fetchClubData()).catch(() => alert('Error.'));
   };
 
-  //-------Pledge actions (public accessible)-------
   const handleSubmitPledge = (e, proposalId) => {
     e.preventDefault();
     api.post(`/clubs/${id}/proposals/${proposalId}/pledge`, pledgeData)
-      .then(res => {
-        alert(res.data.message); setPledgeData({ companyName: '', contactEmail: '', amount: '', message: '' }); setActivePledgeForm(null); fetchClubData();
-      }).catch(err => alert("Error submitting pledge."));
+      .then(r => { alert(r.data.message); setPledgeData({ companyName: '', contactEmail: '', amount: '', message: '' }); setActivePledgeForm(null); fetchClubData(); })
+      .catch(() => alert('Error submitting pledge.'));
   };
 
   const handlePledgeStatus = (proposalId, pledgeId, status) => {
     api.put(`/clubs/${id}/proposals/${proposalId}/pledge/${pledgeId}`, { status, userId: currentUser?.id })
-      .then(res => fetchClubData()).catch(err => alert("Error updating pledge."));
+      .then(() => fetchClubData()).catch(() => alert('Error.'));
   };
 
-  return (
-    <div className="container">
-      <button className="btn btn-outline" style={{ marginBottom: '20px', backgroundColor: 'var(--surface-color)' }} onClick={() => navigate(`/clubs/${id}`)}>
-        &larr; Back to {club.name} Hub
-      </button>
+  const pledgeStatusMap = { Accepted: 'APPROVED', Rejected: 'REJECTED', Pending: 'PENDING' };
 
-      {/* HEADER */}
-      <div className="card" style={{ borderTop: '4px solid var(--primary-color)', textAlign: 'center', backgroundColor: 'var(--primary-light)' }}>
-        <h1 style={{ color: 'var(--primary-color)', margin: '0 0 10px 0' }}>🏢 Corporate Partnerships</h1>
-        <p style={{ fontSize: '1.1rem', color: 'var(--text-secondary)', maxWidth: '600px', margin: '0 auto' }}>
-          Partner with <strong style={{ color: 'var(--text-main)' }}>{club.name}</strong> to build the future. Review our active initiatives below and submit a corporate pledge to sponsor our students.
-        </p>
-      </div>
+  return (
+    <PageWrapper title="Corporate Partnerships" subtitle={`Partner with ${club.name} to support student growth`}>
       <ClubNavigation club={club} />
 
-      <div className={canManageSponsorships ? "dashboard-grid-split" : ""} style={{ display: canManageSponsorships ? '' : 'grid', gap: '30px' }}>
-        
-       {/* LEFT/MAIN COLUMN: Public Proposals */}
-        <div>
-          <div className="flex-mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid var(--border-color)', paddingBottom: '10px', marginBottom: '20px' }}>
-            <h3 style={{ color: 'var(--text-main)', margin: 0 }}>Active Funding Initiatives</h3>
-          </div>
-          
-          {club.proposals?.filter(p => p.isActive || canManageSponsorships).length === 0 ? (
-            <div className="card" style={{ textAlign: 'center', padding: '40px 20px', backgroundColor: 'var(--bg-color)', border: '1px dashed var(--border-color)' }}>
-              <h4 style={{ color: 'var(--text-muted)' }}>No active proposals at this time.</h4>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>Please check back later for new partnership opportunities!</p>
-            </div>
+      <div className={`mt-6 grid gap-6 ${canManage ? 'lg:grid-cols-[1fr_360px]' : ''}`}>
+
+        {/* Main column: proposals */}
+        <div className="flex flex-col gap-5">
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white">Active Funding Initiatives</h2>
+
+          {club.proposals?.filter(p => p.isActive || canManage).length === 0 ? (
+            <Card variant="glass" padding="lg" className="text-center">
+              <p className="text-slate-400">No active proposals. Check back later.</p>
+            </Card>
           ) : (
-            <div style={{ display: 'grid', gap: '20px' }}>
-              {club.proposals?.filter(p => p.isActive || canManageSponsorships).map(proposal => {
-                
-                //Dynamic math
-                const totalRaised = proposal.pledges?.filter(p => p.status === 'Accepted').reduce((sum, p) => sum + p.amount, 0) || 0;
+            <motion.div variants={staggerContainer(0.07)} initial="hidden" animate="visible" className="flex flex-col gap-5">
+              {club.proposals?.filter(p => p.isActive || canManage).map(proposal => {
+                const totalRaised = proposal.pledges?.filter(p => p.status === 'Accepted').reduce((s, p) => s + p.amount, 0) || 0;
                 const percent = Math.min((totalRaised / proposal.targetAmount) * 100, 100).toFixed(0);
 
                 return (
-                  <div key={proposal._id} className="card card-hover" style={{ border: '1px solid var(--border-color)', marginBottom: 0, opacity: proposal.isActive ? 1 : 0.6 }}>
-                    
-                    {/* --- EDIT MODE UI --- */}
-                    {editingProposalId === proposal._id ? (
-                      <div style={{ backgroundColor: 'var(--bg-color)', padding: '20px', borderRadius: 'var(--radius-md)', border: '1px dashed var(--primary-color)' }}>
-                        <h4 style={{ color: 'var(--primary-color)', margin: '0 0 15px 0' }}>✏️ Edit Proposal</h4>
-                        <input type="text" className="form-control" value={editProposalData.title} onChange={(e) => setEditProposalData({...editProposalData, title: e.target.value})} style={{ marginBottom: '10px' }}/>
-                        <textarea className="form-control" value={editProposalData.description} onChange={(e) => setEditProposalData({...editProposalData, description: e.target.value})} style={{ marginBottom: '10px', minHeight: '80px' }}/>
-                        
-                        <div className="flex-mobile-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
-                          <input type="number" className="form-control" placeholder="Target (Rs.)" value={editProposalData.targetAmount} onChange={(e) => setEditProposalData({...editProposalData, targetAmount: e.target.value})} style={{ margin: 0 }}/>
-                          <input type="text" className="form-control" placeholder="Document URL" value={editProposalData.proposalDocumentUrl} onChange={(e) => setEditProposalData({...editProposalData, proposalDocumentUrl: e.target.value})} style={{ margin: 0 }}/>
-                        </div>
-
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '15px' }}>
-                          <input type="checkbox" id={`active-${proposal._id}`} checked={editProposalData.isActive} onChange={(e) => setEditProposalData({...editProposalData, isActive: e.target.checked})} style={{ width: '18px', height: '18px' }}/>
-                          <label htmlFor={`active-${proposal._id}`} style={{ fontWeight: '600', color: 'var(--text-secondary)' }}>Campaign is Active (Visible to Public)</label>
-                        </div>
-
-                        <div className="flex-mobile-stack" style={{ display: 'flex', gap: '10px' }}>
-                          <button className="btn btn-success" style={{ flex: 1 }} onClick={() => handleUpdateProposal(proposal._id)}>Save Changes</button>
-                          <button className="btn btn-outline" style={{ flex: 1, backgroundColor: 'var(--surface-color)' }} onClick={() => setEditingProposalId(null)}>Cancel</button>
-                        </div>
-                      </div>
-                    ) : (
-                      /* --- DISPLAY MODE UI --- */
-                      <>
-                        <div className="flex-mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                          <div>
-                            <h4 style={{ margin: '0 0 5px 0', color: 'var(--text-main)', fontSize: '1.4rem' }}>{proposal.title}</h4>
-                            {!proposal.isActive && <span className="badge" style={{ backgroundColor: 'var(--bg-color)', color: 'var(--text-muted)' }}>Closed / Inactive</span>}
+                  <motion.div key={proposal._id} variants={staggerItem}>
+                    <Card variant="glass" padding="md" className={!proposal.isActive ? 'opacity-60' : ''}>
+                      {editingProposalId === proposal._id ? (
+                        /* Edit mode */
+                        <div className="flex flex-col gap-3">
+                          <h4 className="font-bold text-indigo-600 dark:text-indigo-400">Edit Proposal</h4>
+                          <input className={inputCls} placeholder="Title" value={editProposalData.title} onChange={e => setEditProposalData(f => ({ ...f, title: e.target.value }))} />
+                          <textarea className={`${inputCls} min-h-[80px]`} placeholder="Description" value={editProposalData.description} onChange={e => setEditProposalData(f => ({ ...f, description: e.target.value }))} />
+                          <div className="grid grid-cols-2 gap-3">
+                            <input type="number" className={inputCls} placeholder="Target (Rs.)" value={editProposalData.targetAmount} onChange={e => setEditProposalData(f => ({ ...f, targetAmount: e.target.value }))} />
+                            <input className={inputCls} placeholder="Document URL" value={editProposalData.proposalDocumentUrl} onChange={e => setEditProposalData(f => ({ ...f, proposalDocumentUrl: e.target.value }))} />
                           </div>
-                          
-                          <div className="flex-mobile-stack" style={{ display: 'flex', gap: '10px' }}>
-                            {proposal.proposalDocumentUrl && (
-                              <a href={proposal.proposalDocumentUrl} target="_blank" rel="noreferrer" className="btn btn-outline" style={{ padding: '6px 12px', fontSize: '0.85rem' }}>
-                                📄 View PDF
-                              </a>
-                            )}
-                            
-                            {/* Admin Edit/Delete Controls */}
-                            {canManageSponsorships && (
-                              <div className="flex-mobile-stack" style={{ display: 'flex', gap: '5px' }}>
-                                <button className="btn btn-edit" style={{ padding: '6px 10px', fontSize: '0.85rem', backgroundColor: 'var(--warning-bg)', color: 'var(--warning)', borderColor: 'transparent' }} onClick={() => {
-                                  setEditingProposalId(proposal._id);
-                                  setEditProposalData({ title: proposal.title, description: proposal.description, targetAmount: proposal.targetAmount, proposalDocumentUrl: proposal.proposalDocumentUrl || '', isActive: proposal.isActive });
-                                }}>✏️</button>
-                                <button className="btn btn-danger" style={{ padding: '6px 10px', fontSize: '0.85rem' }} onClick={() => handleDeleteProposal(proposal._id)}>🗑️</button>
-                              </div>
-                            )}
+                          <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+                            <input type="checkbox" checked={editProposalData.isActive} onChange={e => setEditProposalData(f => ({ ...f, isActive: e.target.checked }))} className="h-4 w-4 accent-indigo-600" />
+                            Active (visible to public)
+                          </label>
+                          <div className="flex gap-2">
+                            <Button variant="success" size="sm" className="flex-1" onClick={() => handleUpdateProposal(proposal._id)}>Save</Button>
+                            <Button variant="ghost" size="sm" onClick={() => setEditingProposalId(null)}>Cancel</Button>
                           </div>
                         </div>
-                        
-                        <p style={{ fontSize: '1rem', margin: '15px 0', color: 'var(--text-secondary)', lineHeight: '1.6' }}>{proposal.description}</p>
-                        
-                        {/* Progress Bar */}
-                        <div style={{ backgroundColor: 'var(--bg-color)', padding: '15px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', marginBottom: '20px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', fontWeight: 'bold', marginBottom: '8px' }}>
-                            <span style={{ color: 'var(--success)' }}>Raised: Rs. {totalRaised.toLocaleString()}</span>
-                            <span style={{ color: 'var(--text-muted)' }}>Goal: Rs. {proposal.targetAmount.toLocaleString()}</span>
-                          </div>
-                          <div style={{ width: '100%', backgroundColor: 'var(--border-color)', borderRadius: '99px', height: '10px', overflow: 'hidden' }}>
-                            <div style={{ width: `${percent}%`, backgroundColor: percent >= 100 ? 'var(--success)' : 'var(--primary-color)', height: '100%', transition: 'width 0.5s ease-in-out' }}></div>
-                          </div>
-                        </div>
-
-                        {/* Pledge Form Toggle */}
-                        {activePledgeForm === proposal._id ? (
-                          <form onSubmit={(e) => handleSubmitPledge(e, proposal._id)} style={{ backgroundColor: 'var(--surface-color)', padding: '20px', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-sm)' }}>
-                            <h5 style={{ margin: '0 0 15px 0', color: 'var(--primary-color)' }}>🤝 Submit Corporate Pledge</h5>
-                            <div className="flex-mobile-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
-                              <input type="text" className="form-control" placeholder="Company Name" required onChange={(e) => setPledgeData({...pledgeData, companyName: e.target.value})} style={{ margin: 0 }}/>
-                              <input type="email" className="form-control" placeholder="Contact Email" required onChange={(e) => setPledgeData({...pledgeData, contactEmail: e.target.value})} style={{ margin: 0 }}/>
+                      ) : (
+                        /* Display mode */
+                        <>
+                          <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                              <h4 className="text-lg font-bold text-slate-900 dark:text-white">{proposal.title}</h4>
+                              {!proposal.isActive && <span className="text-xs text-slate-400">Closed / Inactive</span>}
                             </div>
-                            <input type="number" className="form-control" placeholder="Pledge Amount (Rs.)" required onChange={(e) => setPledgeData({...pledgeData, amount: e.target.value})} style={{ marginBottom: '10px' }}/>
-                            <textarea className="form-control" placeholder="Optional Message or Conditions" onChange={(e) => setPledgeData({...pledgeData, message: e.target.value})} style={{ marginBottom: '15px' }}/>
-                            
-                            <div className="flex-mobile-stack" style={{ display: 'flex', gap: '10px' }}>
-                              <button type="submit" className="btn" style={{ flex: 2 }}>Submit Official Offer</button>
-                              <button type="button" className="btn btn-outline" style={{ flex: 1 }} onClick={() => setActivePledgeForm(null)}>Cancel</button>
+                            <div className="flex gap-2">
+                              {proposal.proposalDocumentUrl && (
+                                <Button as="a" href={proposal.proposalDocumentUrl} target="_blank" rel="noreferrer" variant="ghost" size="sm" leftIcon={<ExternalLink size={13} />}>PDF</Button>
+                              )}
+                              {canManage && (
+                                <>
+                                  <Button size="sm" variant="ghost" leftIcon={<PenLine size={13} />} aria-label="Edit" onClick={() => { setEditingProposalId(proposal._id); setEditProposalData({ title: proposal.title, description: proposal.description, targetAmount: proposal.targetAmount, proposalDocumentUrl: proposal.proposalDocumentUrl || '', isActive: proposal.isActive }); }} />
+                                  <Button size="sm" variant="danger" leftIcon={<Trash2 size={13} />} aria-label="Delete" onClick={() => handleDeleteProposal(proposal._id)} />
+                                </>
+                              )}
                             </div>
-                          </form>
-                        ) : (
-                          proposal.isActive && (
-                            <button className="btn" style={{ width: '100%', padding: '12px', fontSize: '1.05rem' }} onClick={() => setActivePledgeForm(proposal._id)}>
-                              Sponsor This Initiative
-                            </button>
-                          )
-                        )}
-                      </>
-                    )}
-                  </div>
+                          </div>
+
+                          <p className="mb-4 text-sm leading-relaxed text-slate-600 dark:text-slate-300">{proposal.description}</p>
+
+                          {/* Progress bar */}
+                          <div className="mb-4 rounded-2xl bg-slate-50/60 p-3 dark:bg-white/5">
+                            <div className="mb-2 flex justify-between text-xs font-semibold">
+                              <span className="text-emerald-600 dark:text-emerald-400">Raised: Rs. {totalRaised.toLocaleString()}</span>
+                              <span className="text-slate-500 dark:text-slate-400">Goal: Rs. {proposal.targetAmount.toLocaleString()}</span>
+                            </div>
+                            <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-200/80 dark:bg-white/10">
+                              <motion.div
+                                initial={{ width: 0 }}
+                                animate={{ width: `${percent}%` }}
+                                transition={{ duration: 0.8, ease: 'easeOut' }}
+                                className={`h-full rounded-full ${Number(percent) >= 100 ? 'bg-emerald-500' : 'bg-indigo-500'}`}
+                              />
+                            </div>
+                            <p className="mt-1.5 text-right text-xs text-slate-400">{percent}%</p>
+                          </div>
+
+                          {/* Pledge form toggle */}
+                          {activePledgeForm === proposal._id ? (
+                            <AnimatePresence>
+                              <motion.form variants={scaleUp} initial="hidden" animate="visible" exit="exit" onSubmit={e => handleSubmitPledge(e, proposal._id)} className="flex flex-col gap-3 rounded-2xl bg-slate-50/60 p-4 dark:bg-white/5">
+                                <h5 className="font-bold text-indigo-600 dark:text-indigo-400">Submit Corporate Pledge</h5>
+                                <div className="grid grid-cols-2 gap-3">
+                                  <input className={inputCls} placeholder="Company Name" required onChange={e => setPledgeData(f => ({ ...f, companyName: e.target.value }))} />
+                                  <input type="email" className={inputCls} placeholder="Contact Email" required onChange={e => setPledgeData(f => ({ ...f, contactEmail: e.target.value }))} />
+                                </div>
+                                <input type="number" className={inputCls} placeholder="Pledge Amount (Rs.)" required onChange={e => setPledgeData(f => ({ ...f, amount: e.target.value }))} />
+                                <textarea className={`${inputCls} min-h-[70px]`} placeholder="Optional message…" onChange={e => setPledgeData(f => ({ ...f, message: e.target.value }))} />
+                                <div className="flex gap-2">
+                                  <Button type="submit" className="flex-1">Submit Offer</Button>
+                                  <Button type="button" variant="ghost" onClick={() => setActivePledgeForm(null)}>Cancel</Button>
+                                </div>
+                              </motion.form>
+                            </AnimatePresence>
+                          ) : (
+                            proposal.isActive && (
+                              <Button className="w-full" onClick={() => setActivePledgeForm(proposal._id)}>Sponsor This Initiative</Button>
+                            )
+                          )}
+                        </>
+                      )}
+                    </Card>
+                  </motion.div>
                 );
               })}
-            </div>
+            </motion.div>
           )}
         </div>
 
-        {/* RIGHT COLUMN: Top Board CRM */}
-        {canManageSponsorships && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            
-            {/* Publish Form */}
-            <div className="card" style={{ backgroundColor: 'var(--surface-color)', border: '1px solid var(--border-color)', marginBottom: 0 }}>
-              <h4 style={{ color: 'var(--text-main)', marginTop: 0, borderBottom: '2px solid var(--border-color)', paddingBottom: '10px', marginBottom: '15px' }}>
-                📢 Publish Proposal
-              </h4>
-              <form onSubmit={handlePublishProposal}>
-                <input type="text" className="form-control" placeholder="Proposal Title" required onChange={(e) => setProposalData({...proposalData, title: e.target.value})} style={{ marginBottom: '10px' }}/>
-                <textarea className="form-control" placeholder="Pitch your initiative..." required onChange={(e) => setProposalData({...proposalData, description: e.target.value})} style={{ marginBottom: '10px', minHeight: '100px' }}/>
-                <input type="number" className="form-control" placeholder="Target Amount (Rs.)" required onChange={(e) => setProposalData({...proposalData, targetAmount: e.target.value})} style={{ marginBottom: '10px' }}/>
-                <input type="text" className="form-control" placeholder="Link to PDF (Optional)" onChange={(e) => setProposalData({...proposalData, proposalDocumentUrl: e.target.value})} style={{ marginBottom: '15px' }}/>
-                <button type="submit" className="btn" style={{ width: '100%' }}>Publish to Portal</button>
-              </form>
-            </div>
+        {/* Right column: admin tools */}
+        {canManage && (
+          <div className="flex flex-col gap-5">
 
-            {/* Pledge Manager */}
-            <div className="card" style={{ backgroundColor: 'var(--bg-color)', border: '1px solid var(--border-color)', marginBottom: 0 }}>
-              <h4 style={{ color: 'var(--text-main)', marginTop: 0, borderBottom: '2px solid var(--border-color)', paddingBottom: '10px', marginBottom: '15px' }}>
-                📥 Inbox: Corporate Pledges
-              </h4>
-              
-              <div style={{ display: 'grid', gap: '15px' }}>
+            {/* Publish form */}
+            <Card variant="glass" padding="md">
+              <h4 className="mb-4 font-bold text-slate-900 dark:text-white">Publish Proposal</h4>
+              <form onSubmit={handlePublishProposal} className="flex flex-col gap-3">
+                <input className={inputCls} placeholder="Proposal Title" required value={proposalData.title} onChange={e => setProposalData(f => ({ ...f, title: e.target.value }))} />
+                <textarea className={`${inputCls} min-h-[90px]`} placeholder="Pitch your initiative…" required value={proposalData.description} onChange={e => setProposalData(f => ({ ...f, description: e.target.value }))} />
+                <input type="number" className={inputCls} placeholder="Target Amount (Rs.)" required value={proposalData.targetAmount} onChange={e => setProposalData(f => ({ ...f, targetAmount: e.target.value }))} />
+                <input className={inputCls} placeholder="PDF Document URL (optional)" value={proposalData.proposalDocumentUrl} onChange={e => setProposalData(f => ({ ...f, proposalDocumentUrl: e.target.value }))} />
+                <Button type="submit" className="w-full" leftIcon={<Plus size={14} />}>Publish</Button>
+              </form>
+            </Card>
+
+            {/* Pledge inbox */}
+            <Card variant="glass" padding="md">
+              <h4 className="mb-4 font-bold text-slate-900 dark:text-white">Pledge Inbox</h4>
+              <div className="flex flex-col gap-4">
                 {club.proposals?.map(prop => (
                   <div key={prop._id}>
-                    <strong style={{ display: 'block', fontSize: '0.95rem', color: 'var(--text-main)', marginBottom: '8px' }}>{prop.title}</strong>
-                    
+                    <p className="mb-2 text-sm font-semibold text-slate-700 dark:text-slate-200">{prop.title}</p>
                     {prop.pledges.length === 0 ? (
-                      <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontStyle: 'italic', margin: 0 }}>No pledges yet.</p>
+                      <p className="text-xs italic text-slate-400">No pledges yet.</p>
                     ) : (
-                      <div style={{ display: 'grid', gap: '10px' }}>
+                      <div className="flex flex-col gap-2">
                         {prop.pledges.map(pledge => (
-                          <div key={pledge._id} style={{ border: '1px solid var(--border-color)', padding: '15px', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--surface-color)', boxShadow: 'var(--shadow-sm)' }}>
-                            <div className="flex-mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
-                              <strong style={{ color: 'var(--text-main)' }}>{pledge.companyName}</strong>
-                              <span className="badge" style={{ 
-                                backgroundColor: pledge.status === 'Accepted' ? 'var(--success-bg)' : pledge.status === 'Rejected' ? 'var(--danger-bg)' : 'var(--warning-bg)',
-                                color: pledge.status === 'Accepted' ? 'var(--success)' : pledge.status === 'Rejected' ? 'var(--danger)' : 'var(--warning)' 
-                              }}>
-                                {pledge.status}
-                              </span>
+                          <div key={pledge._id} className="rounded-2xl bg-slate-50/60 p-3 dark:bg-white/5">
+                            <div className="mb-1 flex items-center justify-between gap-2">
+                              <p className="font-semibold text-slate-900 dark:text-white">{pledge.companyName}</p>
+                              <StatusBadge status={pledgeStatusMap[pledge.status] || 'PENDING'} />
                             </div>
-                            
-                            <p style={{ margin: '0 0 5px 0', fontSize: '0.95rem', color: 'var(--success)', fontWeight: 'bold' }}>Offered: Rs. {pledge.amount.toLocaleString()}</p>
-                            <p style={{ margin: '0 0 10px 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>📧 {pledge.contactEmail}</p>
-                            {pledge.message && <p style={{ margin: '0 0 10px 0', fontSize: '0.85rem', color: 'var(--text-secondary)', fontStyle: 'italic', backgroundColor: 'var(--bg-color)', padding: '8px', borderLeft: '3px solid var(--border-color)' }}>"{pledge.message}"</p>}
-                            
-                            {/* Action Buttons */}
+                            <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">Rs. {pledge.amount.toLocaleString()}</p>
+                            <p className="text-xs text-slate-400">{pledge.contactEmail}</p>
+                            {pledge.message && (
+                              <p className="mt-1 border-l-2 border-slate-300 pl-2 text-xs italic text-slate-500 dark:border-white/20 dark:text-slate-400">"{pledge.message}"</p>
+                            )}
                             {pledge.status === 'Pending' && (
-                              <div className="flex-mobile-stack" style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
-                                <button className="btn btn-success" style={{ flex: 1, padding: '6px', fontSize: '0.85rem' }} onClick={() => handlePledgeStatus(prop._id, pledge._id, 'Accepted')}>Accept</button>
-                                <button className="btn btn-danger" style={{ flex: 1, padding: '6px', fontSize: '0.85rem' }} onClick={() => handlePledgeStatus(prop._id, pledge._id, 'Rejected')}>Reject</button>
+                              <div className="mt-2 flex gap-2">
+                                <Button size="xs" variant="success" leftIcon={<CheckCircle size={12} />} className="flex-1" onClick={() => handlePledgeStatus(prop._id, pledge._id, 'Accepted')}>Accept</Button>
+                                <Button size="xs" variant="danger" leftIcon={<XCircle size={12} />} className="flex-1" onClick={() => handlePledgeStatus(prop._id, pledge._id, 'Rejected')}>Reject</Button>
                               </div>
                             )}
                           </div>
@@ -269,12 +231,13 @@ function Sponsorships() {
                   </div>
                 ))}
               </div>
-            </div>
+            </Card>
 
           </div>
         )}
+
       </div>
-    </div>
+    </PageWrapper>
   );
 }
 

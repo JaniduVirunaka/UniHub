@@ -1,233 +1,166 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
+import { ChevronLeft, ChevronRight, Plus, PenLine, Trash2, X } from 'lucide-react';
 import api from '../../config/api';
 import ClubNavigation from '../../components/ClubNavigation';
+import PageWrapper from '../../components/PageWrapper';
+import Card from '../../components/ui/Card';
+import Button from '../../components/ui/Button';
+import FormInput from '../../components/FormInput';
+import LoadingSpinner from '../../components/LoadingSpinner';
+import { AnimatePresence, motion } from 'framer-motion';
+import { staggerContainer, staggerItem, scaleUp } from '../../hooks/animationVariants';
 
-const ImageCarousel = ({ images, title }) => {
-  const [currentIndex, setCurrentIndex] = useState(0);
-// doesn't cause the entire main page to re-render every time a user clicks "Next Image".
-
-  if (!images || images.length === 0) {
+function ImageCarousel({ images, title }) {
+  const [idx, setIdx] = useState(0);
+  if (!images?.length) {
     return (
-      <div style={{ height: '200px', backgroundColor: 'var(--bg-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid var(--border-color)' }}>
-        <span style={{ color: 'var(--text-muted)' }}>No Images Available</span>
+      <div className="flex h-48 items-center justify-center bg-slate-200/60 dark:bg-slate-800">
+        <span className="text-sm italic text-slate-400">No images</span>
       </div>
     );
   }
-
-  //loop
-  const handlePrev = () => setCurrentIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
-  const handleNext = () => setCurrentIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
-
   return (
-    <div style={{ height: '220px', position: 'relative', backgroundColor: '#000' }}>
-      <img 
-        src={`http://localhost:5000${images[currentIndex]}`} 
-        alt={`${title} - slide ${currentIndex + 1}`} 
-        style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.9 }} 
-        onError={(e) => { e.target.src = 'https://via.placeholder.com/400x200?text=Image+Not+Found' }}
+    <div className="relative h-48 overflow-hidden bg-black">
+      <img src={`http://localhost:5000${images[idx]}`} alt={`${title} — ${idx + 1}`}
+        className="h-full w-full object-cover opacity-90 transition-opacity"
+        onError={e => { e.target.src = 'https://placehold.co/400x200?text=Image+not+found'; }}
       />
-      
-      {images.length > 1 && ( //navigation arrows only visible if more than 1 image
+      {images.length > 1 && (
         <>
-          <button onClick={handlePrev} style={{
-            position: 'absolute', top: '50%', left: '10px', transform: 'translateY(-50%)',
-            backgroundColor: 'var(--surface-color)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '50%', 
-            width: '35px', height: '35px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1.2rem',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-md)'
-          }}>
-            &larr;
-          </button>
-          
-          <button onClick={handleNext} style={{
-            position: 'absolute', top: '50%', right: '10px', transform: 'translateY(-50%)',
-            backgroundColor: 'var(--surface-color)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '50%', 
-            width: '35px', height: '35px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1.2rem',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-md)'
-          }}>
-            &rarr;
-          </button>
-
-          <div style={{ // image counter
-            position: 'absolute', bottom: '10px', right: '10px',
-            backgroundColor: 'rgba(0,0,0,0.7)', color: '#fff', padding: '2px 8px', 
-            borderRadius: 'var(--radius-md)', fontSize: '0.8rem', border: '1px solid rgba(255,255,255,0.2)'
-          }}>
-            {currentIndex + 1} / {images.length}
-          </div>
+          <button type="button" aria-label="Previous image" onClick={() => setIdx(p => p === 0 ? images.length - 1 : p - 1)}
+            className="absolute left-2 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-sm hover:bg-black/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+          ><ChevronLeft size={16} /></button>
+          <button type="button" aria-label="Next image" onClick={() => setIdx(p => p === images.length - 1 ? 0 : p + 1)}
+            className="absolute right-2 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-sm hover:bg-black/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+          ><ChevronRight size={16} /></button>
+          <span className="absolute bottom-2 right-2 rounded-full bg-black/60 px-2.5 py-0.5 text-xs text-white backdrop-blur-sm">{idx + 1}/{images.length}</span>
         </>
       )}
     </div>
   );
-};
+}
 
 function AchievementShowcase() {
   const { id } = useParams();
-  const navigate = useNavigate();
   const [club, setClub] = useState(null);
-  
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({ title: '', description: '', dateAwarded: '', images: [] });
-
   const currentUser = JSON.parse(localStorage.getItem('user'));
 
-  useEffect(() => {
-    fetchClubData();
-  }, [id]);
+  useEffect(() => { fetchClubData(); }, [id]);
+  const fetchClubData = () => api.get(`/clubs/${id}`).then(r => setClub(r.data)).catch(console.error);
 
-  const fetchClubData = () => {
-    api.get(`/clubs/${id}`)
-      .then(res => setClub(res.data))
-      .catch(err => console.error(err));
-  };
+  if (!club) return <div className="flex min-h-[60vh] items-center justify-center"><LoadingSpinner text="Loading Trophy Room…" /></div>;
 
-  //RBAC
-  const isSupervisor = club?.supervisor === currentUser?.id;
-  const isActualPresident = club?.president?._id === currentUser?.id;
-  const isVP = club?.topBoard?.some(b => b.user?._id === currentUser?.id && b.role === 'Vice President');
-  const isPresident = isActualPresident || isVP;
-
-  const allowedRoles = ['Vice President', 'Secretary', 'Assistant Secretary'];
-  const canManageAchievements = isPresident || club?.topBoard?.some(b => b.user?._id === currentUser?.id && allowedRoles.includes(b.role));
+  const isSupervisor = club.supervisor === currentUser?.id;
+  const isPresident = club.president?._id === currentUser?.id || club.topBoard?.some(b => b.user?._id === currentUser?.id && b.role === 'Vice President');
+  const canManage = isPresident || isSupervisor || club.topBoard?.some(b => b.user?._id === currentUser?.id && ['Secretary', 'Assistant Secretary'].includes(b.role));
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    
-    // Because we are sending raw image files alongside text, standard JSON will not work.
-    // We must construct a native FormData object.
     const data = new FormData();
     data.append('userId', currentUser?.id);
-    data.append('title', formData.title);
-    data.append('description', formData.description);
-    data.append('dateAwarded', formData.dateAwarded);
-    
-    // Loop through the array of selected files and add each one to the payload
-    if (formData.images && formData.images.length > 0) {
-      formData.images.forEach(file => {
-        data.append('images', file);
-      });
-    }
-
-    // tell the backend to expect a multipart file stream, not a JSON string
-    const config = { headers: { 'Content-Type': 'multipart/form-data' } };
-
-    if (editingId) {
-      api.put(`/clubs/${id}/achievements/${editingId}`, data, config)
-        .then(res => { alert(res.data.message); resetForm(); fetchClubData(); })
-        .catch(err => alert(err.response?.data?.message || "Error updating achievement."));
-    } else {
-      api.post(`/clubs/${id}/achievements`, data, config)
-        .then(res => { alert(res.data.message); resetForm(); fetchClubData(); })
-        .catch(err => alert(err.response?.data?.message || "Error uploading achievement."));
-    }
+    ['title', 'description', 'dateAwarded'].forEach(k => data.append(k, formData[k]));
+    formData.images.forEach(f => data.append('images', f));
+    const cfg = { headers: { 'Content-Type': 'multipart/form-data' } };
+    const req = editingId
+      ? api.put(`/clubs/${id}/achievements/${editingId}`, data, cfg)
+      : api.post(`/clubs/${id}/achievements`, data, cfg);
+    req.then(r => { alert(r.data.message); resetForm(); fetchClubData(); })
+       .catch(err => alert(err.response?.data?.message || 'Error.'));
   };
 
   const handleDelete = (achvId) => {
-    if (!window.confirm("Are you sure you want to delete this achievement? The photos will be removed.")) return;
+    if (!window.confirm('Delete this achievement and its photos?')) return;
     api.delete(`/clubs/${id}/achievements/${achvId}`, { data: { requestorId: currentUser?.id } })
-    .then(res => { alert(res.data.message); fetchClubData(); })
-    .catch(err => alert("Error deleting achievement."));
+      .then(r => { alert(r.data.message); fetchClubData(); })
+      .catch(() => alert('Error deleting.'));
   };
 
-  const resetForm = () => {
-    setFormData({ title: '', description: '', dateAwarded: '', images: [] });
-    setEditingId(null);
-    setShowForm(false);
-  };
-
-  const openEditForm = (achv) => {
-    setFormData({ title: achv.title, description: achv.description, dateAwarded: achv.dateAwarded, images: [] });
-    setEditingId(achv._id);
-    setShowForm(true);
-  };
-
-  if (!club) return <div style={{ textAlign: 'center', marginTop: '50px' }}>Loading Trophy Room...</div>;
+  const resetForm = () => { setFormData({ title: '', description: '', dateAwarded: '', images: [] }); setEditingId(null); setShowForm(false); };
+  const openEdit = (a) => { setFormData({ title: a.title, description: a.description, dateAwarded: a.dateAwarded, images: [] }); setEditingId(a._id); setShowForm(true); };
 
   return (
-    <div className="container">
-      <button className="btn btn-outline" style={{ marginBottom: '20px', backgroundColor: 'var(--surface-color)' }} onClick={() => navigate(`/clubs/${id}`)}>
-        &larr; Back to {club.name} Hub
-      </button>
-
+    <PageWrapper
+      title="Trophy Room"
+      subtitle={`Celebrating the milestones of ${club.name}`}
+      rightContent={
+        canManage && (
+          <Button size="sm" leftIcon={showForm ? <X size={14} /> : <Plus size={14} />} onClick={() => { setShowForm(p => !p); setEditingId(null); }}>
+            {showForm ? 'Cancel' : 'New Achievement'}
+          </Button>
+        )
+      }
+    >
       <ClubNavigation club={club} />
 
-      <div className="card" style={{ borderTop: '4px solid var(--warning)', textAlign: 'center', backgroundColor: 'var(--warning-bg)', marginBottom: '30px' }}>
-        <h1 style={{ color: 'var(--warning)', margin: '0 0 10px 0' }}>🏆 Official Trophy Room</h1>
-        <p style={{ fontSize: '1.1rem', color: 'var(--text-secondary)', margin: 0 }}>
-          Celebrating the milestones, victories, and history of <strong style={{ color: 'var(--text-main)' }}>{club.name}</strong>.
-        </p>
-      </div>
-
-      {canManageAchievements && !showForm && (
-        <button className="btn" style={{ backgroundColor: 'var(--warning)', color: 'black', marginBottom: '20px', fontWeight: 'bold' }} onClick={() => setShowForm(true)}>
-          + Post New Achievement
-        </button>
-      )}
-
-      {showForm && (
-        <div className="card" style={{ border: '1px solid var(--warning)', backgroundColor: 'var(--surface-color)' }}>
-          <h3 style={{ marginTop: 0, color: 'var(--text-main)' }}>{editingId ? '✏️ Edit Achievement' : '🏆 Upload New Achievement'}</h3>
-          <form onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label style={{ fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '8px', display: 'block' }}>Achievement Title</label>
-              <input type="text" className="form-control" value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} required placeholder="e.g., Best Tech Club 2025" />
-            </div>
-            
-            <div className="form-group">
-              <label style={{ fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '8px', display: 'block' }}>Date / Event</label>
-              <input type="text" className="form-control" value={formData.dateAwarded} onChange={(e) => setFormData({...formData, dateAwarded: e.target.value})} required placeholder="e.g., March 15, 2026" />
-            </div>
-
-            <div className="form-group">
-              <label style={{ fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '8px', display: 'block' }}>Description</label>
-              <textarea className="form-control" value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} required rows="3" placeholder="Briefly describe what this was for..." />
-            </div>
-
-            <div className="form-group">
-              <label style={{ fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '8px', display: 'block' }}>Upload Photos {editingId && "(Uploading new photos will replace the old ones)"}</label>
-              <input type="file" className="form-control" accept="image/*" multiple onChange={(e) => setFormData({...formData, images: Array.from(e.target.files)})} required={!editingId} />
-              <small style={{ color: 'var(--text-muted)' }}>Hold CTRL (or CMD) to select multiple photos at once.</small>
-            </div>
-
-            {/* .flex-mobile-stack allows these buttons to stack perfectly on mobile */}
-            <div className="flex-mobile-stack" style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
-              <button type="submit" className="btn btn-success" style={{ margin: 0 }}>{editingId ? 'Save Changes' : 'Publish Achievement'}</button>
-              <button type="button" className="btn btn-outline" style={{ margin: 0 }} onClick={resetForm}>Cancel</button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {club.achievements?.length === 0 ? (
-        <p style={{ textAlign: 'center', color: 'var(--text-muted)', marginTop: '40px', fontSize: '1.1rem' }}>No achievements posted yet. The trophy case is waiting!</p>
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '25px' }}>
-          {[...club.achievements].reverse().map((achv) => {
-            const renderImages = achv.imageUrls && achv.imageUrls.length > 0 ? achv.imageUrls : (achv.imageUrl ? [achv.imageUrl] : []);
-
-            return (
-              <div key={achv._id} className="card card-hover" style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', border: '1px solid var(--border-color)', marginBottom: 0 }}>
-                <ImageCarousel images={renderImages} title={achv.title} />
-
-                <div style={{ padding: '20px', flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
-                  <span style={{ color: 'var(--warning)', fontSize: '0.85rem', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '5px' }}>{achv.dateAwarded}</span>
-                  <h3 style={{ margin: '0 0 10px 0', color: 'var(--text-main)' }}>{achv.title}</h3>
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', margin: '0 0 20px 0', flexGrow: 1, lineHeight: '1.5' }}>{achv.description}</p>
-                  
-                  {(canManageAchievements || isSupervisor) && (
-                    <div className="flex-mobile-stack" style={{ display: 'flex', gap: '10px', borderTop: '1px solid var(--border-color)', paddingTop: '15px' }}>
-                      <button className="btn btn-edit" style={{ flex: 1, border: '1px solid transparent', padding: '8px', margin: 0, fontSize: '0.85rem' }} onClick={() => openEditForm(achv)}>✏️ Edit</button>
-                      <button className="btn btn-danger" style={{ flex: 1, padding: '8px', margin: 0, fontSize: '0.85rem' }} onClick={() => handleDelete(achv._id)}>🗑️ Delete</button>
-                    </div>
-                  )}
+      {/* Form */}
+      <AnimatePresence>
+        {showForm && canManage && (
+          <motion.div key="form" variants={scaleUp} initial="hidden" animate="visible" exit="exit" className="my-6">
+            <Card variant="glass" padding="lg">
+              <h3 className="mb-4 font-bold text-slate-900 dark:text-white">{editingId ? 'Edit Achievement' : 'Upload Achievement'}</h3>
+              <form onSubmit={handleSubmit} className="grid gap-4 sm:grid-cols-2">
+                <FormInput label="Title" value={formData.title} onChange={e => setFormData(f => ({ ...f, title: e.target.value }))} required placeholder="e.g. Best Tech Club 2025" />
+                <FormInput label="Date / Event" value={formData.dateAwarded} onChange={e => setFormData(f => ({ ...f, dateAwarded: e.target.value }))} required placeholder="e.g. March 15, 2026" />
+                <div className="sm:col-span-2">
+                  <FormInput label="Description" value={formData.description} onChange={e => setFormData(f => ({ ...f, description: e.target.value }))} required />
                 </div>
-              </div>
+                <div className="sm:col-span-2">
+                  <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-200">
+                    Photos {editingId && <span className="text-xs text-slate-400">(new upload replaces old)</span>}
+                  </label>
+                  <input type="file" accept="image/*" multiple required={!editingId} onChange={e => setFormData(f => ({ ...f, images: Array.from(e.target.files) }))}
+                    className="w-full text-sm text-slate-500 file:mr-3 file:rounded-xl file:border-0 file:bg-amber-50 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-amber-700 hover:file:bg-amber-100 dark:file:bg-amber-900/40 dark:file:text-amber-300"
+                  />
+                  <p className="mt-1 text-xs text-slate-400">Hold CTRL / CMD to select multiple photos.</p>
+                </div>
+                <div className="flex gap-3 sm:col-span-2">
+                  <Button type="submit" variant="success" className="flex-1">{editingId ? 'Save Changes' : 'Publish'}</Button>
+                  <Button type="button" variant="secondary" onClick={resetForm}>Cancel</Button>
+                </div>
+              </form>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Grid */}
+      {!club.achievements?.length ? (
+        <p className="mt-10 text-center text-slate-400">No achievements yet. The trophy case is waiting!</p>
+      ) : (
+        <motion.ul
+          variants={staggerContainer(0.07)}
+          initial="hidden"
+          animate="visible"
+          className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3"
+        >
+          {[...club.achievements].reverse().map(achv => {
+            const imgs = achv.imageUrls?.length ? achv.imageUrls : achv.imageUrl ? [achv.imageUrl] : [];
+            return (
+              <motion.li key={achv._id} variants={staggerItem} className="flex">
+                <Card variant="glass" padding="none" className="flex w-full flex-col overflow-hidden">
+                  <ImageCarousel images={imgs} title={achv.title} />
+                  <div className="flex flex-1 flex-col gap-2 p-5">
+                    <p className="text-xs font-bold uppercase tracking-wide text-amber-500 dark:text-amber-400">{achv.dateAwarded}</p>
+                    <h3 className="font-bold text-slate-900 dark:text-white">{achv.title}</h3>
+                    <p className="flex-1 text-sm leading-relaxed text-slate-500 dark:text-slate-400">{achv.description}</p>
+                    {(canManage || isSupervisor) && (
+                      <div className="flex gap-2 border-t border-slate-200/60 pt-3 dark:border-white/10">
+                        <Button size="sm" variant="ghost" leftIcon={<PenLine size={13} />} className="flex-1" onClick={() => openEdit(achv)}>Edit</Button>
+                        <Button size="sm" variant="danger" leftIcon={<Trash2 size={13} />} className="flex-1" onClick={() => handleDelete(achv._id)}>Delete</Button>
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              </motion.li>
             );
           })}
-        </div>
+        </motion.ul>
       )}
-    </div>
+    </PageWrapper>
   );
 }
 

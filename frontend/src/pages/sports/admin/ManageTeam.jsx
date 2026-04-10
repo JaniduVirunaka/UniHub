@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { Crown, Medal, UserMinus, Users } from "lucide-react";
-import axiosInstance from "../../api/axios";
-import PageWrapper from "../../components/PageWrapper";
-import GlassCard from "../../components/GlassCard";
-import LoadingSpinner from "../../components/LoadingSpinner";
+import axiosInstance from "../../../api/axios";
+import PageWrapper from "../../../components/PageWrapper";
+import GlassCard from "../../../components/GlassCard";
+import LoadingSpinner from "../../../components/LoadingSpinner";
 
 function ManageTeam() {
   const [sports, setSports] = useState([]);

@@ -1,99 +1,85 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { Settings, Vote, Landmark } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
 
 function ClubNavigation({ club }) {
-  const location = useLocation(); // to know exactly which page the user is on
+  const location = useLocation();
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   if (!club) return null;
 
   const currentUser = JSON.parse(localStorage.getItem('user'));
-
-  // --- Frontend RBAC ---
-  // We check the user's ID against the club's arrays to figure out exactly what they are allowed to see
   const isSupervisor = currentUser?.role === 'supervisor';
   const isPresident = club.president?._id === currentUser?.id || club.president === currentUser?.id;
   const isTopBoard = club.topBoard?.some(b => (b.user?._id || b.user) === currentUser?.id);
   const isMember = club.members?.some(m => (m._id || m) === currentUser?.id);
-  
   const hasFullAccess = isSupervisor || isPresident || isTopBoard || isMember;
-  
-  const canViewAnalytics = isSupervisor || isPresident || club.topBoard?.some(b => 
-    (b.user?._id || b.user) === currentUser?.id && ['Treasurer', 'Assistant Treasurer', 'Vice President'].includes(b.role)
-  ); // can view analytics in financial hub
 
-  //highlights the tab the user is in
-  const getTabStyle = (path, hash) => {
-    const isActive = location.pathname === path && location.hash === hash;
-    return {
-      padding: '8px 16px',
-      textDecoration: 'none',
-      color: isActive ? 'var(--primary-color)' : 'var(--text-secondary)',
-      fontWeight: isActive ? 'bold' : 'normal',
-      borderBottom: isActive ? '3px solid var(--primary-color)' : '3px solid transparent',
-      display: 'inline-block',
-      transition: 'var(--transition)'
-    };
-  };
+  const isActive = (path, hash = '') =>
+    location.pathname === path && location.hash === hash;
+
+  const tabCls = (path, hash = '') =>
+    `inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+      isActive(path, hash)
+        ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/30'
+        : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-white'
+    }`;
 
   return (
-    <div className="club-navigation-container" style={{
-      position: 'relative', 
-      zIndex: 99,
-      backgroundColor: 'var(--surface-color)', 
-      borderBottom: '1px solid var(--border-color)', 
-      marginBottom: '25px', 
-      display: 'flex', 
-      flexWrap: 'wrap', 
-      alignItems: 'center',
-      gap: '10px', 
-      padding: '10px 15px',
-      transition: 'var(--transition)',
-      borderBottomLeftRadius: 'var(--radius-lg)',
-      borderBottomRightRadius: 'var(--radius-lg)'
-    }}>
-      
-      {/* Public Links */}
-      <Link to={`/clubs/${club._id}`} style={getTabStyle(`/clubs/${club._id}`, '')}>🏠 Main Hub</Link>
-      <Link to={`/clubs/${club._id}/about`} style={getTabStyle(`/clubs/${club._id}/about`, '')}>📖 About Us</Link>
-      <Link to={`/clubs/${club._id}/achievements`} style={getTabStyle(`/clubs/${club._id}/achievements`, '')}>🏆 Trophy Room</Link>
-      <Link to={`/clubs/${club._id}/sponsorships`} style={getTabStyle(`/clubs/${club._id}/sponsorships`, '')}>🤝 Sponsorships</Link>
-      
-      {/* Private Member/Admin Links */}
+    <nav aria-label="Club navigation" className="relative z-[99] mb-6 flex flex-wrap items-center gap-1.5 rounded-2xl border border-slate-200/60 bg-white/60 px-3 py-2 backdrop-blur-sm dark:border-white/10 dark:bg-white/5">
+      <Link to={`/clubs/${club._id}`} className={tabCls(`/clubs/${club._id}`)}>🏠 Main Hub</Link>
+      <Link to={`/clubs/${club._id}/about`} className={tabCls(`/clubs/${club._id}/about`)}>📖 About</Link>
+      <Link to={`/clubs/${club._id}/achievements`} className={tabCls(`/clubs/${club._id}/achievements`)}>🏆 Trophy Room</Link>
+      <Link to={`/clubs/${club._id}/sponsorships`} className={tabCls(`/clubs/${club._id}/sponsorships`)}>🤝 Sponsorships</Link>
+
       {hasFullAccess && (
-        <div 
-          style={{ position: 'relative' }} 
-          onMouseEnter={() => setDropdownOpen(true)} 
+        <div className="relative"
+          onMouseEnter={() => setDropdownOpen(true)}
           onMouseLeave={() => setDropdownOpen(false)}
         >
-          {/*Added onClick so mobile users can tap to open! */}
-          <button 
-            className="btn btn-outline" 
-            style={{ border: 'none', padding: '8px 15px', margin: 0, boxShadow: 'none' }}
-            onClick={() => setDropdownOpen(!dropdownOpen)}
+          <button
+            type="button"
+            aria-expanded={dropdownOpen}
+            aria-haspopup="true"
+            onClick={() => setDropdownOpen(p => !p)}
+            className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100/80 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-white"
           >
-            ⚙️ Member Portals ▾
+            <Settings size={13} />
+            Member Portals ▾
           </button>
-          
-          {dropdownOpen && (
-            <div style={{
-              position: 'absolute', top: '100%', left: 0, backgroundColor: 'var(--surface-color)',
-              boxShadow: 'var(--shadow-lg)', border: '1px solid var(--border-color)',
-              borderRadius: 'var(--radius-md)', minWidth: '220px', zIndex: 1000, display: 'flex', flexDirection: 'column', overflow: 'hidden'
-            }}>
-              
-              <Link to={`/clubs/${club._id}/elections`} style={{ padding: '12px 15px', textDecoration: 'none', color: 'var(--text-secondary)', borderBottom: 'canViewAnalytics ? 1px solid var(--border-color) : none', transition: 'background-color 0.2s' }} onMouseEnter={(e) => e.target.style.backgroundColor = 'var(--bg-color)'} onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}>
-                🗳️ Voting Booth
-              </Link>
 
-              <Link to={`/clubs/${club._id}/finance`} style={{ padding: '12px 15px', textDecoration: 'none', color: 'var(--text-secondary)', transition: 'background-color 0.2s' }} onMouseEnter={(e) => e.target.style.backgroundColor = 'var(--bg-color)'} onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}>
-                🏦 Financial Hub
-              </Link>
-            </div>
-          )}
+          <AnimatePresence>
+            {dropdownOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: -4, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -4, scale: 0.97 }}
+                transition={{ duration: 0.12 }}
+                className="absolute left-0 top-full z-[1000] mt-1 min-w-[200px] overflow-hidden rounded-2xl border border-slate-200/60 bg-white/90 shadow-xl backdrop-blur-md dark:border-white/10 dark:bg-slate-900/90"
+              >
+                <Link
+                  to={`/clubs/${club._id}/elections`}
+                  className="flex items-center gap-2 px-4 py-3 text-sm text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-white/10"
+                  onClick={() => setDropdownOpen(false)}
+                >
+                  <Vote size={14} className="text-violet-500" />
+                  Voting Booth
+                </Link>
+                <Link
+                  to={`/clubs/${club._id}/finance`}
+                  className="flex items-center gap-2 border-t border-slate-100 px-4 py-3 text-sm text-slate-700 transition hover:bg-slate-50 dark:border-white/10 dark:text-slate-200 dark:hover:bg-white/10"
+                  onClick={() => setDropdownOpen(false)}
+                >
+                  <Landmark size={14} className="text-emerald-500" />
+                  Financial Hub
+                </Link>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       )}
-    </div>
+    </nav>
   );
 }
 

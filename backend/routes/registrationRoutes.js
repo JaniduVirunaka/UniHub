@@ -7,4 +7,9 @@ router.post('/register-event', authMiddleware.protect, registrationController.re
 router.get('/my-events', authMiddleware.protect, registrationController.getMyEvents);
 router.delete('/:id', authMiddleware.protect, registrationController.cancelRegistration);
 
+// Admin routes
+router.get('/all', authMiddleware.protect, authMiddleware.requireRole('admin'), registrationController.getAllRegistrations);
+router.get('/stats', authMiddleware.protect, authMiddleware.requireRole('admin'), registrationController.getStats);
+router.patch('/:id/verify-payment', authMiddleware.protect, authMiddleware.requireRole('admin'), registrationController.verifyPayment);
+
 module.exports = router;

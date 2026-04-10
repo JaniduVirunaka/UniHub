@@ -423,20 +423,21 @@ textarea.form-control { min-height: 120px; resize: vertical; }
    SCROLL ANIMATION ENGINE
    ========================================== */
 
-/* The starting state (Invisible and pushed down 40px) */
+/* The starting state (invisible and pushed down 40px) */
 .fade-in-section {
-  opacity: 1;
+  opacity: 0;
   transform: translateY(40px);
   visibility: hidden;
-  transition: opacity 0.8s ease-out, transform 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transition: opacity 0.8s ease-out, transform 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275), visibility 0s linear 0.8s;
   will-change: opacity, visibility, transform;
 }
 
-/* The ending state (Visible and in its normal position) */
+/* The ending state (visible and in its normal position) */
 .fade-in-section.is-visible {
   opacity: 1;
   transform: none;
   visibility: visible;
+  transition: opacity 0.8s ease-out, transform 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 /* Optional: Add a slight delay for staggered effects */

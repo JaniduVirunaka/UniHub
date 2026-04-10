@@ -1,7 +1,7 @@
 import { Crown, ClipboardList, Shield } from "lucide-react";
-import PageWrapper from "../../components/PageWrapper";
-import StatCard from "../../components/StatCard";
-import ActionCard from "../../components/ActionCard";
+import PageWrapper from "../../../components/PageWrapper";
+import StatCard from "../../../components/StatCard";
+import ActionCard from "../../../components/ActionCard";
 
 function CaptainDashboard() {
   return (

@@ -8,24 +8,21 @@ export function useScrollAnimation() {
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          // If the element crosses into the screen, trigger the animation!
           if (entry.isIntersecting) {
             setIsVisible(true);
-          } else {
-            // THE FIX: If it leaves the screen, reset it so it can animate again!
-            setIsVisible(false);
+            // Animate in once — stop watching so it stays visible on scroll-out
+            observer.unobserve(entry.target);
           }
         });
       },
       {
         root: null,
         rootMargin: '0px',
-        threshold: 0.15 // Triggers when 15% of the element is visible
+        threshold: 0.15
       }
     );
 
     const currentRef = domRef.current;
-    
     if (currentRef) {
       observer.observe(currentRef);
     }

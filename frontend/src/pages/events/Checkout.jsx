@@ -1,5 +1,10 @@
-import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import PageWrapper from '../../components/PageWrapper';
+import Card from '../../components/ui/Card';
+import Button from '../../components/ui/Button';
+import { ArrowLeft, Ticket, Building2, MessageCircle, CheckCircle } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { staggerContainer, staggerItem } from '../../hooks/animationVariants';
 
 export const Checkout = () => {
   const location = useLocation();
@@ -8,78 +13,75 @@ export const Checkout = () => {
 
   if (!data) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="bg-white rounded-lg shadow-md p-8 text-center">
-          <h1 className="text-2xl font-bold mb-4">No Checkout Data</h1>
-          <p className="text-gray-600 mb-6">Go back to your cart and try checkout again.</p>
-          <button
-            onClick={() => navigate('/events/cart')}
-            className="px-5 py-2 rounded bg-blue-600 text-white font-semibold hover:bg-blue-700 transition"
-          >
-            Go to Cart
-          </button>
-        </div>
-      </div>
+      <PageWrapper title="No Checkout Data">
+        <Card variant="glass" padding="lg" className="max-w-md text-center">
+          <p className="mb-4 text-slate-500 dark:text-slate-400">Go back to your cart and try checkout again.</p>
+          <Button onClick={() => navigate('/events/cart')}>Go to Cart</Button>
+        </Card>
+      </PageWrapper>
     );
   }
 
   const { items = [], grandTotal, note } = data;
 
   return (
-    <div className="min-h-screen bg-gray-100 py-10">
-      <div className="container mx-auto px-4 max-w-3xl">
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <h1 className="text-3xl font-bold mb-2">Payment Details</h1>
-          <p className="text-gray-700">{note}</p>
-        </div>
+    <PageWrapper title="Payment Details" subtitle={note} className="max-w-3xl">
+      <motion.div variants={staggerContainer(0.1)} initial="hidden" animate="visible" className="flex flex-col gap-4">
+        {items.map(item => (
+          <motion.div key={item.registrationId} variants={staggerItem}>
+            <Card variant="glass" padding="lg">
+              <h3 className="mb-3 text-lg font-bold text-slate-900 dark:text-white">{item.title}</h3>
 
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <h2 className="text-xl font-bold mb-4">Your Tickets</h2>
-          <div className="space-y-4">
-            {items.map((item) => (
-              <div key={item.registrationId} className="border rounded p-4 bg-gray-50">
-                <div className="font-semibold text-lg mb-1">{item.title}</div>
-                <div className="text-sm text-gray-700 mb-2">
-                  {item.paymentMessage ||
-                    'Pay the payment for this bank account number and send the receipt for this WhatsApp number.'}
+              <p className="mb-4 text-sm text-slate-600 dark:text-slate-300">
+                {item.paymentMessage || 'Pay the payment for this bank account number and send the receipt for this WhatsApp number.'}
+              </p>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="flex items-center gap-3 rounded-2xl bg-slate-50/60 p-3 dark:bg-white/5">
+                  <Building2 size={16} className="shrink-0 text-indigo-500" />
+                  <div>
+                    <p className="text-xs text-slate-400">Bank Account</p>
+                    <p className="font-semibold text-slate-900 dark:text-white">{item.bankAccount || 'N/A'}</p>
+                  </div>
                 </div>
-                <div className="text-sm text-gray-700">
-                  <span className="font-semibold">Bank Account:</span> {item.bankAccount || 'N/A'}
+                <div className="flex items-center gap-3 rounded-2xl bg-slate-50/60 p-3 dark:bg-white/5">
+                  <MessageCircle size={16} className="shrink-0 text-emerald-500" />
+                  <div>
+                    <p className="text-xs text-slate-400">WhatsApp</p>
+                    <p className="font-semibold text-slate-900 dark:text-white">{item.whatsappNumber || 'N/A'}</p>
+                  </div>
                 </div>
-                <div className="text-sm text-gray-700">
-                  <span className="font-semibold">WhatsApp:</span> {item.whatsappNumber || 'N/A'}
+                <div className="flex items-center gap-3 rounded-2xl bg-slate-50/60 p-3 dark:bg-white/5">
+                  <Ticket size={16} className="shrink-0 text-amber-500" />
+                  <div>
+                    <p className="text-xs text-slate-400">Quantity</p>
+                    <p className="font-semibold text-slate-900 dark:text-white">{item.quantity}</p>
+                  </div>
                 </div>
-                <div className="text-sm text-gray-700">
-                  <span className="font-semibold">Quantity:</span> {item.quantity}
-                </div>
-                <div className="text-sm text-gray-700">
-                  <span className="font-semibold">Amount:</span> Rs. {item.totalPrice}
+                <div className="flex items-center gap-3 rounded-2xl bg-emerald-50/60 p-3 dark:bg-emerald-900/20">
+                  <CheckCircle size={16} className="shrink-0 text-emerald-500" />
+                  <div>
+                    <p className="text-xs text-emerald-600 dark:text-emerald-400">Amount Due</p>
+                    <p className="font-bold text-emerald-700 dark:text-emerald-300">Rs. {item.totalPrice}</p>
+                  </div>
                 </div>
               </div>
-            ))}
-          </div>
+            </Card>
+          </motion.div>
+        ))}
 
-          <div className="mt-6 text-right text-lg font-bold">
-            Grand Total: <span className="text-green-700">Rs. {grandTotal}</span>
+        <Card variant="glass" padding="md">
+          <div className="flex items-center justify-between">
+            <p className="text-lg font-bold text-slate-900 dark:text-white">Grand Total</p>
+            <p className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">Rs. {grandTotal}</p>
           </div>
-        </div>
+        </Card>
 
-        <div className="flex justify-between">
-          <button
-            onClick={() => navigate('/events/cart')}
-            className="px-5 py-2 rounded bg-gray-200 text-gray-800 font-semibold hover:bg-gray-300 transition"
-          >
-            Back to Cart
-          </button>
-          <button
-            onClick={() => navigate('/events/my-events')}
-            className="px-5 py-2 rounded bg-blue-600 text-white font-semibold hover:bg-blue-700 transition"
-          >
-            Go to My Events
-          </button>
+        <div className="flex justify-between pt-2">
+          <Button variant="secondary" leftIcon={<ArrowLeft size={14} />} onClick={() => navigate('/events/cart')}>Back to Cart</Button>
+          <Button onClick={() => navigate('/events/my-events')}>Go to My Events</Button>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </PageWrapper>
   );
 };
-
