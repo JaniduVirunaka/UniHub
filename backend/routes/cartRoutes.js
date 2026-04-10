@@ -99,16 +99,22 @@ router.post('/checkout', authMiddleware.protect, async (req, res, next) => {
         return res.status(400).json({ message: `You already have a booking for "${event.title}"` });
       }
 
+      // Atomic decrement — only succeeds if enough tickets remain
+      const updatedEvent = await Event.findOneAndUpdate(
+        { _id: event._id, availableTickets: { $gte: item.quantity } },
+        { $inc: { availableTickets: -item.quantity } },
+        { new: true }
+      );
+      if (!updatedEvent) {
+        return res.status(400).json({ message: `Not enough tickets available for "${event.title}"` });
+      }
+
       const registration = await Registration.create({
         userId,
         eventId: event._id,
         status: 'pending_payment',
         ticketsBooked: item.quantity
       });
-
-      event.availableTickets -= item.quantity;
-      if (event.availableTickets < 0) event.availableTickets = 0;
-      await event.save();
 
       checkoutItems.push({
         eventId: event._id,

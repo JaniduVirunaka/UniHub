@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { Pencil, Trash2, Trophy } from "lucide-react";
-import axiosInstance from "../../api/axios";
-import PageWrapper from "../../components/PageWrapper";
-import LoadingSpinner from "../../components/LoadingSpinner";
-import GlassCard from "../../components/GlassCard";
-import FormInput from "../../components/FormInput";
+import axiosInstance from "../../../api/axios";
+import PageWrapper from "../../../components/PageWrapper";
+import LoadingSpinner from "../../../components/LoadingSpinner";
+import GlassCard from "../../../components/GlassCard";
+import FormInput from "../../../components/FormInput";
 
 function ManageSports() {
   const [sports, setSports] = useState([]);

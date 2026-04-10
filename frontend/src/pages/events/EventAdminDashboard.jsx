@@ -1,11 +1,17 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { eventService } from '../../services/services';
+import { eventService, registrationService } from '../../services/services';
 
 export const AdminDashboard = () => {
   const { user } = useAuth();
   const [events, setEvents] = useState([]);
-  const [users, setUsers] = useState([]);
+  const [stats, setStats] = useState({ totalRegistrations: 0, pendingPayments: 0, registeredCount: 0, cancelledCount: 0 });
+  const [registrations, setRegistrations] = useState([]);
+  const [regTotal, setRegTotal] = useState(0);
+  const [regFilter, setRegFilter] = useState('');
+  const [regEventFilter, setRegEventFilter] = useState('');
+  const [regPage, setRegPage] = useState(1);
+  const [verifyModal, setVerifyModal] = useState(null); // { registration }
   const [newEventForm, setNewEventForm] = useState({
     title: '',
     description: '',
@@ -23,28 +29,52 @@ export const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
 
+  const fetchStats = useCallback(async () => {
+    try {
+      const res = await registrationService.getStats();
+      setStats(res.data);
+    } catch (err) {
+      console.error('Failed to fetch stats', err);
+    }
+  }, []);
+
+  const fetchRegistrations = useCallback(async () => {
+    try {
+      const params = { page: regPage, limit: 20 };
+      if (regFilter) params.status = regFilter;
+      if (regEventFilter) params.eventId = regEventFilter;
+      const res = await registrationService.getAllRegistrations(params);
+      setRegistrations(res.data.registrations);
+      setRegTotal(res.data.total);
+    } catch (err) {
+      console.error('Failed to fetch registrations', err);
+    }
+  }, [regPage, regFilter, regEventFilter]);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
         const eventsRes = await eventService.getAllEvents();
         setEvents(eventsRes.data);
-        // TODO: Fetch all users when admin endpoint is ready
+        await fetchStats();
       } catch (error) {
         console.error('Error fetching data:', error);
       } finally {
         setLoading(false);
       }
     };
-
     fetchData();
-  }, []);
+  }, [fetchStats]);
+
+  useEffect(() => {
+    if (activeTab === 'registrations') {
+      fetchRegistrations();
+    }
+  }, [activeTab, fetchRegistrations]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setNewEventForm(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setNewEventForm(prev => ({ ...prev, [name]: value }));
   };
 
   const handleCreateEvent = async (e) => {
@@ -73,6 +103,7 @@ export const AdminDashboard = () => {
       await eventService.createEvent(payload);
       const eventsRes = await eventService.getAllEvents();
       setEvents(eventsRes.data);
+      await fetchStats();
 
       setNewEventForm({
         title: '',
@@ -100,11 +131,43 @@ export const AdminDashboard = () => {
         await eventService.deleteEvent(eventId);
         const eventsRes = await eventService.getAllEvents();
         setEvents(eventsRes.data);
+        await fetchStats();
       } catch (error) {
         alert(error.response?.data?.message || 'Failed to delete event');
       }
     }
   };
+
+  const handleVerifyPayment = async (action) => {
+    if (!verifyModal) return;
+    try {
+      await registrationService.verifyPayment(verifyModal.registration._id, action);
+      setVerifyModal(null);
+      await Promise.all([fetchRegistrations(), fetchStats()]);
+    } catch (err) {
+      alert(err?.response?.data?.message || 'Failed to update payment status');
+    }
+  };
+
+  const statusBadge = (status) => {
+    const styles = {
+      pending_payment: 'bg-orange-100 text-orange-800',
+      registered: 'bg-green-100 text-green-800',
+      cancelled: 'bg-gray-100 text-gray-600'
+    };
+    const labels = {
+      pending_payment: 'Pending Payment',
+      registered: 'Registered',
+      cancelled: 'Cancelled'
+    };
+    return (
+      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${styles[status] || 'bg-gray-100 text-gray-600'}`}>
+        {labels[status] || status}
+      </span>
+    );
+  };
+
+  const totalPages = Math.ceil(regTotal / 20);
 
   return (
     <div className="min-h-screen bg-gray-100 py-8">
@@ -122,54 +185,37 @@ export const AdminDashboard = () => {
             <p className="text-gray-600">Total Events</p>
           </div>
           <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="text-3xl font-bold text-green-600">{users.length}</div>
-            <p className="text-gray-600">Registered Users</p>
+            <div className="text-3xl font-bold text-green-600">{stats.registeredCount}</div>
+            <p className="text-gray-600">Verified Registrations</p>
           </div>
           <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="text-3xl font-bold text-orange-600">0</div>
-            <p className="text-gray-600">Pending Registrations</p>
-          </div>
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="text-3xl font-bold text-red-600">0</div>
+            <div className="text-3xl font-bold text-orange-600">{stats.pendingPayments}</div>
             <p className="text-gray-600">Pending Payments</p>
+          </div>
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <div className="text-3xl font-bold text-purple-600">{stats.totalRegistrations}</div>
+            <p className="text-gray-600">Total Registrations</p>
           </div>
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-4 mb-6">
-          <button
-            onClick={() => setActiveTab('dashboard')}
-            className={`px-6 py-2 rounded-lg font-semibold transition ${
-              activeTab === 'dashboard'
-                ? 'bg-purple-600 text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            Dashboard
-          </button>
-          <button
-            onClick={() => setActiveTab('events')}
-            className={`px-6 py-2 rounded-lg font-semibold transition ${
-              activeTab === 'events'
-                ? 'bg-purple-600 text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            Manage Events
-          </button>
-          <button
-            onClick={() => setActiveTab('users')}
-            className={`px-6 py-2 rounded-lg font-semibold transition ${
-              activeTab === 'users'
-                ? 'bg-purple-600 text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            Users
-          </button>
+        <div className="flex gap-4 mb-6 flex-wrap">
+          {['dashboard', 'events', 'registrations'].map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-6 py-2 rounded-lg font-semibold transition capitalize ${
+                activeTab === tab
+                  ? 'bg-purple-600 text-white'
+                  : 'bg-white text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              {tab === 'registrations' ? 'Registrations' : tab === 'events' ? 'Manage Events' : 'Dashboard'}
+            </button>
+          ))}
         </div>
 
-        {/* Tab Content */}
+        {/* Tab: Dashboard */}
         {activeTab === 'dashboard' && (
           <div className="bg-white rounded-lg shadow-md p-6">
             <h2 className="text-2xl font-bold mb-4">Dashboard Overview</h2>
@@ -177,6 +223,7 @@ export const AdminDashboard = () => {
           </div>
         )}
 
+        {/* Tab: Manage Events */}
         {activeTab === 'events' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Create Event Form */}
@@ -364,13 +411,153 @@ export const AdminDashboard = () => {
           </div>
         )}
 
-        {activeTab === 'users' && (
+        {/* Tab: Registrations */}
+        {activeTab === 'registrations' && (
           <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-2xl font-bold mb-4">Registered Users</h2>
-            <p className="text-gray-600">User management coming soon...</p>
+            <h2 className="text-2xl font-bold mb-4">Registrations</h2>
+
+            {/* Filters */}
+            <div className="flex flex-wrap gap-4 mb-4">
+              <select
+                value={regFilter}
+                onChange={(e) => { setRegFilter(e.target.value); setRegPage(1); }}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-purple-500"
+              >
+                <option value="">All Statuses</option>
+                <option value="pending_payment">Pending Payment</option>
+                <option value="registered">Registered</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+              <select
+                value={regEventFilter}
+                onChange={(e) => { setRegEventFilter(e.target.value); setRegPage(1); }}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-purple-500"
+              >
+                <option value="">All Events</option>
+                {events.map((ev) => (
+                  <option key={ev._id} value={ev._id}>{ev.title}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Table */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead className="bg-gray-50 text-gray-600 uppercase text-xs">
+                  <tr>
+                    <th className="px-4 py-3">Student</th>
+                    <th className="px-4 py-3">Event</th>
+                    <th className="px-4 py-3">Event Date</th>
+                    <th className="px-4 py-3">Tickets</th>
+                    <th className="px-4 py-3">Registered At</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {registrations.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="px-4 py-6 text-center text-gray-500">No registrations found</td>
+                    </tr>
+                  ) : (
+                    registrations.map((reg) => (
+                      <tr key={reg._id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3">
+                          <div className="font-medium text-gray-800">{reg.userId?.name || '—'}</div>
+                          <div className="text-gray-500 text-xs">{reg.userId?.email || ''}</div>
+                        </td>
+                        <td className="px-4 py-3 text-gray-700">{reg.eventId?.title || '—'}</td>
+                        <td className="px-4 py-3 text-gray-600">
+                          {reg.eventId?.date ? new Date(reg.eventId.date).toLocaleDateString() : '—'}
+                        </td>
+                        <td className="px-4 py-3 text-gray-700">{reg.ticketsBooked}</td>
+                        <td className="px-4 py-3 text-gray-600">
+                          {new Date(reg.registeredAt).toLocaleDateString()}
+                        </td>
+                        <td className="px-4 py-3">{statusBadge(reg.status)}</td>
+                        <td className="px-4 py-3">
+                          {reg.status === 'pending_payment' && (
+                            <button
+                              onClick={() => setVerifyModal({ registration: reg })}
+                              className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold rounded-lg transition"
+                            >
+                              Verify Payment
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex gap-2 mt-4 justify-end">
+                <button
+                  disabled={regPage === 1}
+                  onClick={() => setRegPage((p) => p - 1)}
+                  className="px-3 py-1 rounded border text-sm disabled:opacity-40"
+                >
+                  Prev
+                </button>
+                <span className="px-3 py-1 text-sm text-gray-600">
+                  {regPage} / {totalPages}
+                </span>
+                <button
+                  disabled={regPage === totalPages}
+                  onClick={() => setRegPage((p) => p + 1)}
+                  className="px-3 py-1 rounded border text-sm disabled:opacity-40"
+                >
+                  Next
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
+
+      {/* Verify Payment Modal */}
+      {verifyModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-bold mb-2">Verify Payment</h3>
+            <p className="text-gray-600 mb-1">
+              <strong>Student:</strong> {verifyModal.registration.userId?.name}
+            </p>
+            <p className="text-gray-600 mb-1">
+              <strong>Event:</strong> {verifyModal.registration.eventId?.title}
+            </p>
+            <p className="text-gray-600 mb-4">
+              <strong>Tickets:</strong> {verifyModal.registration.ticketsBooked}
+            </p>
+            <p className="text-gray-700 mb-6">
+              Has payment been received for this registration?
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setVerifyModal(null)}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleVerifyPayment('reject')}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold transition"
+              >
+                Reject
+              </button>
+              <button
+                onClick={() => handleVerifyPayment('approve')}
+                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition"
+              >
+                Approve
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

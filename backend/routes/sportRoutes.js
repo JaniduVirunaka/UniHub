@@ -3,7 +3,7 @@ const router = express.Router();
 const { protect, requireRole } = require('../middleware/authMiddleware');
 const { createSport, getSports, getSportById, updateSport, deleteSport, assignCaptain, assignViceCaptain, removeMember } = require('../controllers/sportController');
 
-router.get('/', protect, getSports);
+router.get('/', getSports); // PUBLIC — used by guest sports listing
 router.get('/:id', protect, getSportById);
 router.post('/', protect, requireRole('sport_admin'), createSport);
 router.put('/:id', protect, requireRole('sport_admin'), updateSport);

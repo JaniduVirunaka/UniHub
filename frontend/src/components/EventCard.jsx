@@ -37,7 +37,10 @@ export const EventCard = ({ event, onBuy, onRegister, reviews, onLoadReviews, on
             event.ticketPrice > 0 ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'
           }`}
         >
-          {event.ticketPrice > 0 ? 'Register & Buy Ticket' : 'Register'}
+          {!user
+            ? (event.ticketPrice > 0 ? 'Sign in to buy ticket' : 'Sign in to register')
+            : (event.ticketPrice > 0 ? 'Register & Buy Ticket' : 'Register')
+          }
         </button>
       </div>
     </div>

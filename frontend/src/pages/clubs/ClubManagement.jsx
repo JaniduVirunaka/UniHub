@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../config/api';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useScrollAnimation } from '../../hooks/useScrollAnimation';
+import { useAuth } from '../../context/AuthContext';
 
 function ClubManagement() {
   // --- UI ANIMATION HOOKS ---
   const [headerRef, headerVisible] = useScrollAnimation();
   const [gridRef, gridVisible] = useScrollAnimation();
+
+  const { user: currentUser } = useAuth();
 
   const [clubs, setClubs] = useState([]);
   const [users, setUsers] = useState([]);
@@ -15,21 +18,10 @@ function ClubManagement() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const navigate = useNavigate();
 
-  const currentUser = JSON.parse(localStorage.getItem('user'));
-
   // --- NEW: SEARCH & SORT STATES ---
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOption, setSortOption] = useState('name-asc');
   const [viewFilter, setViewFilter] = useState('all'); // 'all' or 'my-clubs'
-
-  useEffect(() => {
-    fetchClubs();
-    if (currentUser && currentUser.role === 'supervisor') {
-      api.get('/auth/users')
-        .then(res => setUsers(res.data))
-        .catch(err => console.error("Error fetching users:", err));
-    }
-  }, []);
 
   const fetchClubs = () => {
     api.get('/clubs')
@@ -37,15 +29,14 @@ function ClubManagement() {
       .catch(err => console.error(err));
   };
 
-  if (!currentUser) {
-    return (
-      <div className="card" style={{ textAlign: 'center', marginTop: '2rem' }}>
-        <h2>Access Denied</h2>
-        <p>You must be logged in to view the Club Directory.</p>
-        <button className="btn" onClick={() => navigate('/login')}>Go to Login</button>
-      </div>
-    );
-  }
+  useEffect(() => {
+    fetchClubs();
+    if (currentUser?.role === 'supervisor') {
+      api.get('/auth/users')
+        .then(res => setUsers(res.data))
+        .catch(err => console.error("Error fetching users:", err));
+    }
+  }, [currentUser]);
 
   // --- SUPERVISOR FORMS & LOGIC ---
   const handleCreateClub = (e) => {
@@ -133,7 +124,7 @@ function ClubManagement() {
 
   // --- SEARCH & SORT ---
   const filteredClubs = clubs.filter(club => {
-    if (viewFilter === 'my-clubs') {
+    if (viewFilter === 'my-clubs' && currentUser) {
       const isMember = club.members.some(m => m._id === currentUser.id);
       const isPresident = club.president?._id === currentUser.id;
       if (!isMember && !isPresident) return false;
@@ -160,7 +151,7 @@ function ClubManagement() {
     <div style={{ paddingBottom: '3rem' }}>
       
       {/* 1. SUPERVISOR DASHBOARD (Animated) */}
-      {currentUser.role === 'supervisor' && (
+      {currentUser?.role === 'supervisor' && (
         <div ref={headerRef} className={`fade-in-section ${headerVisible ? 'is-visible' : ''}`} style={{ marginBottom: '30px' }}>
           <div className="card card-hover flex-mobile-stack" style={{ backgroundColor: 'rgba(79, 70, 229, 0.1)', border: '1px solid var(--primary-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px' }}>
             <div>
@@ -221,10 +212,24 @@ function ClubManagement() {
 
       {/* 2. CLUB DIRECTORY (Animated Grid) */}
       <div ref={gridRef} className={`fade-in-section ${gridVisible ? 'is-visible' : ''}`}>
+
+        {/* Guest banner */}
+        {!currentUser && (
+          <div className="card" style={{ marginBottom: '1.5rem', borderLeft: '4px solid var(--primary-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+            <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
+              You're browsing as a guest. Sign in to join clubs and access full features.
+            </p>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <Link to="/login"  className="btn" style={{ padding: '8px 20px' }}>Sign In</Link>
+              <Link to="/signup" className="btn btn-outline" style={{ padding: '8px 20px' }}>Sign Up</Link>
+            </div>
+          </div>
+        )}
+
         <div className="card" style={{ marginBottom: '2rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '15px' }}>
             <h2 style={{ margin: 0 }}>Campus Directory</h2>
-            {currentUser.role === 'student' && (
+            {currentUser?.role === 'student' && (
               <div style={{ display: 'flex', gap: '10px' }}>
                 <button className={viewFilter === 'all' ? "btn" : "btn btn-outline"} onClick={() => setViewFilter('all')}>All Clubs</button>
                 <button className={viewFilter === 'my-clubs' ? "btn btn-success" : "btn btn-outline"} onClick={() => setViewFilter('my-clubs')}>My Clubs</button>
@@ -258,7 +263,7 @@ function ClubManagement() {
                 
                 {/* Visual Badges (Already glassy from our previous CSS) */}
                 <div style={{ position: 'absolute', top: '15px', right: '15px', display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', gap: '5px', maxWidth: '60%' }}>
-                  {club.president?._id === currentUser.id && <span className="badge" style={{ backgroundColor: 'var(--primary-light)', color: 'var(--primary-color)' }}>👑 President</span>}
+                  {currentUser && club.president?._id === currentUser.id && <span className="badge" style={{ backgroundColor: 'var(--primary-light)', color: 'var(--primary-color)' }}>👑 President</span>}
                   {club.members?.length >= 3 && <span className="badge" style={{ backgroundColor: '#fee2e2', color: '#ef4444' }}>🔥 Trending</span>}
                   {club.elections?.some(e => e.isActive) && <span className="badge" style={{ backgroundColor: '#fef3c7', color: '#d97706' }}>🗳️ Elections</span>}
                 </div>
@@ -278,8 +283,12 @@ function ClubManagement() {
                 </div>
 
                 <div style={{ display: 'flex', gap: '10px' }}>
-                  <button className="btn btn-outline" style={{ flex: 1 }} onClick={() => navigate(`/clubs/${club._id}`)}>View Hub</button>
-                  {currentUser.role === 'supervisor' && (
+                  {currentUser ? (
+                    <button className="btn btn-outline" style={{ flex: 1 }} onClick={() => navigate(`/clubs/${club._id}`)}>View Hub</button>
+                  ) : (
+                    <Link to="/login" className="btn btn-outline" style={{ flex: 1, textAlign: 'center' }}>Login to explore →</Link>
+                  )}
+                  {currentUser?.role === 'supervisor' && (
                     <>
                       <button className="btn" style={{ backgroundColor: '#fef3c7', color: '#d97706' }} onClick={() => handleEditClick(club)}>✏️</button>
                       <button className="btn btn-danger" onClick={() => handleDeleteClub(club._id)}>🗑️</button>
