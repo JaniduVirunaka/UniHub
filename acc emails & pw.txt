@@ -1,5 +1,5 @@
 backend terminal ----> cd backend
-                       node server.js
+                       npm start
 
 frontend terminal ----> cd frontend
                         npm start
@@ -41,4 +41,29 @@ jordan
 
 janidu@gmail.com  ---> robotics president
 1234
+
+
+
+
+
+
+
+
+| Role | Email | Password |
+|------|-------|----------|
+| Sport Admin | sportadmin@unihub.test | Password123! |
+| Captain | captain@unihub.test | Password123! |
+| Vice Captain | vicecaptain@unihub.test | Password123! |
+| Student | student@unihub.test | Password123! |
+| Member (for join requests) | member1@unihub.test | Password123! |
+
+
+
+
+| Role | Email | Password | Access |
+|------|-------|----------|--------|
+| Event Admin/Organizer | organizer@unihub.test | Password123! | `/events/admin` |
+| Student | student@unihub.test | Password123! | `/events/*` user routes |
+| Member (for cart testing) | member1@unihub.test | Password123! | `/events/*` user routes |
+
 

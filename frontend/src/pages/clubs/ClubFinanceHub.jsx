@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { ArrowLeft, Download, TrendingUp, TrendingDown, Wallet, PenLine, Trash2, Plus, X, Eye } from 'lucide-react';
+import { ArrowLeft, Download, PenLine, Trash2, Plus, X } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import api from '../../config/api';
@@ -286,7 +286,7 @@ function ClubFinanceHub() {
               </div>
 
               {/* Mini KPIs */}
-              <div className="mb-5 grid grid-cols-3 gap-3">
+              <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
                 {[
                   { label: `${displayStats.label} Revenue`,  value: `Rs. ${displayStats.rev.toLocaleString()}`,    color: 'text-emerald-600 dark:text-emerald-400' },
                   { label: `${displayStats.label} Expenses`, value: `Rs. ${displayStats.exp.toLocaleString()}`,    color: 'text-rose-600 dark:text-rose-400' },
