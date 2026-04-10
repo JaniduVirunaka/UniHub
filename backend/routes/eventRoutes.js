@@ -39,10 +39,22 @@ router.get('/:id/availability', async (req, res, next) => {
   }
 });
 
+const ALLOWED_EVENT_FIELDS = [
+  'title', 'description', 'eventType', 'thumbnail', 'posterImage', 'ticketImage',
+  'date', 'time', 'location', 'organizer', 'totalCapacity', 'availableTickets',
+  'ticketPrice', 'ticketPriceOptions', 'bankAccount', 'whatsappNumber', 'paymentMessage',
+];
+
+function pickEventFields(body) {
+  return Object.fromEntries(
+    ALLOWED_EVENT_FIELDS.filter(f => f in body).map(f => [f, body[f]])
+  );
+}
+
 // Create new event — admin only
 router.post('/', protect, requireRole('admin'), async (req, res, next) => {
   try {
-    const event = await Event.create(req.body);
+    const event = await Event.create(pickEventFields(req.body));
     res.status(201).json(event);
   } catch (error) {
     next(error);
@@ -52,7 +64,7 @@ router.post('/', protect, requireRole('admin'), async (req, res, next) => {
 // Update event — admin only
 router.put('/:id', protect, requireRole('admin'), async (req, res, next) => {
   try {
-    const event = await Event.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+    const event = await Event.findByIdAndUpdate(req.params.id, pickEventFields(req.body), { new: true, runValidators: true });
     if (!event) return res.status(404).json({ message: 'Event not found' });
     res.json(event);
   } catch (error) {

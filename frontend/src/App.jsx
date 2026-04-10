@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { LogIn, UserPlus, LogOut, Users, Trophy, Calendar, User, ShieldCheck, Sun, Moon, Menu, X } from 'lucide-react';
 import { useAuth } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
-import { pageTransition, slideDown } from './hooks/animationVariants';
+import { slideDown } from './hooks/animationVariants';
 import { useScrollProgress } from './hooks/useScrollProgress';
 
 // Shared pages

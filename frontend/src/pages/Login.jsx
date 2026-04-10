@@ -75,10 +75,16 @@ function Login() {
           )}
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-            <input type="email" className={inputCls} placeholder="University Email" required
-              onChange={e => setFormData(d => ({ ...d, email: e.target.value }))} />
-            <input type="password" className={inputCls} placeholder="Password" required
-              onChange={e => setFormData(d => ({ ...d, password: e.target.value }))} />
+            <label className="flex flex-col gap-1">
+              <span className="sr-only">University Email</span>
+              <input type="email" className={inputCls} placeholder="University Email" required
+                onChange={e => setFormData(d => ({ ...d, email: e.target.value }))} />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="sr-only">Password</span>
+              <input type="password" className={inputCls} placeholder="Password" required
+                onChange={e => setFormData(d => ({ ...d, password: e.target.value }))} />
+            </label>
             <Button type="submit" className="mt-1 w-full">Log In</Button>
           </form>
 

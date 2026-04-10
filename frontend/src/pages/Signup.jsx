@@ -10,6 +10,7 @@ const inputCls = 'w-full rounded-2xl border border-slate-300 bg-white px-4 py-2.
 function Signup() {
   const [formData, setFormData] = useState({ name: '', email: '', password: '' });
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
   const navigate = useNavigate();
   const { loginWithGoogle } = useAuth();
 
@@ -18,8 +19,8 @@ function Signup() {
     setError('');
     try {
       await api.post('/auth/signup', formData);
-      alert('Account created! Please log in.');
-      navigate('/login');
+      setSuccess(true);
+      setTimeout(() => navigate('/login'), 1500);
     } catch (err) {
       setError(err.response?.data?.message || 'An error occurred during signup.');
     }
@@ -49,13 +50,28 @@ function Signup() {
             </div>
           )}
 
+          {success && (
+            <div role="status" className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-center text-sm text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-400">
+              Account created! Redirecting to login…
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-            <input type="text" className={inputCls} placeholder="Full Name" required
-              onChange={e => setFormData(d => ({ ...d, name: e.target.value }))} />
-            <input type="email" className={inputCls} placeholder="University Email" required
-              onChange={e => setFormData(d => ({ ...d, email: e.target.value }))} />
-            <input type="password" className={inputCls} placeholder="Password" required
-              onChange={e => setFormData(d => ({ ...d, password: e.target.value }))} />
+            <label className="flex flex-col gap-1">
+              <span className="sr-only">Full Name</span>
+              <input type="text" className={inputCls} placeholder="Full Name" required
+                onChange={e => setFormData(d => ({ ...d, name: e.target.value }))} />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="sr-only">University Email</span>
+              <input type="email" className={inputCls} placeholder="University Email" required
+                onChange={e => setFormData(d => ({ ...d, email: e.target.value }))} />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="sr-only">Password</span>
+              <input type="password" className={inputCls} placeholder="Password" required
+                onChange={e => setFormData(d => ({ ...d, password: e.target.value }))} />
+            </label>
             <Button type="submit" className="mt-1 w-full">Sign Up</Button>
           </form>
 

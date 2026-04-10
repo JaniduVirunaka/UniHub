@@ -14,6 +14,8 @@ function Register() {
     email: "",
     password: ""
   });
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
 
   const handleChange = (e) => {
     setFormData((prev) => ({
@@ -24,13 +26,13 @@ function Register() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
+    setError("");
     try {
       await register(formData);
-      alert("Registration successful");
-      navigate("/login");
-    } catch (error) {
-      alert(error.response?.data?.message || "Register failed");
+      setSuccess(true);
+      setTimeout(() => navigate("/login"), 1500);
+    } catch (err) {
+      setError(err.response?.data?.message || "Registration failed. Please try again.");
     }
   };
 
@@ -41,6 +43,18 @@ function Register() {
       sideTitle="Start with a clean and modern experience."
       sideText="Register quickly and access a role-based sports platform designed for students and team leaders."
     >
+      {error && (
+        <div role="alert" className="mb-5 rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
+          {error}
+        </div>
+      )}
+
+      {success && (
+        <div role="status" className="mb-5 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
+          Account created! Redirecting to login…
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="space-y-5">
         <FormInput
           label="Full Name"

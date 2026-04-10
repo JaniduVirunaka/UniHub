@@ -70,7 +70,7 @@ router.post('/login', async (req, res) => {
 });
 
 // GET ALL USERS (supervisor use)
-router.get('/users', async (req, res) => {
+router.get('/users', protect, async (_req, res) => {
   try {
     const users = await User.find().select('-password');
     res.status(200).json(users);
@@ -163,8 +163,8 @@ router.put('/profile', protect, async (req, res) => {
   }
 });
 
-// MAKE SPORT ADMIN — promote any user to sport_admin role
-router.put('/make-sport-admin', async (req, res) => {
+// MAKE SPORT ADMIN — promote any user to sport_admin role (requires admin auth)
+router.put('/make-sport-admin', protect, async (req, res) => {
   try {
     const { email } = req.body;
     const user = await User.findOne({ email: email.toLowerCase() });
