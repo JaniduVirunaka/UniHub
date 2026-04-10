@@ -207,7 +207,7 @@ function ClubFinanceHub() {
 
       <ClubNavigation club={club} />
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-[320px_1fr]">
+      <div className={`mt-6 grid gap-6 ${!isSupervisor ? 'lg:grid-cols-[320px_1fr]' : ''}`}>
 
         {/* LEFT: Member payment form */}
         {!isSupervisor && (

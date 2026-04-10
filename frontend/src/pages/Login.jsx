@@ -1,23 +1,10 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import api from '../config/api';
 import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../context/AuthContext';
 import Button from '../components/ui/Button';
 
 const inputCls = 'w-full rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/30 dark:border-white/10 dark:bg-slate-950/40 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500';
-
-const getDefaultPath = (role) => {
-  switch (role) {
-    case 'president':    return null;
-    case 'supervisor':   return '/clubs';
-    case 'sport_admin':  return '/admin';
-    case 'captain':      return '/captain';
-    case 'vice_captain': return '/vice-captain';
-    case 'admin':        return '/events/admin';
-    default:             return '/clubs';
-  }
-};
 
 function Login() {
   const [formData, setFormData] = useState({ email: '', password: '' });
@@ -25,26 +12,16 @@ function Login() {
   const navigate = useNavigate();
   const { login, loginWithGoogle } = useAuth();
 
-  const routeAfterLogin = async (user) => {
-    if (user.role === 'president') {
-      try {
-        const res = await api.get('/clubs');
-        const myClub = res.data.find(c => c.president?._id === user.id || c.president === user.id);
-        navigate(myClub ? `/clubs/${myClub._id}` : '/clubs');
-      } catch {
-        navigate('/clubs');
-      }
-    } else {
-      navigate(getDefaultPath(user.role));
-    }
+  const routeAfterLogin = async () => {
+    navigate('/home');
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     try {
-      const { user } = await login(formData.email, formData.password);
-      await routeAfterLogin(user);
+      await login(formData.email, formData.password);
+      await routeAfterLogin();
     } catch (err) {
       setError(err.response?.data?.message || 'Invalid email or password.');
     }
@@ -52,8 +29,8 @@ function Login() {
 
   const handleGoogleSuccess = async (credentialResponse) => {
     try {
-      const { user } = await loginWithGoogle(credentialResponse.credential);
-      await routeAfterLogin(user);
+      await loginWithGoogle(credentialResponse.credential);
+      await routeAfterLogin();
     } catch {
       setError('Google Authentication Failed.');
     }

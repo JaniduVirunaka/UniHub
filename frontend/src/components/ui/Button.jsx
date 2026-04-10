@@ -29,6 +29,9 @@ const variants = {
   success:
     'bg-emerald-600 text-white hover:bg-emerald-700 active:bg-emerald-800 ' +
     'focus-visible:ring-emerald-500 shadow-sm hover:shadow-md hover:shadow-emerald-500/20',
+  white:
+    'bg-white text-indigo-700 hover:bg-indigo-50 active:bg-indigo-100 ' +
+    'focus-visible:ring-white shadow-lg shadow-indigo-900/30',
 };
 
 const sizes = {

@@ -69,8 +69,7 @@ function Home() {
             join elite clubs, and track your campus legacy — all in one place.
           </p>
           <div className="mt-10 flex flex-wrap justify-center gap-4">
-            <Button as={Link} to="/signup" size="lg"
-              className="bg-white text-indigo-700 hover:bg-indigo-50 shadow-lg shadow-indigo-900/30 focus-visible:ring-white"
+            <Button as={Link} to="/signup" variant="white" size="lg"
             >
               Create Student Account
             </Button>
