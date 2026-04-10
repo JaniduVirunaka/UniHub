@@ -1,7 +1,22 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
+import { User, Mail, Hash, BookOpen, Phone, Calendar, LogOut, Pencil, X, Save } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { authService } from '../services/services';
+import PageWrapper from '../components/PageWrapper';
+import Card from '../components/ui/Card';
+import Button from '../components/ui/Button';
+import FormInput from '../components/FormInput';
+
+function ProfileRow({ icon: Icon, label, value }) {
+  return (
+    <div className="flex items-center gap-3 rounded-2xl bg-slate-50/60 px-4 py-3 dark:bg-white/5">
+      <Icon size={16} className="shrink-0 text-indigo-500 dark:text-indigo-400" />
+      <span className="min-w-[110px] text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">{label}</span>
+      <span className="text-sm font-medium text-slate-900 dark:text-white">{value}</span>
+    </div>
+  );
+}
 
 function Profile() {
   const navigate = useNavigate();
@@ -18,10 +33,7 @@ function Profile() {
 
   if (!currentUser) return <Navigate to="/login" replace />;
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
+  const handleLogout = () => { logout(); navigate('/login'); };
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -38,130 +50,104 @@ function Profile() {
     }
   };
 
+  const initials = currentUser.name.charAt(0).toUpperCase();
+
   return (
-    <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
+    <PageWrapper title="My Profile">
+      <div className="mx-auto max-w-4xl">
+        <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
 
-      {/* Left Sidebar: User Info */}
-      <div className="card" style={{ flex: '1 1 30%', textAlign: 'center' }}>
-        <div style={{ width: '100px', height: '100px', borderRadius: '50%', backgroundColor: 'var(--primary-color)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.5rem', margin: '0 auto 15px auto' }}>
-          {currentUser.name.charAt(0).toUpperCase()}
-        </div>
-        <h2 style={{ margin: '10px 0 5px 0' }}>{currentUser.name}</h2>
-        <p style={{ color: 'var(--text-muted)', margin: 0 }}>{currentUser.email}</p>
-        <span style={{ display: 'inline-block', marginTop: '10px', padding: '4px 12px', backgroundColor: '#e5e7eb', borderRadius: '15px', fontSize: '0.85rem', fontWeight: 'bold', textTransform: 'capitalize' }}>
-          Role: {currentUser.role}
-        </span>
-
-        {currentUser.studentId && (
-          <p style={{ marginTop: '8px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            ID: {currentUser.studentId}
-          </p>
-        )}
-        {currentUser.department && (
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '2px 0' }}>
-            {currentUser.department}{currentUser.year ? ` · Year ${currentUser.year}` : ''}
-          </p>
-        )}
-
-        <div style={{ marginTop: '20px' }}>
-          <button className="btn" style={{ backgroundColor: '#ef4444', width: '100%' }} onClick={handleLogout}>
-            Log Out
-          </button>
-        </div>
-      </div>
-
-      {/* Right Content Area */}
-      <div className="card" style={{ flex: '1 1 70%' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', marginBottom: '20px' }}>
-          <h3 style={{ margin: 0 }}>Account Settings</h3>
-          {!editing && (
-            <button className="btn" onClick={() => setEditing(true)} style={{ padding: '6px 16px', fontSize: '0.9rem' }}>
-              Edit Profile
-            </button>
-          )}
-        </div>
-
-        {error && (
-          <div style={{ backgroundColor: '#fee2e2', color: '#b91c1c', padding: '10px', borderRadius: '6px', marginBottom: '16px' }}>
-            {error}
-          </div>
-        )}
-
-        {editing ? (
-          <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <label>
-              <span style={{ display: 'block', fontWeight: 600, marginBottom: '4px' }}>Name</span>
-              <input
-                type="text"
-                value={form.name}
-                onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                required
-                style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '6px' }}
-              />
-            </label>
-            <label>
-              <span style={{ display: 'block', fontWeight: 600, marginBottom: '4px' }}>Department</span>
-              <input
-                type="text"
-                value={form.department}
-                onChange={e => setForm(f => ({ ...f, department: e.target.value }))}
-                style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '6px' }}
-              />
-            </label>
-            <label>
-              <span style={{ display: 'block', fontWeight: 600, marginBottom: '4px' }}>Year</span>
-              <select
-                value={form.year}
-                onChange={e => setForm(f => ({ ...f, year: e.target.value }))}
-                style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '6px' }}
-              >
-                <option value="">—</option>
-                <option value="1">1st Year</option>
-                <option value="2">2nd Year</option>
-                <option value="3">3rd Year</option>
-                <option value="4">4th Year</option>
-              </select>
-            </label>
-            <label>
-              <span style={{ display: 'block', fontWeight: 600, marginBottom: '4px' }}>Phone</span>
-              <input
-                type="text"
-                value={form.phone}
-                onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
-                style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '6px' }}
-              />
-            </label>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button type="submit" disabled={saving} className="btn" style={{ flex: 1 }}>
-                {saving ? 'Saving...' : 'Save Changes'}
-              </button>
-              <button type="button" onClick={() => setEditing(false)} className="btn" style={{ flex: 1, backgroundColor: '#6b7280' }}>
-                Cancel
-              </button>
+          {/* ── Sidebar ── */}
+          <Card variant="glass" padding="lg" className="flex flex-col items-center gap-4 text-center">
+            {/* Avatar */}
+            <div className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-3xl font-bold text-white shadow-lg shadow-indigo-500/30">
+              {initials}
             </div>
-          </form>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <Row label="Name"       value={currentUser.name} />
-            <Row label="Email"      value={currentUser.email} />
-            {currentUser.studentId  && <Row label="Student ID"  value={currentUser.studentId} />}
-            {currentUser.department && <Row label="Department"  value={currentUser.department} />}
-            {currentUser.year       && <Row label="Year"        value={`Year ${currentUser.year}`} />}
-            {currentUser.phone      && <Row label="Phone"       value={currentUser.phone} />}
-          </div>
-        )}
+
+            <div>
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white">{currentUser.name}</h2>
+              <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">{currentUser.email}</p>
+            </div>
+
+            <span className="rounded-full bg-indigo-100 px-4 py-1 text-xs font-bold uppercase tracking-wide text-indigo-700 dark:bg-indigo-400/15 dark:text-indigo-300">
+              {currentUser.role}
+            </span>
+
+            {currentUser.studentId && (
+              <p className="text-xs text-slate-400">ID: {currentUser.studentId}</p>
+            )}
+
+            <Button
+              variant="danger"
+              size="sm"
+              className="mt-2 w-full"
+              leftIcon={<LogOut size={15} />}
+              onClick={handleLogout}
+            >
+              Log Out
+            </Button>
+          </Card>
+
+          {/* ── Main content ── */}
+          <Card variant="glass" padding="lg">
+            <div className="mb-5 flex items-center justify-between border-b border-slate-200/60 pb-4 dark:border-white/10">
+              <h3 className="font-bold text-slate-900 dark:text-white">Account Settings</h3>
+              {!editing && (
+                <Button size="sm" variant="secondary" leftIcon={<Pencil size={14} />} onClick={() => setEditing(true)}>
+                  Edit Profile
+                </Button>
+              )}
+            </div>
+
+            {error && (
+              <div role="alert" className="mb-4 rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:bg-rose-400/10 dark:text-rose-300">
+                {error}
+              </div>
+            )}
+
+            {editing ? (
+              <form onSubmit={handleSave} className="flex flex-col gap-4">
+                <FormInput label="Name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required />
+                <FormInput label="Department" value={form.department} onChange={e => setForm(f => ({ ...f, department: e.target.value }))} />
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">Year</label>
+                  <select
+                    value={form.year}
+                    onChange={e => setForm(f => ({ ...f, year: e.target.value }))}
+                    className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/30 dark:border-white/10 dark:bg-slate-950/40 dark:text-white"
+                  >
+                    <option value="">—</option>
+                    <option value="1">1st Year</option>
+                    <option value="2">2nd Year</option>
+                    <option value="3">3rd Year</option>
+                    <option value="4">4th Year</option>
+                  </select>
+                </div>
+                <FormInput label="Phone" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
+                <div className="flex gap-3">
+                  <Button type="submit" isLoading={saving} leftIcon={<Save size={15} />} className="flex-1">
+                    Save Changes
+                  </Button>
+                  <Button type="button" variant="secondary" leftIcon={<X size={15} />} onClick={() => setEditing(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            ) : (
+              <div className="flex flex-col gap-2">
+                <ProfileRow icon={User}    label="Name"       value={currentUser.name} />
+                <ProfileRow icon={Mail}    label="Email"      value={currentUser.email} />
+                {currentUser.studentId  && <ProfileRow icon={Hash}     label="Student ID"  value={currentUser.studentId} />}
+                {currentUser.department && <ProfileRow icon={BookOpen} label="Department"  value={currentUser.department} />}
+                {currentUser.year       && <ProfileRow icon={Calendar} label="Year"        value={`Year ${currentUser.year}`} />}
+                {currentUser.phone      && <ProfileRow icon={Phone}    label="Phone"       value={currentUser.phone} />}
+              </div>
+            )}
+          </Card>
+
+        </div>
       </div>
-
-    </div>
-  );
-}
-
-function Row({ label, value }) {
-  return (
-    <div style={{ display: 'flex', gap: '12px' }}>
-      <span style={{ fontWeight: 600, minWidth: '100px', color: 'var(--text-muted)' }}>{label}</span>
-      <span>{value}</span>
-    </div>
+    </PageWrapper>
   );
 }
 

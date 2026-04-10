@@ -1,9 +1,38 @@
-import React, { useState, useEffect } from 'react';
-import api from '../../config/api';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
+import { ArrowLeft, Download, TrendingUp, TrendingDown, DollarSign, Users } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import api from '../../config/api';
+import PageWrapper from '../../components/PageWrapper';
+import Card from '../../components/ui/Card';
+import Button from '../../components/ui/Button';
+import LoadingSpinner from '../../components/LoadingSpinner';
+import { useScrollReveal } from '../../hooks/useScrollReveal';
+import { useCountUp } from '../../hooks/useCountUp';
+import { motion } from 'framer-motion';
+import { staggerContainer, staggerItem } from '../../hooks/animationVariants';
+
+function KpiCard({ label, value, color, icon: Icon }) {
+  const { ref: countRef, displayValue } = useCountUp(value);
+  const { ref, ...reveal } = useScrollReveal();
+  return (
+    <motion.div ref={ref} {...reveal}
+      className="rounded-3xl p-5 shadow-xl bg-white/60 backdrop-blur-md border border-white/80 dark:bg-white/5 dark:backdrop-blur-xl dark:border-white/10"
+    >
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{label}</p>
+          <p ref={countRef} className={`mt-1 text-2xl font-extrabold ${color}`}>{displayValue}</p>
+        </div>
+        <div className={`rounded-2xl p-3 ${color.includes('emerald') ? 'bg-emerald-100 dark:bg-emerald-400/15' : color.includes('rose') ? 'bg-rose-100 dark:bg-rose-400/15' : color.includes('indigo') ? 'bg-indigo-100 dark:bg-indigo-400/15' : 'bg-slate-100 dark:bg-white/10'}`}>
+          <Icon size={20} className={color} />
+        </div>
+      </div>
+    </motion.div>
+  );
+}
 
 function GlobalAnalytics() {
   const [globalData, setGlobalData] = useState(null);
@@ -11,157 +40,121 @@ function GlobalAnalytics() {
   const currentUser = JSON.parse(localStorage.getItem('user'));
 
   useEffect(() => {
-    // Security Kick-Out
-    if (!currentUser || currentUser.role !== 'supervisor') {
-      navigate('/clubs');
-      return;
-    }
-
-    api.get('/clubs/global/analytics')
-      .then(res => setGlobalData(res.data))
-      .catch(err => console.error("Error fetching global matrix:", err));
+    if (!currentUser || currentUser.role !== 'supervisor') { navigate('/clubs'); return; }
+    api.get('/clubs/global/analytics').then(res => setGlobalData(res.data)).catch(console.error);
   }, []);
 
-  if (!globalData) return <div style={{ textAlign: 'center', marginTop: '50px' }}>Initializing Global Matrix...</div>;
+  if (!globalData) return <div className="flex min-h-[60vh] items-center justify-center"><LoadingSpinner text="Initializing Global Matrix…" /></div>;
 
-  //Dynamic KPI calculations
   const totalUniversityRev = globalData.masterChart[11]?.ytdRevenue || 0;
   const totalUniversityExp = globalData.masterChart[11]?.ytdExpenses || 0;
   const universityNet = totalUniversityRev - totalUniversityExp;
 
   const generateGlobalReport = () => {
     const doc = new jsPDF();
-    doc.setFontSize(22);
-    doc.setTextColor(40, 40, 40);
-    doc.text(`University Global Financial Report`, 14, 20);
-    doc.setFontSize(11);
-    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 28);
-
+    doc.setFontSize(22); doc.setTextColor(40, 40, 40);
+    doc.text('University Global Financial Report', 14, 20);
+    doc.setFontSize(11); doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 28);
     doc.setFontSize(14);
-    doc.setTextColor(16, 185, 129); doc.text(`Total University Revenue: Rs. ${totalUniversityRev.toLocaleString()}`, 14, 40);
-    doc.setTextColor(220, 38, 38); doc.text(`Total University Expenses: Rs. ${totalUniversityExp.toLocaleString()}`, 14, 50);
-    doc.setTextColor(37, 99, 235); doc.text(`University Net Balance: Rs. ${universityNet.toLocaleString()}`, 14, 60);
-
-   autoTable(doc, {
-      head: [["Rank", "Club Name", "Total Revenue (Rs.)", "Total Expenses (Rs.)", "Net Balance (Rs.)", "Active Members"]],
-      body: globalData.leaderboard.map((club, index) => {
-        const netBalance = club.totalRevenue - club.totalExpenses;
-        return [
-          `#${index + 1}`, 
-          club.name, 
-          club.totalRevenue.toLocaleString(), 
-          club.totalExpenses.toLocaleString(), 
-          netBalance.toLocaleString(),
-          club.memberCount
-        ];
-      }),
+    doc.setTextColor(16, 185, 129); doc.text(`Total Revenue: Rs. ${totalUniversityRev.toLocaleString()}`, 14, 40);
+    doc.setTextColor(220, 38, 38);  doc.text(`Total Expenses: Rs. ${totalUniversityExp.toLocaleString()}`, 14, 50);
+    doc.setTextColor(37, 99, 235);  doc.text(`Net Balance: Rs. ${universityNet.toLocaleString()}`, 14, 60);
+    autoTable(doc, {
+      head: [['Rank', 'Club Name', 'Revenue (Rs.)', 'Expenses (Rs.)', 'Net (Rs.)', 'Members']],
+      body: globalData.leaderboard.map((club, i) => [`#${i + 1}`, club.name, club.totalRevenue.toLocaleString(), club.totalExpenses.toLocaleString(), (club.totalRevenue - club.totalExpenses).toLocaleString(), club.memberCount]),
       startY: 75,
-      headStyles: { fillColor: [15, 23, 42] }
+      headStyles: { fillColor: [15, 23, 42] },
     });
-
-    doc.save(`Global_University_Financial_Report.pdf`);
+    doc.save('Global_University_Financial_Report.pdf');
   };
 
   return (
-    <div className="container">
-      <div className="card" style={{ borderTop: '4px solid #10b981', paddingBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' }}>
-        <div>
-          <button className="btn btn-outline" style={{ marginBottom: '15px', backgroundColor: 'var(--surface-color)' }} onClick={() => navigate('/clubs')}>
-            &larr; Back to Directory
-          </button>
-          <h1 style={{ color: '#10b981', margin: '0 0 5px 0' }}>🌐 Global Matrix</h1>
-          <p style={{ color: 'var(--text-secondary)', margin: 0 }}>University-wide aggregated financial and demographic data.</p>
+    <PageWrapper
+      title="Global Matrix"
+      subtitle="University-wide aggregated financial and demographic data"
+      rightContent={
+        <div className="flex gap-2">
+          <Button variant="ghost" size="sm" leftIcon={<ArrowLeft size={15} />} onClick={() => navigate('/clubs')}>Back</Button>
+          <Button variant="success" size="sm" leftIcon={<Download size={15} />} onClick={generateGlobalReport}>Export Report</Button>
         </div>
-        <button className="btn btn-success" onClick={generateGlobalReport}>
-          📥 Export Master Report
-        </button>
+      }
+    >
+      {/* KPIs */}
+      <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <KpiCard label="Total Revenue"   value={`Rs. ${totalUniversityRev.toLocaleString()}`} color="text-emerald-600 dark:text-emerald-400" icon={TrendingUp} />
+        <KpiCard label="Total Expenses"  value={`Rs. ${totalUniversityExp.toLocaleString()}`} color="text-rose-600 dark:text-rose-400"       icon={TrendingDown} />
+        <KpiCard label="Global Net"      value={`Rs. ${universityNet.toLocaleString()}`}       color="text-indigo-600 dark:text-indigo-400"   icon={DollarSign} />
+        <KpiCard label="Active Students" value={String(globalData.totalUniversityMembers)}     color="text-slate-700 dark:text-slate-200"     icon={Users} />
       </div>
 
-      {/* KPI WIDGETS*/}
-      <div className="quick-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '30px' }}>
-        <div className="card" style={{ textAlign: 'center', padding: '20px', marginBottom: 0, border: '1px solid var(--border-color)' }}>
-          <h4 style={{ margin: '0 0 10px 0', color: 'var(--text-secondary)' }}>Total University Revenue</h4>
-          <h2 style={{ margin: 0, color: 'var(--success)' }}>Rs. {totalUniversityRev.toLocaleString()}</h2>
-        </div>
-        <div className="card" style={{ textAlign: 'center', padding: '20px', marginBottom: 0, border: '1px solid var(--border-color)' }}>
-          <h4 style={{ margin: '0 0 10px 0', color: 'var(--text-secondary)' }}>Total University Expenses</h4>
-          <h2 style={{ margin: 0, color: 'var(--danger)' }}>Rs. {totalUniversityExp.toLocaleString()}</h2>
-        </div>
-        <div className="card" style={{ textAlign: 'center', padding: '20px', marginBottom: 0, backgroundColor: 'var(--primary-light)', border: '1px solid var(--primary-color)' }}>
-          <h4 style={{ margin: '0 0 10px 0', color: 'var(--primary-color)' }}>Global Net Balance</h4>
-          <h2 style={{ margin: 0, color: 'var(--primary-color)' }}>Rs. {universityNet.toLocaleString()}</h2>
-        </div>
-        <div className="card" style={{ textAlign: 'center', padding: '20px', marginBottom: 0, border: '1px solid var(--border-color)' }}>
-          <h4 style={{ margin: '0 0 10px 0', color: 'var(--text-secondary)' }}>Total Active Students</h4>
-          <h2 style={{ margin: 0, color: 'var(--text-main)' }}>{globalData.totalUniversityMembers}</h2>
-        </div>
-      </div>
+      {/* Chart + Leaderboard */}
+      <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
 
-      {/* THE MAIN DASHBOARD SPLIT */}
-      <div className="dashboard-grid-global">
-        
-        {/* MASTER CHART */}
-        <div className="card" style={{ border: '1px solid var(--border-color)' }}>
-          <h3 style={{ marginTop: 0, color: 'var(--text-main)', borderBottom: '1px solid var(--border-color)', paddingBottom: '15px' }}>Global Trajectory (YTD)</h3>
-          <div style={{ width: '100%', height: 350 }}>
+        {/* Master chart */}
+        <Card variant="glass" padding="md">
+          <h3 className="mb-4 font-bold text-slate-900 dark:text-white">Global Trajectory (YTD)</h3>
+          <div className="h-[320px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={globalData.masterChart} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <defs>
-                  <linearGradient id="gRev" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="var(--success)" stopOpacity={0.5}/><stop offset="95%" stopColor="var(--success)" stopOpacity={0}/></linearGradient>
-                  <linearGradient id="gExp" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="var(--danger)" stopOpacity={0.5}/><stop offset="95%" stopColor="var(--danger)" stopOpacity={0}/></linearGradient>
+                  <linearGradient id="gRev" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="gExp" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.4} />
+                    <stop offset="95%" stopColor="#f43f5e" stopOpacity={0} />
+                  </linearGradient>
                 </defs>
-                <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={11} />
-                <YAxis stroke="var(--text-muted)" fontSize={11} />
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" />
-                <Tooltip contentStyle={{ backgroundColor: 'var(--surface-color)', borderColor: 'var(--border-color)', borderRadius: '8px' }} />
-                <Legend verticalAlign="top" height={36} wrapperStyle={{ fontSize: '0.85rem' }}/>
-                <Area type="monotone" dataKey="ytdRevenue" name="Global Revenue" stroke="var(--success)" strokeWidth={3} fill="url(#gRev)" />
-                <Area type="monotone" dataKey="ytdExpenses" name="Global Expenses" stroke="var(--danger)" strokeWidth={3} fill="url(#gExp)" />
+                <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} />
+                <YAxis stroke="#94a3b8" fontSize={11} />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(148,163,184,0.2)" />
+                <Tooltip
+                  contentStyle={{ backgroundColor: 'rgba(15,23,42,0.9)', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '12px', color: '#f1f5f9', fontSize: '0.85rem' }}
+                />
+                <Legend verticalAlign="top" height={36} wrapperStyle={{ fontSize: '0.85rem' }} />
+                <Area type="monotone" dataKey="ytdRevenue"  name="Revenue"  stroke="#10b981" strokeWidth={2.5} fill="url(#gRev)" />
+                <Area type="monotone" dataKey="ytdExpenses" name="Expenses" stroke="#f43f5e" strokeWidth={2.5} fill="url(#gExp)" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
-        </div>
+        </Card>
 
-        {/* LEADERBOARD */}
-        <div className="card" style={{ border: '1px solid #f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.05)' }}>
-          <h3 style={{ marginTop: 0, color: '#d97706', borderBottom: '1px solid rgba(245, 158, 11, 0.2)', paddingBottom: '15px' }}>🏆 Top Performing Clubs</h3>
-          <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+        {/* Leaderboard */}
+        <Card variant="glass" padding="md">
+          <h3 className="mb-4 font-bold text-amber-600 dark:text-amber-400">Top Performing Clubs</h3>
+          <motion.ul
+            variants={staggerContainer(0.05)}
+            initial="hidden"
+            animate="visible"
+            className="flex flex-col divide-y divide-slate-200/60 dark:divide-white/10"
+          >
             {globalData.leaderboard.map((club, index) => {
-              const netBalance = club.totalRevenue - club.totalExpenses;
-              
+              const net = club.totalRevenue - club.totalExpenses;
               return (
-                <li key={club.id} style={{ display: 'flex', alignItems: 'center', gap: '15px', padding: '15px 0', borderBottom: index < 4 ? '1px solid rgba(245, 158, 11, 0.2)' : 'none', flexWrap: 'wrap' }}>
-                  
-                  //Rank badges
-                  <div style={{ width: '30px', height: '30px', borderRadius: '50%', backgroundColor: index === 0 ? '#f59e0b' : 'var(--bg-color)', color: index === 0 ? '#fff' : 'var(--text-muted)', display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', fontSize: '0.9rem' }}>
+                <motion.li key={club.id} variants={staggerItem} className="flex items-center gap-3 py-3">
+                  <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold ${index === 0 ? 'bg-amber-400 text-white' : index === 1 ? 'bg-slate-300 dark:bg-slate-600 text-slate-800 dark:text-white' : 'bg-slate-100 dark:bg-white/10 text-slate-500 dark:text-slate-300'}`}>
                     {index + 1}
                   </div>
-                  
-                  //Club details
-                  <div style={{ flex: 1, minWidth: '120px' }}>
-                    <strong style={{ display: 'block', color: 'var(--text-main)', fontSize: '1.05rem' }}>{club.name}</strong>
-                    <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{club.memberCount} Members</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">{club.name}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">{club.memberCount} members</p>
                   </div>
-                  
-                  <div style={{ textAlign: 'right', minWidth: '100px' }}>
-                    <strong style={{ display: 'block', color: 'var(--success)', fontSize: '0.9rem' }}>
-                      + {club.totalRevenue.toLocaleString()}
-                    </strong>
-                    <strong style={{ display: 'block', color: 'var(--danger)', fontSize: '0.85rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px', marginBottom: '4px' }}>
-                      - {club.totalExpenses.toLocaleString()}
-                    </strong>
-                    <strong style={{ display: 'block', color: netBalance >= 0 ? 'var(--primary-color)' : 'var(--danger)', fontSize: '1.05rem' }}>
-                      {netBalance >= 0 ? 'Net: ' : 'Debt: '}{netBalance.toLocaleString()}
-                    </strong>
+                  <div className="text-right text-xs">
+                    <p className="font-semibold text-emerald-600 dark:text-emerald-400">+{club.totalRevenue.toLocaleString()}</p>
+                    <p className="font-semibold text-rose-600 dark:text-rose-400">−{club.totalExpenses.toLocaleString()}</p>
+                    <p className={`font-bold ${net >= 0 ? 'text-indigo-600 dark:text-indigo-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                      {net >= 0 ? '' : '−'}{Math.abs(net).toLocaleString()}
+                    </p>
                   </div>
-                </li>
+                </motion.li>
               );
             })}
-          </ul>
-        </div>
+          </motion.ul>
+        </Card>
 
       </div>
-    </div>
+    </PageWrapper>
   );
 }
 
