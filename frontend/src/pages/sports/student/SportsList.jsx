@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Trophy, Users, Layers3 } from "lucide-react";
-import axiosInstance from "../../api/axios";
-import PageWrapper from "../../components/PageWrapper";
-import LoadingSpinner from "../../components/LoadingSpinner";
-import GlassCard from "../../components/GlassCard";
+import axiosInstance from "../../../api/axios";
+import PageWrapper from "../../../components/PageWrapper";
+import LoadingSpinner from "../../../components/LoadingSpinner";
+import GlassCard from "../../../components/GlassCard";
 
 function SportsList() {
   const [sports, setSports] = useState([]);

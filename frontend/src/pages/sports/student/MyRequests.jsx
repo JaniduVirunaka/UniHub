@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { FileClock, Trophy } from "lucide-react";
-import axiosInstance from "../../api/axios";
-import PageWrapper from "../../components/PageWrapper";
-import LoadingSpinner from "../../components/LoadingSpinner";
-import GlassCard from "../../components/GlassCard";
-import StatusBadge from "../../components/StatusBadge";
+import axiosInstance from "../../../api/axios";
+import PageWrapper from "../../../components/PageWrapper";
+import LoadingSpinner from "../../../components/LoadingSpinner";
+import GlassCard from "../../../components/GlassCard";
+import StatusBadge from "../../../components/StatusBadge";
 
 function MyRequests() {
   const [requests, setRequests] = useState([]);

@@ -16,14 +16,14 @@ const createReview = async (req, res) => {
       return res.status(400).json({ message: 'You can review only after the event ends' });
     }
 
-    // Only allow users who booked tickets (pending_payment or registered)
+    // Only allow users whose payment has been verified (status: registered)
     const booking = await Registration.findOne({
       userId: req.user._id,
       eventId,
-      status: { $in: ['registered', 'pending_payment'] }
+      status: 'registered'
     }).lean();
     if (!booking) {
-      return res.status(403).json({ message: 'Only ticket buyers can review this event' });
+      return res.status(403).json({ message: 'You can only review events you attended after payment was verified' });
     }
 
     const existing = await Review.findOne({ user: req.user._id, event: eventId }).lean();

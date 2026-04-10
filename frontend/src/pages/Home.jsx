@@ -23,13 +23,13 @@ function Home() {
 
  return (
     <div style={{ paddingBottom: '4rem' }}>
-      {/* 1. HERO SECTION */}
-      <div 
-        ref={heroRef} 
-        className={`card fade-in-section ${heroVisible ? 'is-visible' : ''}`}
-        style={{ 
-          textAlign: 'center', padding: '6rem 2rem', background: 'linear-gradient(135deg, var(--primary-color), #8B5CF6)', 
-          color: 'white', border: 'none', boxShadow: 'var(--shadow-lg)', position: 'relative', overflow: 'hidden', margin: 0
+      {/* 1. HERO SECTION — intentionally full-width, no container */}
+      <div
+        ref={heroRef}
+        className={`fade-in-section ${heroVisible ? 'is-visible' : ''}`}
+        style={{
+          textAlign: 'center', padding: '6rem 2rem', background: 'linear-gradient(135deg, var(--primary-color), #8B5CF6)',
+          color: 'white', position: 'relative', overflow: 'hidden'
         }}
       >
         <h1 style={{ fontSize: '3.5rem', margin: '0 0 1rem 0', color: 'white', letterSpacing: '-1px' }}>
@@ -44,9 +44,11 @@ function Home() {
         </div>
       </div>
 
+      {/* Centred container for everything below the hero */}
+      <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '0 1.5rem' }}>
+
       {/* 2. CAMPUS IMPACT METRICS */}
-      {/* THE FIX: Replaced negative margin with standard margin to prevent overlap on mobile */}
-      <div 
+      <div
         ref={metricsRef}
         className={`fade-in-section delay-100 ${metricsVisible ? 'is-visible' : ''}`}
         style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginTop: '20px', position: 'relative', zIndex: 10 }}
@@ -132,6 +134,9 @@ function Home() {
           </div>
 
         </div>
+      </div>
+
+      {/* End centred container */}
       </div>
     </div>
   );

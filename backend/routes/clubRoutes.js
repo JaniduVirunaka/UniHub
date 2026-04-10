@@ -7,9 +7,6 @@ const Club = require('../models/Club');
 const User = require('../models/User');
 const { protect } = require('../middleware/authMiddleware');
 
-// All club routes require a valid JWT
-router.use(protect);
-
 
 // --- MULTER CONFIGURATION ---
 const storage = multer.diskStorage({
@@ -24,7 +21,7 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage });
 
 
-// Get all clubs
+// PUBLIC — Get all clubs (no auth required, used by guest browsing)
 router.get('/', async (req, res) => {
   try {
     const clubs = await Club.find()
@@ -36,6 +33,9 @@ router.get('/', async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
+
+// All routes below this line require a valid JWT
+router.use(protect);
 
 
 // GLOBAL SUPERVISOR MATRIX

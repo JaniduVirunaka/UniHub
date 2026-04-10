@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { useCart } from '../context/CartContext';
-import { eventService, registrationService } from '../services/services';
-import { EventCard } from '../components/EventCard';
-import { ConfirmationModal } from '../components/Modals';
+import { useNavigate, Link } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import { useCart } from '../../context/CartContext';
+import { eventService, registrationService } from '../../services/services';
+import { EventCard } from '../../components/EventCard';
+import { ConfirmationModal } from '../../components/Modals';
 
 function Events() {
   const { user } = useAuth();
@@ -85,6 +85,19 @@ function Events() {
   return (
     <div className="p-8">
       <h2 className="text-2xl font-bold mb-6">Campus Events</h2>
+
+      {!user && (
+        <div className="mb-6 flex items-center justify-between gap-4 rounded-xl border border-blue-200 bg-blue-50 px-5 py-4">
+          <p className="text-sm text-blue-800">
+            Sign in to register for events and purchase tickets.
+          </p>
+          <div className="flex shrink-0 gap-2">
+            <Link to="/login"  className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700">Sign In</Link>
+            <Link to="/signup" className="rounded-lg border border-blue-300 px-4 py-2 text-sm font-medium text-blue-700 transition hover:bg-blue-100">Sign Up</Link>
+          </div>
+        </div>
+      )}
+
       {events.length === 0 ? (
         <p className="text-gray-500">No events available yet.</p>
       ) : (

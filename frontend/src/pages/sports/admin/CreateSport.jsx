@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Trophy } from "lucide-react";
-import axiosInstance from "../../api/axios";
-import PageWrapper from "../../components/PageWrapper";
-import GlassCard from "../../components/GlassCard";
-import FormInput from "../../components/FormInput";
+import axiosInstance from "../../../api/axios";
+import PageWrapper from "../../../components/PageWrapper";
+import GlassCard from "../../../components/GlassCard";
+import FormInput from "../../../components/FormInput";
 
 function CreateSport() {
   const [formData, setFormData] = useState({

@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { ClipboardList, UserRound } from "lucide-react";
-import axiosInstance from "../../api/axios";
-import PageWrapper from "../../components/PageWrapper";
-import GlassCard from "../../components/GlassCard";
-import LoadingSpinner from "../../components/LoadingSpinner";
-import StatusBadge from "../../components/StatusBadge";
+import axiosInstance from "../../../api/axios";
+import PageWrapper from "../../../components/PageWrapper";
+import GlassCard from "../../../components/GlassCard";
+import LoadingSpinner from "../../../components/LoadingSpinner";
+import StatusBadge from "../../../components/StatusBadge";
 
 function ManageRequests() {
   const [sports, setSports] = useState([]);

@@ -24,7 +24,11 @@ export const eventService = {
 export const registrationService = {
   registerEvent: (eventId) => api.post('/registrations/register-event', { eventId }),
   getMyEvents: () => api.get('/registrations/my-events'),
-  cancelRegistration: (registrationId) => api.delete(`/registrations/${registrationId}`)
+  cancelRegistration: (registrationId) => api.delete(`/registrations/${registrationId}`),
+  getAllRegistrations: (params) => api.get('/registrations/all', { params }),
+  getStats: () => api.get('/registrations/stats'),
+  verifyPayment: (registrationId, action) =>
+    api.patch(`/registrations/${registrationId}/verify-payment`, { action })
 };
 
 export const cartService = {

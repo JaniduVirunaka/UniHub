@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Trophy, Layers3, Users } from "lucide-react";
-import axiosInstance from "../../api/axios";
-import PageWrapper from "../../components/PageWrapper";
-import LoadingSpinner from "../../components/LoadingSpinner";
-import GlassCard from "../../components/GlassCard";
-import FormInput from "../../components/FormInput";
+import axiosInstance from "../../../api/axios";
+import PageWrapper from "../../../components/PageWrapper";
+import LoadingSpinner from "../../../components/LoadingSpinner";
+import GlassCard from "../../../components/GlassCard";
+import FormInput from "../../../components/FormInput";
 import { motion } from "framer-motion";
 
 function SportDetails() {

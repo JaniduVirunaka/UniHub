@@ -5,7 +5,7 @@ import { authService } from '../services/services';
 
 function Profile() {
   const navigate = useNavigate();
-  const { user: currentUser, logout } = useAuth();
+  const { user: currentUser, logout, updateUser } = useAuth();
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({
     name:       currentUser?.name       || '',
@@ -28,7 +28,8 @@ function Profile() {
     setSaving(true);
     setError('');
     try {
-      await authService.updateProfile(form);
+      const res = await authService.updateProfile(form);
+      updateUser(res.data.user);
       setEditing(false);
     } catch (err) {
       setError(err?.response?.data?.message || 'Failed to update profile');
