@@ -14,12 +14,12 @@ import { Calendar, Users, Clock, BarChart2, Trash2, Plus, X, ChevronLeft, Chevro
 const inputCls = 'w-full rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/30 dark:border-white/10 dark:bg-slate-950/40 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500';
 
 function KpiCard({ icon, value, label, color }) {
-  const count = useCountUp(value, 900);
+  const { ref: countRef, displayValue } = useCountUp(value, 900);
   return (
     <Card variant="glass" padding="md" className="flex items-center gap-4">
       <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${color}`}>{icon}</div>
       <div>
-        <p className="text-2xl font-extrabold text-slate-900 dark:text-white">{count}</p>
+        <p ref={countRef} className="text-2xl font-extrabold text-slate-900 dark:text-white">{displayValue}</p>
         <p className="text-sm text-slate-500 dark:text-slate-300">{label}</p>
       </div>
     </Card>
