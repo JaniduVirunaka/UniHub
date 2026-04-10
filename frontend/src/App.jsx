@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Routes, Route, Link, Navigate, useLocation, AnimatePresence } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { LogIn, UserPlus, LogOut, Users, Trophy, Calendar, User, ShieldCheck, Sun, Moon, Menu, X } from 'lucide-react';
 import { useAuth } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';

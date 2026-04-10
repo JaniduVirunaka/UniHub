@@ -14,14 +14,14 @@ import { useCountUp } from '../../hooks/useCountUp';
 import { Calendar, Ticket, CreditCard, SlidersHorizontal } from 'lucide-react';
 
 function StatPill({ icon, value, label, color }) {
-  const count = useCountUp(value, 800);
+  const { ref: countRef, displayValue } = useCountUp(value, 800);
   return (
     <Card variant="glass" padding="md" className="flex items-center gap-4">
       <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${color}`}>
         {icon}
       </div>
       <div>
-        <p className="text-2xl font-extrabold text-slate-900 dark:text-white">{count}</p>
+        <p ref={countRef} className="text-2xl font-extrabold text-slate-900 dark:text-white">{displayValue}</p>
         <p className="text-sm text-slate-500 dark:text-slate-300">{label}</p>
       </div>
     </Card>
