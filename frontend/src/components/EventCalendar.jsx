@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 export const EventCalendar = ({ events = [] }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -6,7 +6,7 @@ export const EventCalendar = ({ events = [] }) => {
 
   const monthNames = [
     'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
+    'July', 'August', 'September', 'October', 'November', 'December',
   ];
 
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -18,113 +18,123 @@ export const EventCalendar = ({ events = [] }) => {
     const lastDay = new Date(year, month + 1, 0);
     const daysInMonth = lastDay.getDate();
     const startingDayOfWeek = firstDay.getDay();
-
     const days = [];
-
-    // Add empty cells for days before the first day of the month
-    for (let i = 0; i < startingDayOfWeek; i++) {
-      days.push(null);
-    }
-
-    // Add days of the month
-    for (let day = 1; day <= daysInMonth; day++) {
-      days.push(day);
-    }
-
+    for (let i = 0; i < startingDayOfWeek; i++) days.push(null);
+    for (let day = 1; day <= daysInMonth; day++) days.push(day);
     return days;
   };
 
   const getEventsForDate = (day) => {
     if (!day) return [];
     const dateStr = new Date(currentDate.getFullYear(), currentDate.getMonth(), day).toDateString();
-    return events.filter(event => {
-      const eventDate = new Date(event.date).toDateString();
-      return eventDate === dateStr;
-    });
+    return events.filter(event => new Date(event.date).toDateString() === dateStr);
   };
 
   const navigateMonth = (direction) => {
-    setCurrentDate(prevDate => {
-      const newDate = new Date(prevDate);
-      newDate.setMonth(newDate.getMonth() + direction);
-      return newDate;
+    setCurrentDate(prev => {
+      const d = new Date(prev);
+      d.setMonth(d.getMonth() + direction);
+      return d;
     });
   };
 
-  const goToToday = () => {
-    setCurrentDate(new Date());
-  };
-
+  const today = new Date();
   const days = getDaysInMonth(currentDate);
 
+  const navBtn = 'rounded-xl px-3 py-1.5 text-sm font-semibold text-white transition';
+
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">
+    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-slate-900/60">
+      {/* Header */}
+      <div className="mb-6 flex items-center justify-between">
+        <h2 className="text-xl font-bold text-slate-900 dark:text-white">
           {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
         </h2>
         <div className="flex gap-2">
           <button
+            type="button"
             onClick={() => navigateMonth(-1)}
-            className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+            aria-label="Previous month"
+            className={`${navBtn} bg-indigo-600 hover:bg-indigo-700`}
           >
             ‹ Prev
           </button>
           <button
-            onClick={goToToday}
-            className="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 transition"
+            type="button"
+            onClick={() => setCurrentDate(new Date())}
+            aria-label="Go to today"
+            className={`${navBtn} bg-slate-500 hover:bg-slate-600 dark:bg-slate-700 dark:hover:bg-slate-600`}
           >
             Today
           </button>
           <button
+            type="button"
             onClick={() => navigateMonth(1)}
-            className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+            aria-label="Next month"
+            className={`${navBtn} bg-indigo-600 hover:bg-indigo-700`}
           >
             Next ›
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-7 gap-1 mb-4">
+      {/* Day-name headers */}
+      <div className="mb-2 grid grid-cols-7 gap-1">
         {dayNames.map(day => (
-          <div key={day} className="p-2 text-center font-semibold text-gray-600 bg-gray-100 rounded">
+          <div
+            key={day}
+            className="rounded p-2 text-center text-xs font-semibold text-slate-600 bg-slate-100 dark:bg-slate-800/50 dark:text-slate-400"
+          >
             {day}
           </div>
         ))}
       </div>
 
+      {/* Day cells */}
       <div className="grid grid-cols-7 gap-1">
         {days.map((day, index) => {
           const dayEvents = getEventsForDate(day);
-          const isToday = day === new Date().getDate() &&
-                         currentDate.getMonth() === new Date().getMonth() &&
-                         currentDate.getFullYear() === new Date().getFullYear();
+          const isToday =
+            day === today.getDate() &&
+            currentDate.getMonth() === today.getMonth() &&
+            currentDate.getFullYear() === today.getFullYear();
 
           return (
             <div
               key={index}
-              className={`min-h-[80px] p-2 border rounded cursor-pointer transition hover:bg-gray-50 ${
-                day ? 'bg-white' : 'bg-gray-50'
-              } ${isToday ? 'bg-blue-50 border-blue-300' : 'border-gray-200'}`}
               onClick={() => day && setSelectedDate(day)}
+              className={[
+                'min-h-[72px] cursor-pointer rounded-lg border p-1.5 transition',
+                day
+                  ? isToday
+                    ? 'border-indigo-400 bg-indigo-50 dark:border-indigo-400/50 dark:bg-indigo-500/20'
+                    : 'border-slate-200 bg-white hover:bg-slate-50 dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/10'
+                  : 'border-slate-100 bg-slate-50 dark:border-white/5 dark:bg-white/[0.02]',
+              ].join(' ')}
             >
               {day && (
                 <>
-                  <div className={`text-sm font-medium ${isToday ? 'text-blue-600' : 'text-gray-700'}`}>
+                  <div
+                    className={`text-sm font-medium ${
+                      isToday
+                        ? 'text-indigo-600 dark:text-indigo-400'
+                        : 'text-slate-700 dark:text-slate-200'
+                    }`}
+                  >
                     {day}
                   </div>
-                  <div className="mt-1 space-y-1">
-                    {dayEvents.slice(0, 2).map((event, eventIndex) => (
+                  <div className="mt-1 space-y-0.5">
+                    {dayEvents.slice(0, 2).map((event, i) => (
                       <div
-                        key={eventIndex}
-                        className="text-xs bg-blue-100 text-blue-800 px-1 py-0.5 rounded truncate"
+                        key={i}
                         title={event.title}
+                        className="truncate rounded px-1 py-0.5 text-xs bg-indigo-100 text-indigo-700 dark:bg-indigo-500/30 dark:text-indigo-200"
                       >
                         {event.title}
                       </div>
                     ))}
                     {dayEvents.length > 2 && (
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-slate-500 dark:text-slate-400">
                         +{dayEvents.length - 2} more
                       </div>
                     )}
@@ -136,37 +146,46 @@ export const EventCalendar = ({ events = [] }) => {
         })}
       </div>
 
+      {/* Selected-date event panel */}
       {selectedDate && (
-        <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-          <h3 className="font-semibold text-lg mb-2">
-            Events on {monthNames[currentDate.getMonth()]} {selectedDate}, {currentDate.getFullYear()}
+        <div className="mt-6 rounded-2xl border border-indigo-200 bg-indigo-50 p-4 dark:border-indigo-500/30 dark:bg-indigo-500/10">
+          <h3 className="mb-3 font-semibold text-slate-900 dark:text-white">
+            {monthNames[currentDate.getMonth()]} {selectedDate}, {currentDate.getFullYear()}
           </h3>
           {getEventsForDate(selectedDate).length > 0 ? (
             <div className="space-y-2">
-              {getEventsForDate(selectedDate).map((event, index) => (
-                <div key={index} className="bg-white p-3 rounded border">
-                  <h4 className="font-medium text-blue-800">{event.title}</h4>
-                  <p className="text-sm text-gray-600">{event.description}</p>
-                  <p className="text-sm text-gray-500">
-                    Time: {event.time} | Location: {event.location}
+              {getEventsForDate(selectedDate).map((event, i) => (
+                <div
+                  key={i}
+                  className="rounded-xl border border-slate-200 bg-white p-3 dark:border-white/10 dark:bg-white/5"
+                >
+                  <h4 className="font-semibold text-indigo-700 dark:text-indigo-300">{event.title}</h4>
+                  <p className="mt-0.5 text-sm text-slate-600 dark:text-slate-400">{event.description}</p>
+                  <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
+                    {event.time} · {event.location}
                   </p>
                   {event.ticketPrice > 0 && (
-                    <p className="text-sm text-green-600">Ticket Price: Rs. {event.ticketPrice}</p>
+                    <p className="mt-0.5 text-sm font-medium text-emerald-600 dark:text-emerald-400">
+                      Rs. {event.ticketPrice}
+                    </p>
                   )}
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-gray-500">No events on this date.</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">No events on this date.</p>
           )}
         </div>
       )}
 
+      {/* Empty state */}
       {events.length === 0 && (
-        <div className="mt-6 text-center py-8 text-gray-500">
-          <div className="text-4xl mb-4">📅</div>
-          <p className="text-lg">No registered events yet</p>
-          <p className="text-sm">Register for events to see them in your calendar</p>
+        <div className="mt-6 py-8 text-center">
+          <div className="mb-4 text-4xl">📅</div>
+          <p className="text-base font-medium text-slate-700 dark:text-slate-300">No registered events yet</p>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            Register for events to see them in your calendar
+          </p>
         </div>
       )}
     </div>

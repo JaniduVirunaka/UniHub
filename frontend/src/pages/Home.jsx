@@ -4,9 +4,8 @@ import { motion } from 'framer-motion';
 import { Users, Calendar, Trophy, ArrowRight } from 'lucide-react';
 import api from '../config/api';
 import { useScrollReveal } from '../hooks/useScrollReveal';
-import { useStaggerReveal } from '../hooks/useStaggerReveal';
 import { useCountUp } from '../hooks/useCountUp';
-import { fadeUp, staggerContainer, staggerItem } from '../hooks/animationVariants';
+import { staggerContainer, staggerItem } from '../hooks/animationVariants';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 
@@ -36,7 +35,6 @@ function Home() {
 
   const { ref: heroRef, ...heroReveal } = useScrollReveal();
   const { ref: eventsRef, ...eventsReveal } = useScrollReveal();
-  const { containerVariants, itemVariants } = useStaggerReveal();
 
   useEffect(() => {
     api.get('/clubs').then(res => setClubs(res.data.slice(0, 3))).catch(() => {});
@@ -77,7 +75,7 @@ function Home() {
               Create Student Account
             </Button>
             <Button as={Link} to="/login" variant="ghost" size="lg"
-              className="border border-white/40 text-white hover:bg-white/10 focus-visible:ring-white"
+              className="border border-white/40 !text-white hover:bg-white/10 focus-visible:ring-white"
             >
               Log In
             </Button>
