@@ -1,142 +1,193 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { Users, Calendar, Trophy, ArrowRight } from 'lucide-react';
 import api from '../config/api';
-import { useScrollAnimation } from '../hooks/useScrollAnimation';
+import { useScrollReveal } from '../hooks/useScrollReveal';
+import { useStaggerReveal } from '../hooks/useStaggerReveal';
+import { useCountUp } from '../hooks/useCountUp';
+import { fadeUp, staggerContainer, staggerItem } from '../hooks/animationVariants';
+import Card from '../components/ui/Card';
+import Button from '../components/ui/Button';
+
+function MetricCard({ value, label, color }) {
+  const { ref: countRef, displayValue } = useCountUp(value);
+  const { ref, ...reveal } = useScrollReveal();
+
+  return (
+    <motion.div
+      ref={ref}
+      {...reveal}
+      className="rounded-3xl p-6 text-center shadow-xl bg-white/60 backdrop-blur-md border border-white/80 dark:bg-white/5 dark:backdrop-blur-xl dark:border-white/10"
+    >
+      <div ref={countRef}>
+        <p className={`text-4xl font-extrabold tracking-tight ${color}`}>{displayValue}</p>
+      </div>
+      <p className="mt-1 text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+        {label}
+      </p>
+    </motion.div>
+  );
+}
 
 function Home() {
   const [clubs, setClubs] = useState([]);
   const [events, setEvents] = useState([]);
 
-  const [heroRef, heroVisible] = useScrollAnimation();
-  const [metricsRef, metricsVisible] = useScrollAnimation();
-  const [clubsRef, clubsVisible] = useScrollAnimation();
-  const [eventsRef, eventsVisible] = useScrollAnimation();
+  const { ref: heroRef, ...heroReveal } = useScrollReveal();
+  const { ref: eventsRef, ...eventsReveal } = useScrollReveal();
+  const { containerVariants, itemVariants } = useStaggerReveal();
 
   useEffect(() => {
-    api.get('/clubs')
-      .then(res => setClubs(res.data.slice(0, 3)))
-      .catch(err => console.error(err));
-    api.get('/events')
-      .then(res => setEvents(res.data.slice(0, 2)))
-      .catch(err => console.error(err));
+    api.get('/clubs').then(res => setClubs(res.data.slice(0, 3))).catch(() => {});
+    api.get('/events').then(res => setEvents(res.data.slice(0, 3))).catch(() => {});
   }, []);
 
- return (
-    <div style={{ paddingBottom: '4rem' }}>
-      {/* 1. HERO SECTION — intentionally full-width, no container */}
-      <div
-        ref={heroRef}
-        className={`fade-in-section ${heroVisible ? 'is-visible' : ''}`}
-        style={{
-          textAlign: 'center', padding: '6rem 2rem', background: 'linear-gradient(135deg, var(--primary-color), #8B5CF6)',
-          color: 'white', position: 'relative', overflow: 'hidden'
-        }}
+  return (
+    <div className="min-h-screen">
+      {/* ── HERO ── */}
+      <section
+        className="relative overflow-hidden px-4 py-24 text-center md:py-32"
+        aria-labelledby="hero-heading"
       >
-        <h1 style={{ fontSize: '3.5rem', margin: '0 0 1rem 0', color: 'white', letterSpacing: '-1px' }}>
-          Your Campus. <span style={{ color: '#FDE047' }}>Connected.</span>
-        </h1>
-        <p style={{ fontSize: '1.25rem', marginBottom: '2.5rem', opacity: 0.9, maxWidth: '600px', margin: '0 auto 2.5rem auto', lineHeight: '1.8' }}>
-          UniHub is the ultimate student experience platform. Discover upcoming events, join elite clubs, and track your campus legacy all in one place.
-        </p>
-        <div className="flex-mobile-stack" style={{ display: 'flex', justifyContent: 'center', gap: '15px' }}>
-          <Link to="/signup" className="btn" style={{ backgroundColor: 'white', color: 'var(--primary-color)', padding: '12px 24px', fontSize: '1.1rem' }}>Create Student Account</Link>
-          <Link to="/login" className="btn btn-outline" style={{ color: 'white', borderColor: 'white', padding: '12px 24px', fontSize: '1.1rem' }}>Log In</Link>
-        </div>
-      </div>
+        {/* Gradient background */}
+        <div className="absolute inset-0 -z-10 bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-800 dark:from-indigo-900 dark:via-slate-900 dark:to-violet-950" />
+        <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top_left,rgba(255,255,255,0.08)_0%,transparent_60%)]" />
 
-      {/* Centred container for everything below the hero */}
-      <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '0 1.5rem' }}>
-
-      {/* 2. CAMPUS IMPACT METRICS */}
-      <div
-        ref={metricsRef}
-        className={`fade-in-section delay-100 ${metricsVisible ? 'is-visible' : ''}`}
-        style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginTop: '20px', position: 'relative', zIndex: 10 }}
-      >
-        <div className="card" style={{ textAlign: 'center', padding: '20px', margin: 0, boxShadow: 'var(--shadow-sm)' }}>
-          <h2 style={{ fontSize: '2.5rem', margin: 0, color: 'var(--primary-color)' }}>50+</h2>
-          <p style={{ margin: 0, color: 'var(--text-secondary)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px', fontSize: '0.85rem' }}>Active Clubs</p>
-        </div>
-        <div className="card" style={{ textAlign: 'center', padding: '20px', margin: 0, boxShadow: 'var(--shadow-sm)' }}>
-          <h2 style={{ fontSize: '2.5rem', margin: 0, color: 'var(--success)' }}>10k+</h2>
-          <p style={{ margin: 0, color: 'var(--text-secondary)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px', fontSize: '0.85rem' }}>Student Members</p>
-        </div>
-        <div className="card" style={{ textAlign: 'center', padding: '20px', margin: 0, boxShadow: 'var(--shadow-sm)' }}>
-          <h2 style={{ fontSize: '2.5rem', margin: 0, color: 'var(--warning)' }}>24/7</h2>
-          <p style={{ margin: 0, color: 'var(--text-secondary)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px', fontSize: '0.85rem' }}>Campus Events</p>
-        </div>
-      </div>
-
-      {/* 3. MAIN DASHBOARD CONTENT */}
-      {/* THE FIX: Increased margin-top to separate it cleanly from the metrics */}
-      <div className="dashboard-grid-split" style={{ marginTop: '3rem' }}>
-        
-       {/* --- LEFT COLUMN: CLUBS --- */}
-        <div ref={clubsRef} className={`fade-in-section delay-200 ${clubsVisible ? 'is-visible' : ''}`}>
-          <h2 style={{ color: 'var(--text-main)', borderBottom: '2px solid var(--border-color)', paddingBottom: '10px', display: 'flex', alignItems: 'center', gap: '10px', marginTop: 0 }}>
-            <span style={{ fontSize: '1.5rem' }}>🎓</span> Featured Campus Clubs
-          </h2>
-          
-          {/* THE FIX: Changed from 'grid' to 'flex' so the cards stack perfectly without stretching over the button */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '1.5rem' }}>
-            {clubs.length === 0 ? (
-              <p style={{ color: 'var(--text-muted)' }}>Loading campus clubs...</p>
-            ) : (
-              clubs.map(club => (
-                /* THE FIX: Removed height: '100%' */
-                <div key={club._id} className="card card-hover" style={{ margin: 0, display: 'flex', flexDirection: 'column' }}>
-                  <h3 style={{ color: 'var(--primary-color)', marginTop: '0', fontSize: '1.25rem' }}>{club.name}</h3>
-                  <p style={{ color: 'var(--text-muted)', flex: 1, fontSize: '0.95rem', margin: 0 }}>{club.description.substring(0, 100)}...</p>
-                </div>
-              ))
-            )}
+        <motion.div
+          ref={heroRef}
+          {...heroReveal}
+          className="mx-auto max-w-3xl"
+        >
+          <h1
+            id="hero-heading"
+            className="text-4xl font-extrabold tracking-tight text-white md:text-6xl"
+          >
+            Your Campus.{' '}
+            <span className="text-yellow-300">Connected.</span>
+          </h1>
+          <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-indigo-100/90">
+            UniHub is the ultimate student experience platform. Discover upcoming events,
+            join elite clubs, and track your campus legacy — all in one place.
+          </p>
+          <div className="mt-10 flex flex-wrap justify-center gap-4">
+            <Button as={Link} to="/signup" size="lg"
+              className="bg-white text-indigo-700 hover:bg-indigo-50 shadow-lg shadow-indigo-900/30 focus-visible:ring-white"
+            >
+              Create Student Account
+            </Button>
+            <Button as={Link} to="/login" variant="ghost" size="lg"
+              className="border border-white/40 text-white hover:bg-white/10 focus-visible:ring-white"
+            >
+              Log In
+            </Button>
           </div>
-          
-          <div style={{ textAlign: 'center', marginTop: '2.5rem' }}>
-            <Link to="/clubs" className="btn" style={{ backgroundColor: 'var(--text-secondary)', padding: '12px 30px' }}>
-              Explore the Full Directory &rarr;
-            </Link>
-          </div>
-        </div>
-        
-        {/* --- RIGHT COLUMN: EVENTS & ANNOUNCEMENTS --- */}
-        <div ref={eventsRef} className={`fade-in-section delay-300 ${eventsVisible ? 'is-visible' : ''}`} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          
-          <div className="card card-hover" style={{ borderTop: '4px solid var(--warning)', margin: 0 }}>
-            <h3 style={{ marginTop: 0, color: 'var(--text-main)' }}>📅 Upcoming Events</h3>
-            <ul style={{ listStyleType: 'none', padding: 0, margin: 0 }}>
-              {events.length === 0 ? (
-                <li style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontStyle: 'italic' }}>Loading events...</li>
+        </motion.div>
+      </section>
+
+      <div className="mx-auto max-w-6xl px-4 pb-16 md:px-8">
+        {/* ── METRICS ── */}
+        <section className="-mt-8 mb-16 grid grid-cols-1 gap-4 sm:grid-cols-3" aria-label="Campus impact metrics">
+          <MetricCard value="50+" label="Active Clubs"     color="text-indigo-600 dark:text-indigo-400" />
+          <MetricCard value="10k+" label="Student Members" color="text-emerald-600 dark:text-emerald-400" />
+          <MetricCard value="24/7" label="Campus Events"   color="text-amber-600 dark:text-amber-400" />
+        </section>
+
+        {/* ── MAIN GRID ── */}
+        <div className="grid gap-8 lg:grid-cols-2">
+
+          {/* CLUBS column */}
+          <section aria-labelledby="clubs-heading">
+            <div className="mb-5 flex items-center justify-between">
+              <h2 id="clubs-heading" className="flex items-center gap-2 text-xl font-bold text-slate-900 dark:text-white">
+                <Users size={20} className="text-indigo-500" />
+                Featured Clubs
+              </h2>
+              <Button as={Link} to="/clubs" variant="ghost" size="sm" rightIcon={<ArrowRight size={14} />}>
+                All clubs
+              </Button>
+            </div>
+
+            <motion.ul
+              variants={staggerContainer()}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: '-60px' }}
+              className="flex flex-col gap-4"
+            >
+              {clubs.length === 0 ? (
+                <li className="text-sm text-slate-500 dark:text-slate-400">Loading clubs…</li>
               ) : (
-                events.map((ev, i) => (
-                  <li key={ev._id} style={{ padding: '12px 0', borderBottom: i < events.length - 1 ? '1px solid var(--border-color)' : 'none' }}>
-                    <strong style={{ color: 'var(--text-main)' }}>{ev.title}</strong><br/>
-                    <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                      {ev.date ? new Date(ev.date).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }) : 'Date TBA'}
-                      {ev.location ? ` | ${ev.location}` : ''}
-                    </span>
-                  </li>
+                clubs.map(club => (
+                  <motion.li key={club._id} variants={staggerItem}>
+                    <Card variant="glass" hover>
+                      <h3 className="font-semibold text-indigo-600 dark:text-indigo-400">{club.name}</h3>
+                      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400 line-clamp-2">
+                        {club.description}
+                      </p>
+                    </Card>
+                  </motion.li>
                 ))
               )}
-            </ul>
-            <Link to="/events" style={{ display: 'block', textAlign: 'center', marginTop: '15px', textDecoration: 'none', color: 'var(--primary-color)', fontWeight: '600', fontSize: '0.9rem' }}>
-              See all events →
-            </Link>
-          </div>
+            </motion.ul>
+          </section>
 
-          <div className="card card-hover" style={{ borderTop: '4px solid var(--success)', margin: 0 }}>
-            <h3 style={{ marginTop: 0, color: 'var(--text-main)' }}>📣 Campus News</h3>
-            <div style={{ padding: '15px', backgroundColor: 'var(--bg-color)', borderRadius: 'var(--radius-md)', border: '1px dashed var(--border-color)' }}>
-              <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: '0.9rem', fontStyle: 'italic' }}>
-                Global announcements will display here once the backend is integrated.
-              </p>
-            </div>
-          </div>
+          {/* RIGHT column */}
+          <div className="flex flex-col gap-6">
 
+            {/* Upcoming Events */}
+            <section aria-labelledby="events-heading">
+              <div className="mb-5 flex items-center justify-between">
+                <h2 id="events-heading" className="flex items-center gap-2 text-xl font-bold text-slate-900 dark:text-white">
+                  <Calendar size={20} className="text-amber-500" />
+                  Upcoming Events
+                </h2>
+                <Button as={Link} to="/events" variant="ghost" size="sm" rightIcon={<ArrowRight size={14} />}>
+                  All events
+                </Button>
+              </div>
+
+              <motion.div
+                ref={eventsRef}
+                {...eventsReveal}
+              >
+                <Card variant="glass" padding="none">
+                  <ul className="divide-y divide-slate-200/60 dark:divide-white/10">
+                    {events.length === 0 ? (
+                      <li className="p-4 text-sm italic text-slate-400 dark:text-slate-500">Loading events…</li>
+                    ) : (
+                      events.map(ev => (
+                        <li key={ev._id} className="flex flex-col gap-0.5 p-4">
+                          <span className="font-semibold text-slate-900 dark:text-white">{ev.title}</span>
+                          <span className="text-xs text-slate-500 dark:text-slate-400">
+                            {ev.date
+                              ? new Date(ev.date).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })
+                              : 'Date TBA'}
+                            {ev.location ? ` · ${ev.location}` : ''}
+                          </span>
+                        </li>
+                      ))
+                    )}
+                  </ul>
+                </Card>
+              </motion.div>
+            </section>
+
+            {/* Campus News */}
+            <section aria-labelledby="news-heading">
+              <h2 id="news-heading" className="mb-5 flex items-center gap-2 text-xl font-bold text-slate-900 dark:text-white">
+                <Trophy size={20} className="text-emerald-500" />
+                Campus News
+              </h2>
+              <Card variant="glass">
+                <p className="text-sm italic text-slate-400 dark:text-slate-500">
+                  Global announcements will display here once the backend is integrated.
+                </p>
+              </Card>
+            </section>
+
+          </div>
         </div>
-      </div>
-
-      {/* End centred container */}
       </div>
     </div>
   );

@@ -1,306 +1,336 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import api from '../../config/api';
 import { useNavigate, Link } from 'react-router-dom';
-import { useScrollAnimation } from '../../hooks/useScrollAnimation';
 import { useAuth } from '../../context/AuthContext';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Search, Users, CreditCard, PenLine, Trash2, Plus, X, BarChart3, CheckCircle, XCircle } from 'lucide-react';
+import { staggerContainer, staggerItem, scaleUp } from '../../hooks/animationVariants';
+import { useScrollReveal } from '../../hooks/useScrollReveal';
+import Card from '../../components/ui/Card';
+import Button from '../../components/ui/Button';
+import StatusBadge from '../../components/StatusBadge';
+import FormInput from '../../components/FormInput';
+import PageWrapper from '../../components/PageWrapper';
+
+const inputCls = [
+  'w-full rounded-2xl px-4 py-2.5 text-sm outline-none transition-all duration-150',
+  'border border-slate-300 bg-white text-slate-900 placeholder:text-slate-400',
+  'dark:border-white/10 dark:bg-slate-950/40 dark:text-white dark:placeholder:text-slate-500',
+  'focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/30',
+].join(' ');
 
 function ClubManagement() {
-  // --- UI ANIMATION HOOKS ---
-  const [headerRef, headerVisible] = useScrollAnimation();
-  const [gridRef, gridVisible] = useScrollAnimation();
-
   const { user: currentUser } = useAuth();
+  const navigate = useNavigate();
 
   const [clubs, setClubs] = useState([]);
   const [users, setUsers] = useState([]);
   const [formData, setFormData] = useState({ name: '', description: '', mission: '', presidentId: '', rulesAndRegulations: '', membershipFee: '', logoFile: null });
   const [editingClubId, setEditingClubId] = useState(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const navigate = useNavigate();
-
-  // --- NEW: SEARCH & SORT STATES ---
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOption, setSortOption] = useState('name-asc');
-  const [viewFilter, setViewFilter] = useState('all'); // 'all' or 'my-clubs'
+  const [viewFilter, setViewFilter] = useState('all');
+
+  const { ref: bannerRef, ...bannerReveal } = useScrollReveal();
 
   const fetchClubs = () => {
-    api.get('/clubs')
-      .then(res => setClubs(res.data))
-      .catch(err => console.error(err));
+    api.get('/clubs').then(res => setClubs(res.data)).catch(console.error);
   };
 
   useEffect(() => {
     fetchClubs();
     if (currentUser?.role === 'supervisor') {
-      api.get('/auth/users')
-        .then(res => setUsers(res.data))
-        .catch(err => console.error("Error fetching users:", err));
+      api.get('/auth/users').then(res => setUsers(res.data)).catch(console.error);
     }
   }, [currentUser]);
 
-  // --- SUPERVISOR FORMS & LOGIC ---
   const handleCreateClub = (e) => {
     e.preventDefault();
     const data = new FormData();
     data.append('supervisorId', currentUser.id);
-    data.append('name', formData.name);
-    data.append('description', formData.description);
-    data.append('mission', formData.mission);
-    data.append('rulesAndRegulations', formData.rulesAndRegulations);
-    data.append('membershipFee', formData.membershipFee);
+    ['name', 'description', 'mission', 'rulesAndRegulations', 'membershipFee'].forEach(k => data.append(k, formData[k]));
     if (formData.presidentId) data.append('presidentId', formData.presidentId);
-    if (formData.logoFile) data.append('logo', formData.logoFile); 
-
+    if (formData.logoFile) data.append('logo', formData.logoFile);
     api.post('/clubs', data, { headers: { 'Content-Type': 'multipart/form-data' } })
-      .then(() => {
-        fetchClubs();
-        setFormData({ name: '', description: '', mission: '', presidentId: '', rulesAndRegulations: '', logoFile: null });
-        setShowCreateForm(false);
-        alert("Club created successfully!");
-      })
-      .catch(err => alert(err.response?.data?.message || "Error creating club."));
+      .then(() => { fetchClubs(); setFormData({ name: '', description: '', mission: '', presidentId: '', rulesAndRegulations: '', membershipFee: '', logoFile: null }); setShowCreateForm(false); })
+      .catch(err => alert(err.response?.data?.message || 'Error creating club.'));
   };
 
   const handleEditClick = (club) => {
     setEditingClubId(club._id);
-    setFormData({
-      name: club.name, description: club.description, mission: club.mission,
-      rulesAndRegulations: club.rulesAndRegulations || '', membershipFee: club.membershipFee || 0, presidentId: club.president?._id || '', logoFile: null
-    });
-    window.scrollTo({ top: 0, behavior: 'smooth' }); 
+    setFormData({ name: club.name, description: club.description, mission: club.mission, rulesAndRegulations: club.rulesAndRegulations || '', membershipFee: club.membershipFee || 0, presidentId: club.president?._id || '', logoFile: null });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleUpdateClub = (e) => {
     e.preventDefault();
     const data = new FormData();
     data.append('supervisorId', currentUser.id);
-    data.append('name', formData.name);
-    data.append('description', formData.description);
-    data.append('mission', formData.mission);
-    data.append('rulesAndRegulations', formData.rulesAndRegulations);
-    data.append('membershipFee', formData.membershipFee);
-    data.append('presidentId', formData.presidentId);
+    ['name', 'description', 'mission', 'rulesAndRegulations', 'membershipFee', 'presidentId'].forEach(k => data.append(k, formData[k]));
     if (formData.logoFile) data.append('logo', formData.logoFile);
-
     api.put(`/clubs/${editingClubId}`, data, { headers: { 'Content-Type': 'multipart/form-data' } })
-      .then(() => {
-        fetchClubs(); setEditingClubId(null); setFormData({ name: '', description: '', mission: '', presidentId: '', rulesAndRegulations: '', membershipFee: '', logoFile: null }); setShowCreateForm(false); alert("Club updated successfully!");
-      })
-      .catch(err => alert(err.response?.data?.message || "Error updating club."));
+      .then(() => { fetchClubs(); setEditingClubId(null); setFormData({ name: '', description: '', mission: '', presidentId: '', rulesAndRegulations: '', membershipFee: '', logoFile: null }); setShowCreateForm(false); })
+      .catch(err => alert(err.response?.data?.message || 'Error updating club.'));
   };
 
   const handleDeleteClub = (clubId) => {
-    if (window.confirm("Are you sure you want to delete this club? This action cannot be undone.")) {
+    if (window.confirm('Are you sure you want to delete this club?')) {
       api.delete(`/clubs/${clubId}`, { data: { supervisorId: currentUser.id } })
-        .then(() => { fetchClubs(); alert("Club deleted."); })
-        .catch(err => alert("Error deleting club."));
+        .then(() => fetchClubs())
+        .catch(() => alert('Error deleting club.'));
     }
   };
 
   const handleApproveAnnouncement = (clubId, annId) => {
     api.put(`/clubs/${clubId}/announcements/${annId}/approve`, { supervisorId: currentUser.id })
-      .then(res => { fetchClubs(); }).catch(err => alert("Error approving announcement."));
+      .then(() => fetchClubs()).catch(() => alert('Error approving.'));
   };
 
   const handleRejectAnnouncement = (clubId, annId) => {
-    if(window.confirm("Reject and delete this announcement?")) {
+    if (window.confirm('Reject and delete this announcement?')) {
       api.delete(`/clubs/${clubId}/announcements/${annId}`, { data: { supervisorId: currentUser.id } })
-        .then(res => { fetchClubs(); }).catch(err => alert("Error rejecting announcement."));
+        .then(() => fetchClubs()).catch(() => alert('Error rejecting.'));
     }
   };
 
-  const pendingAnnouncements = clubs.flatMap(club => 
+  const pendingAnnouncements = clubs.flatMap(club =>
     (club.announcements || []).filter(ann => !ann.isApproved).map(ann => ({ ...ann, clubName: club.name, clubId: club._id }))
   );
 
   const eligibleUsers = users.filter(user => {
     if (user.role !== 'student') return false;
-    const isBusyElsewhere = clubs.some(c => {
+    return !clubs.some(c => {
       if (editingClubId && c._id === editingClubId) return false;
-      return (c.president?._id === user._id) || (c.president === user._id);
+      return c.president?._id === user._id || c.president === user._id;
     });
-    return !isBusyElsewhere;
   });
 
-  // --- SEARCH & SORT ---
-  const filteredClubs = clubs.filter(club => {
-    if (viewFilter === 'my-clubs' && currentUser) {
-      const isMember = club.members.some(m => m._id === currentUser.id);
-      const isPresident = club.president?._id === currentUser.id;
-      if (!isMember && !isPresident) return false;
-    }
-    if (searchTerm) {
-      const lowerCaseSearch = searchTerm.toLowerCase();
-      const matchName = club.name.toLowerCase().includes(lowerCaseSearch);
-      const matchDesc = club.description.toLowerCase().includes(lowerCaseSearch);
-      if (!matchName && !matchDesc) return false;
-    }
-    return true;
-  });
+  const filteredAndSortedClubs = clubs
+    .filter(club => {
+      if (viewFilter === 'my-clubs' && currentUser) {
+        const isMember = club.members.some(m => m._id === currentUser.id);
+        const isPresident = club.president?._id === currentUser.id;
+        if (!isMember && !isPresident) return false;
+      }
+      if (searchTerm) {
+        const q = searchTerm.toLowerCase();
+        return club.name.toLowerCase().includes(q) || club.description.toLowerCase().includes(q);
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      if (sortOption === 'name-asc') return a.name.localeCompare(b.name);
+      if (sortOption === 'members-desc') return (b.members?.length || 0) - (a.members?.length || 0);
+      if (sortOption === 'fee-asc') return (a.membershipFee || 0) - (b.membershipFee || 0);
+      return 0;
+    });
 
-  const filteredAndSortedClubs = filteredClubs.sort((a, b) => {
-    if (sortOption === 'name-asc') return a.name.localeCompare(b.name);
-    if (sortOption === 'name-desc') return b.name.localeCompare(a.name);
-    if (sortOption === 'members-desc') return (b.members?.length || 0) - (a.members?.length || 0);
-    if (sortOption === 'fee-desc') return (b.membershipFee || 0) - (a.membershipFee || 0);
-    if (sortOption === 'fee-asc') return (a.membershipFee || 0) - (b.membershipFee || 0);
-    return 0;
-  });
+  const formOpen = showCreateForm || !!editingClubId;
 
   return (
-    <div style={{ paddingBottom: '3rem' }}>
-      
-      {/* 1. SUPERVISOR DASHBOARD (Animated) */}
-      {currentUser?.role === 'supervisor' && (
-        <div ref={headerRef} className={`fade-in-section ${headerVisible ? 'is-visible' : ''}`} style={{ marginBottom: '30px' }}>
-          <div className="card card-hover flex-mobile-stack" style={{ backgroundColor: 'rgba(79, 70, 229, 0.1)', border: '1px solid var(--primary-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px' }}>
-            <div>
-              <h3 style={{ color: 'var(--primary-color)', margin: '0 0 5px 0' }}>📈 Global Financial Matrix</h3>
-              <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.95rem' }}>View aggregated revenue and expense analytics across all university clubs.</p>
-            </div>
-            <button className="btn" onClick={() => navigate('/supervisor/analytics')}>Launch Matrix &rarr;</button>
+    <PageWrapper
+      title="Campus Directory"
+      subtitle="Discover, join, and manage university clubs"
+      rightContent={
+        currentUser?.role === 'supervisor' && (
+          <div className="flex gap-2">
+            <Button variant="ghost" size="sm" leftIcon={<BarChart3 size={15} />} as={Link} to="/supervisor/analytics">
+              Analytics
+            </Button>
+            <Button size="sm" leftIcon={formOpen ? <X size={15} /> : <Plus size={15} />} onClick={() => { setShowCreateForm(p => !p); setEditingClubId(null); }}>
+              {formOpen ? 'Close Form' : 'New Club'}
+            </Button>
           </div>
+        )
+      }
+    >
 
-          {pendingAnnouncements.length > 0 && (
-            <div className="card" style={{ borderLeft: '4px solid #ef4444' }}>
-              <h2 style={{ marginTop: 0, color: '#b91c1c' }}>Action Center: Pending Approvals</h2>
-              <div style={{ display: 'grid', gap: '15px' }}>
-                {pendingAnnouncements.map((ann) => (
-                  <div key={ann._id} className="card card-hover flex-mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px' }}>
-                    <div>
-                      <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--danger)' }}>{ann.clubName}</span>
-                      <h4 style={{ margin: '5px 0' }}>{ann.title}</h4>
-                      <p style={{ margin: 0, fontSize: '0.9rem' }}>{ann.content}</p>
-                    </div>
-                    <div style={{ display: 'flex', gap: '5px' }}>
-                      <button className="btn btn-success" style={{ padding: '5px 10px' }} onClick={() => handleApproveAnnouncement(ann.clubId, ann._id)}>Approve</button>
-                      <button className="btn btn-danger" style={{ padding: '5px 10px' }} onClick={() => handleRejectAnnouncement(ann.clubId, ann._id)}>Reject</button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '15px' }}>
-            <button className="btn" onClick={() => setShowCreateForm(!showCreateForm)}>
-              {showCreateForm || editingClubId ? 'Close Form' : '+ Register New Club'}
-            </button>
-          </div>
-
-          {(showCreateForm || editingClubId) && (
-            <div className="card fade-in-section is-visible" style={{ borderTop: editingClubId ? '4px solid #f59e0b' : '4px solid var(--primary-color)' }}>
-              <h2>{editingClubId ? 'Edit Club' : 'Register New Club'}</h2>
-              <form onSubmit={editingClubId ? handleUpdateClub : handleCreateClub}>
-                <div className="form-group"><input type="text" className="form-control" placeholder="Club Name" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} required /></div>
-                <div className="form-group"><textarea className="form-control" placeholder="Description" value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} required /></div>
-                <div className="form-group"><textarea className="form-control" placeholder="Mission" value={formData.mission} onChange={(e) => setFormData({...formData, mission: e.target.value})} required /></div>
-                <div className="form-group"><textarea className="form-control" placeholder="Rules" value={formData.rulesAndRegulations} onChange={(e) => setFormData({...formData, rulesAndRegulations: e.target.value})} rows="3" required /></div>
-                <div className="form-group"><input type="number" className="form-control" placeholder="Fee (Rs.)" value={formData.membershipFee} onChange={(e) => setFormData({...formData, membershipFee: e.target.value})} required /></div>
-                <div className="form-group">
-                    <select className="form-control" value={formData.presidentId} onChange={(e) => setFormData({...formData, presidentId: e.target.value})}>
-                        <option value="">-- No President Assigned --</option>
-                        {eligibleUsers.map(user => <option key={user._id} value={user._id}>{user.name} ({user.email})</option>)}
-                    </select>
+      {/* ── Supervisor: Create / Edit form ── */}
+      <AnimatePresence>
+        {formOpen && currentUser?.role === 'supervisor' && (
+          <motion.div
+            key="club-form"
+            variants={scaleUp}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            className="mb-8"
+          >
+            <Card variant="glass" padding="lg">
+              <h2 className="mb-5 text-lg font-bold text-slate-900 dark:text-white">
+                {editingClubId ? 'Edit Club' : 'Register New Club'}
+              </h2>
+              <form onSubmit={editingClubId ? handleUpdateClub : handleCreateClub} className="grid gap-4 sm:grid-cols-2">
+                <FormInput label="Club Name" value={formData.name} onChange={e => setFormData(f => ({ ...f, name: e.target.value }))} required />
+                <FormInput label="Membership Fee (Rs.)" type="number" value={formData.membershipFee} onChange={e => setFormData(f => ({ ...f, membershipFee: e.target.value }))} required />
+                <div className="sm:col-span-2">
+                  <FormInput label="Description" value={formData.description} onChange={e => setFormData(f => ({ ...f, description: e.target.value }))} required />
                 </div>
-                <button type="submit" className="btn" style={{ width: '100%' }}>{editingClubId ? 'Save Changes' : 'Register Club'}</button>
+                <div className="sm:col-span-2">
+                  <FormInput label="Mission" value={formData.mission} onChange={e => setFormData(f => ({ ...f, mission: e.target.value }))} required />
+                </div>
+                <div className="sm:col-span-2">
+                  <FormInput label="Rules & Regulations" value={formData.rulesAndRegulations} onChange={e => setFormData(f => ({ ...f, rulesAndRegulations: e.target.value }))} required />
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">Assign President</label>
+                  <select className={inputCls} value={formData.presidentId} onChange={e => setFormData(f => ({ ...f, presidentId: e.target.value }))}>
+                    <option value="">-- No President --</option>
+                    {eligibleUsers.map(u => <option key={u._id} value={u._id}>{u.name} ({u.email})</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">Club Logo</label>
+                  <input type="file" accept="image/*" onChange={e => setFormData(f => ({ ...f, logoFile: e.target.files[0] }))}
+                    className="w-full text-sm text-slate-500 file:mr-4 file:rounded-xl file:border-0 file:bg-indigo-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-indigo-700 hover:file:bg-indigo-100 dark:file:bg-indigo-900/40 dark:file:text-indigo-300"
+                  />
+                </div>
+                <div className="flex gap-3 sm:col-span-2">
+                  <Button type="submit" className="flex-1">{editingClubId ? 'Save Changes' : 'Register Club'}</Button>
+                  <Button type="button" variant="secondary" onClick={() => { setEditingClubId(null); setShowCreateForm(false); }}>Cancel</Button>
+                </div>
               </form>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* 2. CLUB DIRECTORY (Animated Grid) */}
-      <div ref={gridRef} className={`fade-in-section ${gridVisible ? 'is-visible' : ''}`}>
-
-        {/* Guest banner */}
-        {!currentUser && (
-          <div className="card" style={{ marginBottom: '1.5rem', borderLeft: '4px solid var(--primary-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-            <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
-              You're browsing as a guest. Sign in to join clubs and access full features.
-            </p>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <Link to="/login"  className="btn" style={{ padding: '8px 20px' }}>Sign In</Link>
-              <Link to="/signup" className="btn btn-outline" style={{ padding: '8px 20px' }}>Sign Up</Link>
-            </div>
-          </div>
+            </Card>
+          </motion.div>
         )}
+      </AnimatePresence>
 
-        <div className="card" style={{ marginBottom: '2rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '15px' }}>
-            <h2 style={{ margin: 0 }}>Campus Directory</h2>
-            {currentUser?.role === 'student' && (
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <button className={viewFilter === 'all' ? "btn" : "btn btn-outline"} onClick={() => setViewFilter('all')}>All Clubs</button>
-                <button className={viewFilter === 'my-clubs' ? "btn btn-success" : "btn btn-outline"} onClick={() => setViewFilter('my-clubs')}>My Clubs</button>
-              </div>
-            )}
-          </div>
-
-          {/* GLASS SEARCH BAR */}
-          <div style={{ display: 'flex', gap: '15px', backgroundColor: 'rgba(255,255,255,0.4)', padding: '15px', borderRadius: '15px', border: '1px solid rgba(255,255,255,0.6)' }}>
-            <input 
-              type="text" className="form-control" placeholder="🔍 Search for a club..." 
-              value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ margin: 0, flex: 2 }}
-            />
-            <select className="form-control" value={sortOption} onChange={(e) => setSortOption(e.target.value)} style={{ margin: 0, flex: 1 }}>
-              <option value="name-asc">Sort: A-Z</option>
-              <option value="members-desc">Most Members</option>
-              <option value="fee-asc">Lowest Fee</option>
-            </select>
-          </div>
-        </div>
-
-        {/* GLASS CARDS GRID */}
-        {filteredAndSortedClubs.length === 0 ? (
-          <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
-            <p style={{ color: 'var(--text-muted)' }}>No clubs match your criteria.</p>
-          </div>
-        ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '25px' }}>
-            {filteredAndSortedClubs.map(club => (
-              <div key={club._id} className="card card-hover" style={{ margin: 0, minHeight: '300px', display: 'flex', flexDirection: 'column', position: 'relative' }}>
-                
-                {/* Visual Badges (Already glassy from our previous CSS) */}
-                <div style={{ position: 'absolute', top: '15px', right: '15px', display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', gap: '5px', maxWidth: '60%' }}>
-                  {currentUser && club.president?._id === currentUser.id && <span className="badge" style={{ backgroundColor: 'var(--primary-light)', color: 'var(--primary-color)' }}>👑 President</span>}
-                  {club.members?.length >= 3 && <span className="badge" style={{ backgroundColor: '#fee2e2', color: '#ef4444' }}>🔥 Trending</span>}
-                  {club.elections?.some(e => e.isActive) && <span className="badge" style={{ backgroundColor: '#fef3c7', color: '#d97706' }}>🗳️ Elections</span>}
+      {/* ── Supervisor: Pending announcements ── */}
+      {currentUser?.role === 'supervisor' && pendingAnnouncements.length > 0 && (
+        <Card variant="default" padding="md" className="mb-8 border-l-4 border-rose-500">
+          <h2 className="mb-4 font-bold text-rose-600 dark:text-rose-400">
+            Action Centre — {pendingAnnouncements.length} Pending Approval{pendingAnnouncements.length > 1 ? 's' : ''}
+          </h2>
+          <div className="flex flex-col gap-3">
+            {pendingAnnouncements.map(ann => (
+              <div key={ann._id} className="flex flex-wrap items-start justify-between gap-3 rounded-2xl bg-slate-50/60 p-4 dark:bg-white/5">
+                <div>
+                  <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-rose-500">{ann.clubName}</span>
+                  <p className="font-semibold text-slate-900 dark:text-white">{ann.title}</p>
+                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{ann.content}</p>
                 </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '15px' }}>
-                  <div style={{ width: '60px', height: '60px', borderRadius: '15px', backgroundColor: 'rgba(0,0,0,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                    {club.logoUrl ? <img src={`http://localhost:5000${club.logoUrl}`} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: '1.5rem' }}>{club.name.charAt(0)}</span>}
-                  </div>
-                  <h3 style={{ margin: 0, fontSize: '1.3rem', paddingRight: '60px' }}>{club.name}</h3>
-                </div>
-
-                <p style={{ fontSize: '0.95rem', color: 'var(--text-muted)', flex: 1 }}>{club.description.substring(0, 100)}...</p>
-                
-                <div style={{ display: 'flex', gap: '15px', margin: '15px 0', fontSize: '0.85rem' }}>
-                  <span>👥 {club.members?.length || 0} Members</span>
-                  <span>💳 Rs. {club.membershipFee}</span>
-                </div>
-
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  {currentUser ? (
-                    <button className="btn btn-outline" style={{ flex: 1 }} onClick={() => navigate(`/clubs/${club._id}`)}>View Hub</button>
-                  ) : (
-                    <Link to="/login" className="btn btn-outline" style={{ flex: 1, textAlign: 'center' }}>Login to explore →</Link>
-                  )}
-                  {currentUser?.role === 'supervisor' && (
-                    <>
-                      <button className="btn" style={{ backgroundColor: '#fef3c7', color: '#d97706' }} onClick={() => handleEditClick(club)}>✏️</button>
-                      <button className="btn btn-danger" onClick={() => handleDeleteClub(club._id)}>🗑️</button>
-                    </>
-                  )}
+                <div className="flex gap-2">
+                  <Button size="sm" variant="success" leftIcon={<CheckCircle size={14} />} onClick={() => handleApproveAnnouncement(ann.clubId, ann._id)}>Approve</Button>
+                  <Button size="sm" variant="danger" leftIcon={<XCircle size={14} />} onClick={() => handleRejectAnnouncement(ann.clubId, ann._id)}>Reject</Button>
                 </div>
               </div>
             ))}
           </div>
-        )}
-      </div>
-    </div>
+        </Card>
+      )}
+
+      {/* ── Guest banner ── */}
+      {!currentUser && (
+        <motion.div ref={bannerRef} {...bannerReveal} className="mb-6">
+          <Card variant="glass" padding="md">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <p className="text-sm text-slate-600 dark:text-slate-300">
+                You're browsing as a guest. Sign in to join clubs and access full features.
+              </p>
+              <div className="flex gap-2">
+                <Button as={Link} to="/login" size="sm">Sign In</Button>
+                <Button as={Link} to="/signup" variant="secondary" size="sm">Sign Up</Button>
+              </div>
+            </div>
+          </Card>
+        </motion.div>
+      )}
+
+      {/* ── Search / filter bar ── */}
+      <Card variant="glass" padding="sm" className="mb-6">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative flex-1 min-w-[180px]">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="search"
+              placeholder="Search clubs…"
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              className={`${inputCls} pl-9`}
+            />
+          </div>
+          <select className={`${inputCls} w-auto min-w-[140px]`} value={sortOption} onChange={e => setSortOption(e.target.value)}>
+            <option value="name-asc">Sort: A–Z</option>
+            <option value="members-desc">Most Members</option>
+            <option value="fee-asc">Lowest Fee</option>
+          </select>
+          {currentUser?.role === 'student' && (
+            <div className="flex gap-2">
+              <Button size="sm" variant={viewFilter === 'all' ? 'primary' : 'ghost'} onClick={() => setViewFilter('all')}>All</Button>
+              <Button size="sm" variant={viewFilter === 'my-clubs' ? 'success' : 'ghost'} onClick={() => setViewFilter('my-clubs')}>My Clubs</Button>
+            </div>
+          )}
+        </div>
+      </Card>
+
+      {/* ── Club grid ── */}
+      {filteredAndSortedClubs.length === 0 ? (
+        <Card variant="glass" padding="lg" className="text-center">
+          <p className="text-slate-400">No clubs match your criteria.</p>
+        </Card>
+      ) : (
+        <motion.ul
+          variants={staggerContainer(0.06)}
+          initial="hidden"
+          animate="visible"
+          className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3"
+        >
+          {filteredAndSortedClubs.map(club => (
+            <motion.li key={club._id} variants={staggerItem} className="flex">
+              <Card variant="glass" padding="md" hover className="flex w-full flex-col gap-3">
+
+                {/* Header */}
+                <div className="flex items-start gap-3">
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-slate-200/60 dark:bg-white/10 text-xl font-bold text-indigo-600 dark:text-indigo-300">
+                    {club.logoUrl
+                      ? <img src={`http://localhost:5000${club.logoUrl}`} alt={club.name} className="h-full w-full object-cover" />
+                      : club.name.charAt(0)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="truncate font-bold text-slate-900 dark:text-white">{club.name}</h3>
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {currentUser && club.president?._id === currentUser.id && (
+                        <StatusBadge status="PRESIDENT" />
+                      )}
+                      {club.members?.length >= 3 && (
+                        <span className="inline-flex rounded-full bg-rose-100 px-2 py-0.5 text-xs font-semibold text-rose-600 dark:bg-rose-400/15 dark:text-rose-300">Trending</span>
+                      )}
+                      {club.elections?.some(e => e.isActive) && (
+                        <span className="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-600 dark:bg-amber-400/15 dark:text-amber-300">Elections</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <p className="flex-1 text-sm text-slate-500 dark:text-slate-400 line-clamp-3">
+                  {club.description}
+                </p>
+
+                <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400">
+                  <span className="flex items-center gap-1"><Users size={13} />{club.members?.length || 0} members</span>
+                  <span className="flex items-center gap-1"><CreditCard size={13} />Rs. {club.membershipFee}</span>
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-2">
+                  {currentUser
+                    ? <Button variant="secondary" size="sm" className="flex-1" onClick={() => navigate(`/clubs/${club._id}`)}>View Hub</Button>
+                    : <Button as={Link} to="/login" variant="secondary" size="sm" className="flex-1">Login to explore</Button>
+                  }
+                  {currentUser?.role === 'supervisor' && (
+                    <>
+                      <Button size="sm" variant="ghost" aria-label={`Edit ${club.name}`} leftIcon={<PenLine size={14} />} onClick={() => handleEditClick(club)} />
+                      <Button size="sm" variant="danger" aria-label={`Delete ${club.name}`} leftIcon={<Trash2 size={14} />} onClick={() => handleDeleteClub(club._id)} />
+                    </>
+                  )}
+                </div>
+              </Card>
+            </motion.li>
+          ))}
+        </motion.ul>
+      )}
+    </PageWrapper>
   );
 }
 

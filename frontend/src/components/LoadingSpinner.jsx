@@ -1,16 +1,18 @@
-import { motion } from "framer-motion";
+import { motion } from 'framer-motion';
 
-function LoadingSpinner({ text = "Loading..." }) {
+function LoadingSpinner({ text = 'Loading...' }) {
   return (
-    <div className="flex min-h-[220px] flex-col items-center justify-center gap-4">
+    <div
+      role="status"
+      aria-label={text}
+      className="flex min-h-[220px] flex-col items-center justify-center gap-4"
+    >
       <div className="relative h-14 w-14">
+        <div className="absolute inset-0 rounded-full border-4 border-emerald-400/20" />
         <motion.div
-          className="absolute inset-0 rounded-full border-4 border-emerald-400/20"
-        />
-        <motion.div
-          className="absolute inset-0 rounded-full border-4 border-transparent border-t-emerald-400"
+          className="absolute inset-0 rounded-full border-4 border-transparent border-t-emerald-500 dark:border-t-emerald-400"
           animate={{ rotate: 360 }}
-          transition={{ repeat: Infinity, duration: 0.9, ease: "linear" }}
+          transition={{ repeat: Infinity, duration: 0.9, ease: 'linear' }}
         />
       </div>
 
@@ -18,9 +20,11 @@ function LoadingSpinner({ text = "Loading..." }) {
         initial={{ opacity: 0.5 }}
         animate={{ opacity: [0.5, 1, 0.5] }}
         transition={{ repeat: Infinity, duration: 1.2 }}
-        className="text-sm text-slate-300"
+        className="text-sm text-slate-500 dark:text-slate-300"
+        aria-live="polite"
       >
         {text}
+        <span className="sr-only"> Please wait.</span>
       </motion.p>
     </div>
   );
