@@ -47,23 +47,17 @@ janidu@gmail.com  ---> robotics president
 
 
 
-
-
-| Role | Email | Password |
-|------|-------|----------|
-| Sport Admin | sportadmin@unihub.test | Password123! |
-| Captain | captain@unihub.test | Password123! |
-| Vice Captain | vicecaptain@unihub.test | Password123! |
-| Student | student@unihub.test | Password123! |
-| Member (for join requests) | member1@unihub.test | Password123! |
+sportadmin@unihub.test            Password123! 
+captain@unihub.test 
+vicecaptain@unihub.test  
+student@unihub.test  
+member1@unihub.test 
 
 
 
 
-| Role | Email | Password | Access |
-|------|-------|----------|--------|
-| Event Admin/Organizer | organizer@unihub.test | Password123! | `/events/admin` |
-| Student | student@unihub.test | Password123! | `/events/*` user routes |
-| Member (for cart testing) | member1@unihub.test | Password123! | `/events/*` user routes |
+event admin ---> organizer@unihub.test       Password123! 
+ 
+
 
 
