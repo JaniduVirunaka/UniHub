@@ -32,7 +32,7 @@ export const registrationService = {
 };
 
 export const cartService = {
-  addToCart: (eventId, quantity) => api.post('/cart/add', { eventId, quantity }),
+  addToCart: (eventId, quantity, selectedTicketName) => api.post('/cart/add', { eventId, quantity, selectedTicketName }),
   getCart: () => api.get('/cart'),
   checkout: (items) => api.post('/cart/checkout', { items })
 };

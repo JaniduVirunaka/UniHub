@@ -16,20 +16,22 @@ export const CartProvider = ({ children }) => {
     localStorage.setItem('cart', JSON.stringify(cart));
   }, [cart]);
 
-  const addToCart = (event, quantity) => {
+  const addToCart = (event, quantity, selectedTicketName = '') => {
     setCart((prev) => {
-      const existingItem = prev.find((item) => item.eventId === event._id);
-      if (existingItem) {
-        return prev.map((item) =>
-          item.eventId === event._id ? { ...item, quantity: item.quantity + quantity } : item
+      const existingItemIndex = prev.findIndex(
+        (item) => item.eventId === event._id && item.selectedTicketName === selectedTicketName
+      );
+      if (existingItemIndex >= 0) {
+        return prev.map((item, index) =>
+          index === existingItemIndex ? { ...item, quantity: item.quantity + quantity } : item
         );
       }
-      return [...prev, { eventId: event._id, event, quantity }];
+      return [...prev, { eventId: event._id, event, quantity, selectedTicketName }];
     });
   };
 
-  const removeFromCart = (eventId) => {
-    setCart((prev) => prev.filter((item) => item.eventId !== eventId));
+  const removeFromCart = (eventId, selectedTicketName = '') => {
+    setCart((prev) => prev.filter((item) => !(item.eventId === eventId && item.selectedTicketName === selectedTicketName)));
   };
 
   const clearCart = () => {
@@ -37,7 +39,14 @@ export const CartProvider = ({ children }) => {
   };
 
   const getTotalPrice = () => {
-    return cart.reduce((total, item) => total + (item.event.ticketPrice * item.quantity), 0);
+    return cart.reduce((total, item) => {
+      let price = item.event.ticketPrice || 0;
+      if (item.selectedTicketName && Array.isArray(item.event.tickets)) {
+        const t = item.event.tickets.find(tick => tick.name === item.selectedTicketName);
+        if (t) price = t.price;
+      }
+      return total + (price * item.quantity);
+    }, 0);
   };
 
   return (

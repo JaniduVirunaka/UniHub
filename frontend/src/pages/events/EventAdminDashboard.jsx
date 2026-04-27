@@ -46,7 +46,9 @@ export const AdminDashboard = () => {
 
   const [newEventForm, setNewEventForm] = useState({
     title: '', description: '', eventType: 'event', location: '',
-    date: '', time: '', totalCapacity: '', ticketPrice: '', ticketPricesText: '',
+    date: '', time: '', totalCapacity: '',
+    isTicketed: false,
+    tickets: [],
     bankAccount: '', whatsappNumber: '',
     paymentMessage: 'Pay the payment for this bank account number and send the receipt for this WhatsApp number.',
   });
@@ -96,21 +98,64 @@ export const AdminDashboard = () => {
     setNewEventForm(p => ({ ...p, [name]: value }));
   };
 
+  const handleTicketedToggle = () => {
+    setNewEventForm(p => {
+      const nowTicketed = !p.isTicketed;
+      return {
+        ...p,
+        isTicketed: nowTicketed,
+        tickets: nowTicketed && p.tickets.length === 0 ? [{ name: '', price: '' }] : p.tickets,
+      };
+    });
+  };
+
+  const handleAddTicket = () => {
+    setNewEventForm(p => ({ ...p, tickets: [...p.tickets, { name: '', price: '' }] }));
+  };
+
+  const handleRemoveTicket = (idx) => {
+    setNewEventForm(p => ({ ...p, tickets: p.tickets.filter((_, i) => i !== idx) }));
+  };
+
+  const handleTicketChange = (idx, field, value) => {
+    setNewEventForm(p => ({
+      ...p,
+      tickets: p.tickets.map((t, i) => i === idx ? { ...t, [field]: value } : t),
+    }));
+  };
+
   const handleCreateEvent = async (e) => {
     e.preventDefault();
     try {
-      const { ticketPricesText, ...restForm } = newEventForm;
-      const priceOptions = (newEventForm.ticketPricesText || '')
-        .split(',').map(v => Number(v.trim())).filter(v => Number.isFinite(v) && v > 0);
-      const sorted = [...new Set(priceOptions)].sort((a, b) => a - b);
-      const primaryPrice = sorted.length > 0 ? sorted[0] : Number(newEventForm.ticketPrice || 0);
+      const isTicketed = newEventForm.isTicketed;
+      const cleanTickets = isTicketed
+        ? newEventForm.tickets
+            .filter(t => t.name.trim() && Number(t.price) >= 0)
+            .map(t => ({ name: t.name.trim(), price: Number(t.price) }))
+        : [];
+      const primaryPrice = cleanTickets.length > 0
+        ? Math.min(...cleanTickets.map(t => t.price))
+        : 0;
+      const priceOptions = cleanTickets.length > 0
+        ? [...new Set(cleanTickets.map(t => t.price))].sort((a, b) => a - b)
+        : [];
 
       await eventService.createEvent({
-        ...restForm,
+        title: newEventForm.title,
+        description: newEventForm.description,
+        eventType: newEventForm.eventType,
+        location: newEventForm.location,
+        date: newEventForm.date,
+        time: newEventForm.time,
         totalCapacity: Number(newEventForm.totalCapacity),
         availableTickets: Number(newEventForm.totalCapacity),
+        isTicketed,
         ticketPrice: primaryPrice,
-        ticketPriceOptions: sorted,
+        ticketPriceOptions: priceOptions,
+        tickets: cleanTickets,
+        bankAccount: newEventForm.bankAccount,
+        whatsappNumber: newEventForm.whatsappNumber,
+        paymentMessage: newEventForm.paymentMessage,
       });
 
       const eventsRes = await eventService.getAllEvents();
@@ -118,7 +163,9 @@ export const AdminDashboard = () => {
       await fetchStats();
       setNewEventForm({
         title: '', description: '', eventType: 'event', location: '',
-        date: '', time: '', totalCapacity: '', ticketPrice: '', ticketPricesText: '',
+        date: '', time: '', totalCapacity: '',
+        isTicketed: false,
+        tickets: [],
         bankAccount: '', whatsappNumber: '',
         paymentMessage: 'Pay the payment for this bank account number and send the receipt for this WhatsApp number.',
       });
@@ -224,33 +271,93 @@ export const AdminDashboard = () => {
                 <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Location</label>
                 <input name="location" value={newEventForm.location} onChange={handleInputChange} className={inputCls} required />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Capacity</label>
-                  <input type="number" name="totalCapacity" value={newEventForm.totalCapacity} onChange={handleInputChange} className={inputCls} required />
+              <div>
+                <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Capacity</label>
+                <input type="number" name="totalCapacity" value={newEventForm.totalCapacity} onChange={handleInputChange} className={inputCls} required />
+              </div>
+
+              {/* Ticketed Event Toggle */}
+              <div className="flex items-center gap-3 rounded-2xl bg-slate-50/60 p-3 dark:bg-white/5">
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={newEventForm.isTicketed}
+                  onClick={handleTicketedToggle}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 ${newEventForm.isTicketed ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-600'}`}
+                >
+                  <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition-transform duration-200 ${newEventForm.isTicketed ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                </button>
+                <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">This is a ticketed event</span>
+              </div>
+
+              {/* Dynamic Ticket Rows */}
+              {newEventForm.isTicketed && (
+                <div className="rounded-2xl border border-indigo-200/60 bg-indigo-50/40 p-4 dark:border-indigo-500/20 dark:bg-indigo-950/20">
+                  <div className="mb-3 flex items-center justify-between">
+                    <label className="text-xs font-bold uppercase tracking-wide text-indigo-600 dark:text-indigo-400">Ticket Types</label>
+                    <button
+                      type="button"
+                      onClick={handleAddTicket}
+                      className="inline-flex items-center gap-1 rounded-xl bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-indigo-700 active:bg-indigo-800"
+                    >
+                      <Plus size={12} /> Add Ticket
+                    </button>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    {newEventForm.tickets.map((ticket, idx) => (
+                      <div key={idx} className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          placeholder="Ticket name (e.g. VIP, General)"
+                          value={ticket.name}
+                          onChange={e => handleTicketChange(idx, 'name', e.target.value)}
+                          className={`${inputCls} flex-1`}
+                          required
+                        />
+                        <input
+                          type="number"
+                          placeholder="Price (Rs.)"
+                          value={ticket.price}
+                          onChange={e => handleTicketChange(idx, 'price', e.target.value)}
+                          className={`${inputCls} w-28`}
+                          min="0"
+                          required
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveTicket(idx)}
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-rose-500 transition hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                          aria-label="Remove ticket"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    ))}
+                    {newEventForm.tickets.length === 0 && (
+                      <p className="py-2 text-center text-xs italic text-slate-400">No tickets added yet. Click "Add Ticket" above.</p>
+                    )}
+                  </div>
                 </div>
-                <div>
-                  <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Ticket Price</label>
-                  <input type="number" name="ticketPrice" value={newEventForm.ticketPrice} onChange={handleInputChange} className={inputCls} />
-                </div>
-              </div>
-              <div>
-                <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Multiple Ticket Prices (comma separated)</label>
-                <input name="ticketPricesText" value={newEventForm.ticketPricesText} onChange={handleInputChange} placeholder="e.g. 500, 1000, 1500" className={inputCls} />
-                <p className="mt-1 text-xs text-slate-400">Lowest value is used as base ticket price.</p>
-              </div>
-              <div>
-                <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Bank Account Number</label>
-                <input name="bankAccount" value={newEventForm.bankAccount} onChange={handleInputChange} placeholder="e.g. 001234567890" className={inputCls} />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">WhatsApp Number</label>
-                <input name="whatsappNumber" value={newEventForm.whatsappNumber} onChange={handleInputChange} placeholder="e.g. +94770001122" className={inputCls} />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Payment Message</label>
-                <textarea name="paymentMessage" value={newEventForm.paymentMessage} onChange={handleInputChange} rows={2} className={`${inputCls} min-h-[60px]`} />
-              </div>
+              )}
+
+              {/* Payment fields — only when ticketed */}
+              {newEventForm.isTicketed && (
+                <>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Bank Account Number</label>
+                    <input name="bankAccount" value={newEventForm.bankAccount} onChange={handleInputChange} placeholder="e.g. 001234567890" className={inputCls} />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">WhatsApp Number</label>
+                    <input name="whatsappNumber" value={newEventForm.whatsappNumber} onChange={handleInputChange} placeholder="e.g. +94770001122" className={inputCls} />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Payment Message</label>
+                    <textarea name="paymentMessage" value={newEventForm.paymentMessage} onChange={handleInputChange} rows={2} className={`${inputCls} min-h-[60px]`} />
+                  </div>
+                </>
+              )}
+
               <Button type="submit" className="w-full" leftIcon={<Plus size={14} />}>Create Event</Button>
             </form>
           </Card>
@@ -269,8 +376,17 @@ export const AdminDashboard = () => {
                     {new Date(event.date).toLocaleDateString()} · {event.location}
                   </p>
                   <p className="text-xs text-slate-400">Capacity: {event.availableTickets}/{event.totalCapacity}</p>
-                  {Array.isArray(event.ticketPriceOptions) && event.ticketPriceOptions.length > 0 && (
-                    <p className="text-xs text-slate-400">Ticket Options: Rs. {event.ticketPriceOptions.join(', ')}</p>
+                  <span className={`mt-1 inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${event.isTicketed ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'}`}>
+                    {event.isTicketed ? 'Ticketed' : 'Free'}
+                  </span>
+                  {Array.isArray(event.tickets) && event.tickets.length > 0 && (
+                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                      {event.tickets.map((t, i) => (
+                        <span key={i} className="inline-flex items-center gap-1 rounded-lg bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">
+                          {t.name}: Rs. {t.price}
+                        </span>
+                      ))}
+                    </div>
                   )}
                   {event.bankAccount && <p className="text-xs text-slate-400">Bank: {event.bankAccount}</p>}
                   {event.whatsappNumber && <p className="text-xs text-slate-400">WhatsApp: {event.whatsappNumber}</p>}

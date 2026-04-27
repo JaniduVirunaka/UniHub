@@ -30,7 +30,10 @@ export const Checkout = () => {
         {items.map(item => (
           <motion.div key={item.registrationId} variants={staggerItem}>
             <Card variant="glass" padding="lg">
-              <h3 className="mb-3 text-lg font-bold text-slate-900 dark:text-white">{item.title}</h3>
+              <h3 className="mb-3 text-lg font-bold text-slate-900 dark:text-white">
+                {item.title}
+                {item.selectedTicketName && <span className="ml-2 font-normal text-indigo-600 dark:text-indigo-400">({item.selectedTicketName})</span>}
+              </h3>
 
               <p className="mb-4 text-sm text-slate-600 dark:text-slate-300">
                 {item.paymentMessage || 'Pay the payment for this bank account number and send the receipt for this WhatsApp number.'}
