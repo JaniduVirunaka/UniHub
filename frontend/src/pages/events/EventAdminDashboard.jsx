@@ -51,6 +51,7 @@ export const AdminDashboard = () => {
     tickets: [],
     bankAccount: '', whatsappNumber: '',
     paymentMessage: 'Pay the payment for this bank account number and send the receipt for this WhatsApp number.',
+    imageFile: null,
   });
 
   const fetchStats = useCallback(async () => {
@@ -98,6 +99,12 @@ export const AdminDashboard = () => {
     setNewEventForm(p => ({ ...p, [name]: value }));
   };
 
+  const handleImageChange = e => {
+    if (e.target.files && e.target.files[0]) {
+      setNewEventForm(p => ({ ...p, imageFile: e.target.files[0] }));
+    }
+  };
+
   const handleTicketedToggle = () => {
     setNewEventForm(p => {
       const nowTicketed = !p.isTicketed;
@@ -127,6 +134,14 @@ export const AdminDashboard = () => {
   const handleCreateEvent = async (e) => {
     e.preventDefault();
     try {
+      let thumbnailUrl = '';
+      if (newEventForm.imageFile) {
+        const formData = new FormData();
+        formData.append('posterImage', newEventForm.imageFile);
+        const uploadRes = await eventService.uploadEventImage(formData);
+        thumbnailUrl = `http://localhost:5000/uploads/events/${uploadRes.data.filename}`;
+      }
+
       const isTicketed = newEventForm.isTicketed;
       const cleanTickets = isTicketed
         ? newEventForm.tickets
@@ -153,6 +168,8 @@ export const AdminDashboard = () => {
         ticketPrice: primaryPrice,
         ticketPriceOptions: priceOptions,
         tickets: cleanTickets,
+        thumbnail: thumbnailUrl,
+        posterImage: thumbnailUrl,
         bankAccount: newEventForm.bankAccount,
         whatsappNumber: newEventForm.whatsappNumber,
         paymentMessage: newEventForm.paymentMessage,
@@ -168,6 +185,7 @@ export const AdminDashboard = () => {
         tickets: [],
         bankAccount: '', whatsappNumber: '',
         paymentMessage: 'Pay the payment for this bank account number and send the receipt for this WhatsApp number.',
+        imageFile: null,
       });
       alert('Event created successfully!');
     } catch (error) {
@@ -253,6 +271,26 @@ export const AdminDashboard = () => {
                   <option value="club">Club</option>
                 </select>
               </div>
+              
+              <div>
+                <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Event Poster / Image</label>
+                <input 
+                  type="file" 
+                  accept="image/jpeg, image/png, image/webp, image/gif" 
+                  onChange={handleImageChange} 
+                  className="w-full text-sm text-slate-500 file:mr-4 file:rounded-xl file:border-0 file:bg-indigo-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-indigo-700 hover:file:bg-indigo-100 dark:text-slate-400 dark:file:bg-indigo-900/30 dark:file:text-indigo-400"
+                />
+                {newEventForm.imageFile && (
+                  <div className="mt-2 h-32 w-full overflow-hidden rounded-2xl border border-slate-200 dark:border-white/10">
+                    <img 
+                      src={URL.createObjectURL(newEventForm.imageFile)} 
+                      alt="Preview" 
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                )}
+              </div>
+
               <div>
                 <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Description</label>
                 <textarea name="description" value={newEventForm.description} onChange={handleInputChange} rows={3} className={`${inputCls} min-h-[80px]`} />

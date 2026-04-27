@@ -18,7 +18,10 @@ export const eventService = {
   getEventById: (eventId) => api.get(`/events/${eventId}`),
   checkAvailability: (eventId) => api.get(`/events/${eventId}/availability`),
   createEvent: (eventData) => api.post('/events', eventData),
-  deleteEvent: (eventId) => api.delete(`/events/${eventId}`)
+  deleteEvent: (eventId) => api.delete(`/events/${eventId}`),
+  uploadEventImage: (formData) => api.post('/upload/event-poster', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
 };
 
 export const registrationService = {
