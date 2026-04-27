@@ -9,7 +9,7 @@ import LoadingSpinner from '../../components/LoadingSpinner';
 import { AnimatePresence, motion } from 'framer-motion';
 import { scaleUp, staggerContainer, staggerItem } from '../../hooks/animationVariants';
 import { useCountUp } from '../../hooks/useCountUp';
-import { Calendar, Users, Clock, BarChart2, Trash2, Plus, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, Users, Clock, BarChart2, Trash2, Plus, X, ChevronLeft, ChevronRight, Star, MapPin, MessageSquare } from 'lucide-react';
 
 const inputCls = 'w-full rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/30 dark:border-white/10 dark:bg-slate-950/40 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500';
 
@@ -551,35 +551,121 @@ export const AdminDashboard = () => {
       )}
 
       {/* Tab: Reviews */}
-      {activeTab === 'reviews' && (
-        <Card variant="glass" padding="lg">
-          <h2 className="mb-5 text-lg font-bold text-slate-900 dark:text-white">Event Reviews</h2>
-          {reviews.length === 0 ? (
-            <p className="text-slate-500 dark:text-slate-400">No reviews found.</p>
-          ) : (
-            <div className="flex flex-col gap-4">
-              {reviews.map(review => (
-                <div key={review._id} className="rounded-2xl border-l-4 border-amber-500 bg-slate-50/60 p-4 dark:bg-white/5">
-                  <div className="mb-2 flex items-center justify-between">
-                    <div>
-                      <p className="font-bold text-slate-900 dark:text-white">{review.event?.title || 'Unknown Event'}</p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">by {review.user?.name || 'Unknown User'}</p>
-                    </div>
-                    <div className="flex items-center gap-1 text-amber-500">
-                      <span className="font-bold">{review.rating}</span>
-                      <span className="text-xs text-slate-400">/ 5</span>
-                    </div>
-                  </div>
-                  <p className="text-sm text-slate-700 dark:text-slate-300">{review.review}</p>
-                  <p className="mt-2 text-[10px] text-slate-400">
-                    {new Date(review.createdAt).toLocaleDateString()} at {new Date(review.createdAt).toLocaleTimeString()}
-                  </p>
-                </div>
-              ))}
+      {activeTab === 'reviews' && (() => {
+        const reviewsByEvent = reviews.reduce((acc, r) => {
+          const id = r.event?._id;
+          if (!id) return acc;
+          if (!acc[id]) acc[id] = { event: r.event, items: [] };
+          acc[id].items.push(r);
+          return acc;
+        }, {});
+        const groups = Object.values(reviewsByEvent);
+
+        return (
+          <div className="flex flex-col gap-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white">Event Reviews</h2>
+              {reviews.length > 0 && (
+                <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                  {reviews.length} {reviews.length === 1 ? 'review' : 'reviews'} across {groups.length} {groups.length === 1 ? 'event' : 'events'}
+                </span>
+              )}
             </div>
-          )}
-        </Card>
-      )}
+
+            {reviews.length === 0 ? (
+              <Card variant="glass" padding="lg">
+                <div className="flex flex-col items-center gap-2 py-6 text-center">
+                  <MessageSquare size={32} className="text-slate-300 dark:text-slate-600" />
+                  <p className="text-slate-500 dark:text-slate-400">No reviews yet.</p>
+                </div>
+              </Card>
+            ) : (
+              groups.map(({ event, items }) => {
+                const avg = (items.reduce((s, r) => s + r.rating, 0) / items.length).toFixed(1);
+                const poster = event.posterImage || event.thumbnail;
+
+                return (
+                  <Card key={event._id} variant="glass" padding="lg">
+                    {/* Event summary */}
+                    <div className="flex gap-4">
+                      {poster && (
+                        <img
+                          src={poster}
+                          alt={event.title}
+                          className="h-20 w-28 shrink-0 rounded-2xl object-cover"
+                        />
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <h3 className="text-base font-bold text-slate-900 dark:text-white">{event.title}</h3>
+                          <div className="flex items-center gap-1 rounded-xl bg-amber-50 px-3 py-1 dark:bg-amber-900/20">
+                            <Star size={13} className="fill-amber-400 text-amber-400" />
+                            <span className="text-sm font-bold text-amber-700 dark:text-amber-300">{avg}</span>
+                            <span className="text-xs text-slate-400">/ 5</span>
+                          </div>
+                        </div>
+                        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-500 dark:text-slate-400">
+                          {event.date && (
+                            <span className="flex items-center gap-1">
+                              <Calendar size={12} />
+                              {new Date(event.date).toLocaleDateString('en-US', { dateStyle: 'medium' })}
+                            </span>
+                          )}
+                          {event.location && (
+                            <span className="flex items-center gap-1">
+                              <MapPin size={12} />
+                              {event.location}
+                            </span>
+                          )}
+                        </div>
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${event.isTicketed ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'}`}>
+                            {event.isTicketed ? 'Ticketed' : 'Free'}
+                          </span>
+                          <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:bg-white/10 dark:text-slate-400">
+                            {items.length} {items.length === 1 ? 'review' : 'reviews'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="my-4 border-t border-slate-200/60 dark:border-white/10" />
+
+                    {/* Reviews list */}
+                    <div className="flex flex-col gap-3">
+                      {items.map(review => (
+                        <div key={review._id} className="rounded-2xl bg-slate-50/60 p-4 dark:bg-white/5">
+                          <div className="mb-2 flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2.5">
+                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
+                                {review.user?.name?.charAt(0).toUpperCase() || '?'}
+                              </div>
+                              <div>
+                                <p className="text-sm font-semibold text-slate-900 dark:text-white">{review.user?.name || 'Anonymous'}</p>
+                                <p className="text-[10px] text-slate-400">
+                                  {new Date(review.createdAt).toLocaleDateString('en-US', { dateStyle: 'medium' })}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex shrink-0 items-center gap-0.5">
+                              {[1, 2, 3, 4, 5].map(s => (
+                                <Star key={s} size={13} className={s <= review.rating ? 'fill-amber-400 text-amber-400' : 'fill-slate-200 text-slate-200 dark:fill-slate-600 dark:text-slate-600'} />
+                              ))}
+                            </div>
+                          </div>
+                          {review.review && (
+                            <p className="text-sm text-slate-700 dark:text-slate-300">{review.review}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+                );
+              })
+            )}
+          </div>
+        );
+      })()}
 
       {/* Verify Payment Modal */}
       <AnimatePresence>

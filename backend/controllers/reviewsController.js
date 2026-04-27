@@ -57,7 +57,7 @@ const getAllReviews = async (req, res) => {
   try {
     const reviews = await Review.find({})
       .populate('user', 'name email')
-      .populate('event', 'title')
+      .populate('event', 'title date location isTicketed thumbnail posterImage')
       .sort({ createdAt: -1 });
     res.json(reviews);
   } catch (error) {
