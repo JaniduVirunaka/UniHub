@@ -1,21 +1,28 @@
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
 const router = express.Router();
 const { protect } = require('../middleware/authMiddleware');
 
 // Storage config
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
+    let destPath = 'uploads/';
     if (file.fieldname === 'profilePicture') {
-      cb(null, 'uploads/profiles/');
+      destPath = 'uploads/profiles/';
     } else if (file.fieldname === 'posterImage') {
-      cb(null, 'uploads/events/');
+      destPath = 'uploads/events/';
     } else if (file.fieldname === 'logo') {
-      cb(null, 'uploads/logos/');
-    } else {
-      cb(null, 'uploads/');
+      destPath = 'uploads/logos/';
     }
+    
+    // Create directory if it doesn't exist
+    if (!fs.existsSync(destPath)) {
+      fs.mkdirSync(destPath, { recursive: true });
+    }
+    
+    cb(null, destPath);
   },
   filename: (req, file, cb) => {
     cb(null, Date.now() + path.extname(file.originalname));

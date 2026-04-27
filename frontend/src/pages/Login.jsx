@@ -55,6 +55,8 @@ function Login() {
             <label className="flex flex-col gap-1">
               <span className="sr-only">University Email</span>
               <input type="email" className={inputCls} placeholder="University Email" required
+                pattern="[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"
+                title="Please enter a valid email address containing an @"
                 onChange={e => setFormData(d => ({ ...d, email: e.target.value }))} />
             </label>
             <label className="flex flex-col gap-1">

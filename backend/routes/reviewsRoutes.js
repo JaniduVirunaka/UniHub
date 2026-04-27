@@ -1,10 +1,11 @@
 const express = require('express');
-const { createReview, getReviewsForEvent } = require('../controllers/reviewsController');
-const authMiddleware = require('../middleware/authMiddleware');
+const { createReview, getReviewsForEvent, getAllReviews } = require('../controllers/reviewsController');
+const { protect, requireRole } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
-router.post('/', authMiddleware.protect, createReview);
+router.post('/', protect, createReview);
 router.get('/event/:eventId', getReviewsForEvent);
+router.get('/all', protect, requireRole('admin', 'event_manager'), getAllReviews);
 
 module.exports = router;

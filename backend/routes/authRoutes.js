@@ -148,16 +148,46 @@ router.get('/profile', protect, async (req, res) => {
   }
 });
 
-// PUT /auth/profile — updates name, department, year, phone
+// PUT /auth/profile — updates name, department, year, phone, profilePicture
 router.put('/profile', protect, async (req, res) => {
   try {
-    const fields = ['name', 'department', 'year', 'phone'];
+    const fields = ['name', 'department', 'year', 'phone', 'profilePicture'];
     const updates = Object.fromEntries(
       fields.filter(f => req.body[f] !== undefined).map(f => [f, req.body[f]])
     );
     const user = await User.findByIdAndUpdate(req.user._id, updates, { new: true, runValidators: true }).select('-password');
     if (!user) return res.status(404).json({ message: 'User not found' });
     res.status(200).json({ user });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// CHANGE PASSWORD — local accounts only
+router.put('/change-password', protect, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: 'Current password and new password are required.' });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ message: 'User not found.' });
+
+    if (user.authProvider === 'google' || !user.password) {
+      return res.status(400).json({ message: 'This account uses Google Sign-In. Password cannot be changed.' });
+    }
+
+    const isMatch = await user.comparePassword(currentPassword);
+    if (!isMatch) {
+      return res.status(400).json({ message: 'Current password is incorrect.' });
+    }
+
+    user.password = newPassword;
+    await user.save();
+    res.status(200).json({ message: 'Password updated successfully.' });
+
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

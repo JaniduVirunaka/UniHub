@@ -23,6 +23,9 @@ function Events() {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [showTicketConfirm, setShowTicketConfirm] = useState(false);
   const [selectedTicketEvent, setSelectedTicketEvent] = useState(null);
+  const [showTicketPicker, setShowTicketPicker] = useState(false);
+  const [pickerEvent, setPickerEvent] = useState(null);
+  const [pickedTicketName, setPickedTicketName] = useState('');
 
   const fetchEvents = useCallback(() => {
     eventService.getAllEvents()
@@ -35,9 +38,17 @@ function Events() {
 
   const handleRegisterClick = (event) => {
     if (!user) { navigate('/login'); return; }
-    if (event.ticketPrice > 0) {
-      setSelectedTicketEvent(event);
-      setShowTicketConfirm(true);
+    const isPaid = event.isTicketed || event.ticketPrice > 0;
+    const hasMultipleTickets = Array.isArray(event.tickets) && event.tickets.length > 0;
+    if (isPaid) {
+      if (hasMultipleTickets) {
+        setPickerEvent(event);
+        setPickedTicketName(event.tickets[0].name);
+        setShowTicketPicker(true);
+      } else {
+        setSelectedTicketEvent(event);
+        setShowTicketConfirm(true);
+      }
     } else {
       setSelectedEvent(event);
       setShowConfirm(true);
@@ -46,8 +57,15 @@ function Events() {
 
   const handleBuyTicket = (event) => {
     if (!user) { navigate('/login'); return; }
-    setSelectedTicketEvent(event);
-    setShowTicketConfirm(true);
+    const hasMultipleTickets = Array.isArray(event.tickets) && event.tickets.length > 0;
+    if (hasMultipleTickets) {
+      setPickerEvent(event);
+      setPickedTicketName(event.tickets[0].name);
+      setShowTicketPicker(true);
+    } else {
+      setSelectedTicketEvent(event);
+      setShowTicketConfirm(true);
+    }
   };
 
   const confirmTicketFlow = () => {
@@ -55,6 +73,17 @@ function Events() {
     addToCart(selectedTicketEvent, 1);
     setShowTicketConfirm(false);
     setSelectedTicketEvent(null);
+    navigate('/events/cart');
+  };
+
+  const confirmTicketPickerFlow = () => {
+    if (!pickerEvent || !pickedTicketName) return;
+    const ticket = pickerEvent.tickets.find(t => t.name === pickedTicketName);
+    const eventWithTicket = { ...pickerEvent, selectedTicketName: pickedTicketName, ticketPrice: ticket ? ticket.price : pickerEvent.ticketPrice };
+    addToCart(eventWithTicket, 1, pickedTicketName);
+    setShowTicketPicker(false);
+    setPickerEvent(null);
+    setPickedTicketName('');
     navigate('/events/cart');
   };
 
@@ -131,6 +160,47 @@ function Events() {
         onYes={confirmTicketFlow}
         onNo={() => { setShowTicketConfirm(false); setSelectedTicketEvent(null); }}
       />
+
+      {/* Ticket Picker Modal */}
+      {showTicketPicker && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-slate-900">
+            <h3 className="mb-2 text-xl font-bold text-slate-900 dark:text-white">Select Ticket Type</h3>
+            <p className="mb-4 text-sm text-slate-500">Choose a ticket for "{pickerEvent?.title}"</p>
+            
+            <div className="mb-6 flex flex-col gap-2">
+              {pickerEvent?.tickets.map((t, idx) => (
+                <label
+                  key={idx}
+                  className={`flex cursor-pointer items-center justify-between rounded-xl border p-3 transition ${
+                    pickedTicketName === t.name
+                      ? 'border-indigo-500 bg-indigo-50 dark:border-indigo-500 dark:bg-indigo-900/20'
+                      : 'border-slate-200 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="radio"
+                      name="ticketType"
+                      value={t.name}
+                      checked={pickedTicketName === t.name}
+                      onChange={() => setPickedTicketName(t.name)}
+                      className="h-4 w-4 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <span className="font-medium text-slate-900 dark:text-white">{t.name}</span>
+                  </div>
+                  <span className="font-bold text-indigo-600 dark:text-indigo-400">Rs. {t.price}</span>
+                </label>
+              ))}
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <Button variant="ghost" onClick={() => { setShowTicketPicker(false); setPickerEvent(null); }}>Cancel</Button>
+              <Button variant="primary" onClick={confirmTicketPickerFlow} disabled={!pickedTicketName}>Continue to Cart</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </PageWrapper>
   );
 }

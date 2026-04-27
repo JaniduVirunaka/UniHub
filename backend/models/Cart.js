@@ -3,7 +3,8 @@ const mongoose = require('mongoose');
 const cartItemSchema = new mongoose.Schema(
   {
     eventId: { type: mongoose.Schema.Types.ObjectId, ref: 'Event', required: true },
-    quantity: { type: Number, min: 1, default: 1 }
+    quantity: { type: Number, min: 1, default: 1 },
+    selectedTicketName: { type: String, default: '' }
   },
   { _id: false }
 );

@@ -23,6 +23,10 @@ const registrationSchema = new mongoose.Schema({
   ticketsBooked: {
     type: Number,
     default: 1
+  },
+  selectedTicketName: {
+    type: String,
+    default: ''
   }
 });
 

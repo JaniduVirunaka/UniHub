@@ -65,11 +65,15 @@ function Signup() {
             <label className="flex flex-col gap-1">
               <span className="sr-only">University Email</span>
               <input type="email" className={inputCls} placeholder="University Email" required
+                pattern="[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"
+                title="Please enter a valid email address containing an @"
                 onChange={e => setFormData(d => ({ ...d, email: e.target.value }))} />
             </label>
             <label className="flex flex-col gap-1">
               <span className="sr-only">Password</span>
               <input type="password" className={inputCls} placeholder="Password" required
+                pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[\W_]).{8,}"
+                title="Must contain at least one number, one uppercase and lowercase letter, one special character, and be at least 8 characters long."
                 onChange={e => setFormData(d => ({ ...d, password: e.target.value }))} />
             </label>
             <Button type="submit" className="mt-1 w-full">Sign Up</Button>
