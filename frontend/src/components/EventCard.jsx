@@ -84,7 +84,7 @@ export function EventCard({ event, onBuy, onRegister, user }) {
           </li>
           <li className="flex items-center gap-2">
             <Ticket size={14} className="shrink-0 text-indigo-500 dark:text-indigo-400" />
-            {event.availableTickets} tickets left
+            {event.totalCapacity >= 999999 ? 'Unlimited capacity' : `${event.availableTickets} tickets left`}
           </li>
         </ul>
 

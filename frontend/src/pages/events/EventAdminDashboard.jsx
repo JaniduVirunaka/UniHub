@@ -47,6 +47,7 @@ export const AdminDashboard = () => {
   const [newEventForm, setNewEventForm] = useState({
     title: '', description: '', eventType: 'event', location: '',
     date: '', time: '', totalCapacity: '',
+    isUnlimitedCapacity: false,
     isTicketed: false,
     tickets: [],
     bankAccount: '', whatsappNumber: '',
@@ -103,6 +104,14 @@ export const AdminDashboard = () => {
     if (e.target.files && e.target.files[0]) {
       setNewEventForm(p => ({ ...p, imageFile: e.target.files[0] }));
     }
+  };
+
+  const handleUnlimitedToggle = () => {
+    setNewEventForm(p => ({
+      ...p,
+      isUnlimitedCapacity: !p.isUnlimitedCapacity,
+      totalCapacity: !p.isUnlimitedCapacity ? '' : p.totalCapacity
+    }));
   };
 
   const handleTicketedToggle = () => {
@@ -162,8 +171,8 @@ export const AdminDashboard = () => {
         location: newEventForm.location,
         date: newEventForm.date,
         time: newEventForm.time,
-        totalCapacity: Number(newEventForm.totalCapacity),
-        availableTickets: Number(newEventForm.totalCapacity),
+        totalCapacity: newEventForm.isUnlimitedCapacity ? 999999 : Number(newEventForm.totalCapacity),
+        availableTickets: newEventForm.isUnlimitedCapacity ? 999999 : Number(newEventForm.totalCapacity),
         isTicketed,
         ticketPrice: primaryPrice,
         ticketPriceOptions: priceOptions,
@@ -181,6 +190,7 @@ export const AdminDashboard = () => {
       setNewEventForm({
         title: '', description: '', eventType: 'event', location: '',
         date: '', time: '', totalCapacity: '',
+        isUnlimitedCapacity: false,
         isTicketed: false,
         tickets: [],
         bankAccount: '', whatsappNumber: '',
@@ -298,7 +308,7 @@ export const AdminDashboard = () => {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Date</label>
-                  <input type="date" name="date" value={newEventForm.date} onChange={handleInputChange} className={inputCls} required />
+                  <input type="date" name="date" min={new Date().toISOString().split('T')[0]} value={newEventForm.date} onChange={handleInputChange} className={inputCls} required />
                 </div>
                 <div>
                   <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Time</label>
@@ -309,10 +319,27 @@ export const AdminDashboard = () => {
                 <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Location</label>
                 <input name="location" value={newEventForm.location} onChange={handleInputChange} className={inputCls} required />
               </div>
-              <div>
-                <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Capacity</label>
-                <input type="number" name="totalCapacity" value={newEventForm.totalCapacity} onChange={handleInputChange} className={inputCls} required />
+              
+              {/* Unlimited Capacity Toggle */}
+              <div className="flex items-center gap-3 rounded-2xl bg-slate-50/60 p-3 dark:bg-white/5">
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={newEventForm.isUnlimitedCapacity}
+                  onClick={handleUnlimitedToggle}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 ${newEventForm.isUnlimitedCapacity ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-600'}`}
+                >
+                  <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition-transform duration-200 ${newEventForm.isUnlimitedCapacity ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                </button>
+                <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">No capacity limit</span>
               </div>
+
+              {!newEventForm.isUnlimitedCapacity && (
+                <div>
+                  <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Capacity</label>
+                  <input type="number" name="totalCapacity" value={newEventForm.totalCapacity} onChange={handleInputChange} className={inputCls} required={!newEventForm.isUnlimitedCapacity} />
+                </div>
+              )}
 
               {/* Ticketed Event Toggle */}
               <div className="flex items-center gap-3 rounded-2xl bg-slate-50/60 p-3 dark:bg-white/5">
@@ -413,7 +440,9 @@ export const AdminDashboard = () => {
                   <p className="text-sm text-slate-500 dark:text-slate-400">
                     {new Date(event.date).toLocaleDateString()} · {event.location}
                   </p>
-                  <p className="text-xs text-slate-400">Capacity: {event.availableTickets}/{event.totalCapacity}</p>
+                  <p className="text-xs text-slate-400">
+                    Capacity: {event.totalCapacity >= 999999 ? 'Unlimited' : `${event.availableTickets}/${event.totalCapacity}`}
+                  </p>
                   <span className={`mt-1 inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${event.isTicketed ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'}`}>
                     {event.isTicketed ? 'Ticketed' : 'Free'}
                   </span>
