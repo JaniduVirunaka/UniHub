@@ -148,10 +148,10 @@ router.get('/profile', protect, async (req, res) => {
   }
 });
 
-// PUT /auth/profile — updates name, department, year, phone
+// PUT /auth/profile — updates name, department, year, phone, profilePicture
 router.put('/profile', protect, async (req, res) => {
   try {
-    const fields = ['name', 'department', 'year', 'phone'];
+    const fields = ['name', 'department', 'year', 'phone', 'profilePicture'];
     const updates = Object.fromEntries(
       fields.filter(f => req.body[f] !== undefined).map(f => [f, req.body[f]])
     );

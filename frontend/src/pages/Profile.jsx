@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
-import { User, Mail, Hash, BookOpen, Phone, Calendar, LogOut, Pencil, X, Save } from 'lucide-react';
+import { User, Mail, Hash, BookOpen, Phone, Calendar, LogOut, Pencil, X, Save, Camera, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { authService } from '../services/services';
 import PageWrapper from '../components/PageWrapper';
@@ -29,18 +29,45 @@ function Profile() {
     phone:      currentUser?.phone      || '',
   });
   const [saving, setSaving] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [error, setError]   = useState('');
 
   if (!currentUser) return <Navigate to="/login" replace />;
 
   const handleLogout = () => { logout(); navigate('/login'); };
 
+  const handleDirectUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setUploadingImage(true);
+    setError('');
+    try {
+      const formData = new FormData();
+      formData.append('profilePicture', file);
+      const uploadRes = await authService.uploadProfilePicture(formData);
+      const profilePictureUrl = `http://localhost:5000/uploads/profiles/${uploadRes.data.filename}`;
+
+      const res = await authService.updateProfile({ profilePicture: profilePictureUrl });
+      updateUser(res.data.user);
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Failed to upload profile picture');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
   const handleSave = async (e) => {
     e.preventDefault();
     setSaving(true);
     setError('');
     try {
-      const res = await authService.updateProfile(form);
+      const res = await authService.updateProfile({
+        name: form.name,
+        department: form.department,
+        year: form.year,
+        phone: form.phone
+      });
       updateUser(res.data.user);
       setEditing(false);
     } catch (err) {
@@ -60,8 +87,28 @@ function Profile() {
           {/* ── Sidebar ── */}
           <Card variant="glass" padding="lg" className="flex flex-col items-center gap-4 text-center">
             {/* Avatar */}
-            <div className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-3xl font-bold text-white shadow-lg shadow-indigo-500/30">
-              {initials}
+            <div className="relative group cursor-pointer rounded-full h-24 w-24">
+              {currentUser.profilePicture ? (
+                <div className="h-full w-full overflow-hidden rounded-full shadow-lg shadow-indigo-500/30 border-2 border-indigo-500 dark:border-indigo-400 bg-white">
+                  <img src={currentUser.profilePicture} alt="Profile" className="h-full w-full object-cover" />
+                </div>
+              ) : (
+                <div className="flex h-full w-full items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-3xl font-bold text-white shadow-lg shadow-indigo-500/30">
+                  {initials}
+                </div>
+              )}
+              
+              {/* Upload Overlay */}
+              <label className="absolute inset-0 flex items-center justify-center bg-black/60 text-white opacity-0 group-hover:opacity-100 rounded-full transition-opacity cursor-pointer">
+                {uploadingImage ? <Loader2 size={24} className="animate-spin" /> : <Camera size={24} />}
+                <input 
+                  type="file" 
+                  className="hidden" 
+                  accept="image/jpeg, image/png, image/webp, image/gif" 
+                  onChange={handleDirectUpload} 
+                  disabled={uploadingImage}
+                />
+              </label>
             </div>
 
             <div>
@@ -123,7 +170,18 @@ function Profile() {
                     <option value="4">4th Year</option>
                   </select>
                 </div>
-                <FormInput label="Phone" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
+                <FormInput 
+                  label="Phone" 
+                  value={form.phone} 
+                  onChange={e => {
+                    let val = e.target.value.replace(/\D/g, ''); // Remove non-digits
+                    if (val.length > 0 && val[0] !== '0') val = '0' + val; // Force start with 0
+                    setForm(f => ({ ...f, phone: val.slice(0, 10) })); // Limit to 10 digits
+                  }} 
+                  pattern="^0[0-9]{9}$"
+                  title="Phone number must start with 0 and have exactly 10 digits."
+                  maxLength="10"
+                />
                 <div className="flex gap-3">
                   <Button type="submit" isLoading={saving} leftIcon={<Save size={15} />} className="flex-1">
                     Save Changes

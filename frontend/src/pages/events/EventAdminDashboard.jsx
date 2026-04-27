@@ -384,18 +384,18 @@ export const AdminDashboard = () => {
                       <div key={idx} className="flex items-center gap-2">
                         <input
                           type="text"
-                          placeholder="Ticket name (e.g. VIP, General)"
+                          placeholder="Ticket name (e.g. VIP)"
                           value={ticket.name}
                           onChange={e => handleTicketChange(idx, 'name', e.target.value)}
-                          className={`${inputCls} flex-1`}
+                          className="min-w-0 flex-1 rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/30 dark:border-white/10 dark:bg-slate-950/40 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
                           required
                         />
                         <input
                           type="number"
-                          placeholder="Price (Rs.)"
+                          placeholder="Price"
                           value={ticket.price}
                           onChange={e => handleTicketChange(idx, 'price', e.target.value)}
-                          className={`${inputCls} w-28`}
+                          className="w-24 shrink-0 rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/30 dark:border-white/10 dark:bg-slate-950/40 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
                           min="0"
                           required
                         />
@@ -441,7 +441,7 @@ export const AdminDashboard = () => {
           {/* Events list */}
           <Card variant="glass" padding="lg">
             <h2 className="mb-4 text-lg font-bold text-slate-900 dark:text-white">Events List</h2>
-            <div className="flex max-h-[600px] flex-col gap-3 overflow-y-auto pr-1">
+            <div className="flex flex-col gap-3 pr-1">
               {events.map(event => (
                 <div key={event._id} className="rounded-2xl border-l-4 border-indigo-500 bg-slate-50/60 p-4 dark:bg-white/5">
                   <div className="mb-1 flex items-start justify-between gap-2">

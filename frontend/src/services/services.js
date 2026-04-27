@@ -11,7 +11,10 @@ export const authService = {
   },
   getReviewsForEvent: (eventId) => api.get(`/reviews/event/${eventId}`),
   createReview: (data) => api.post('/reviews', data),
-  getAllReviews: () => api.get('/reviews/all')
+  getAllReviews: () => api.get('/reviews/all'),
+  uploadProfilePicture: (formData) => api.post('/upload/profile-picture', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
 };
 
 export const eventService = {
