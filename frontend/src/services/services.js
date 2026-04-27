@@ -10,7 +10,8 @@ export const authService = {
     localStorage.removeItem('user');
   },
   getReviewsForEvent: (eventId) => api.get(`/reviews/event/${eventId}`),
-  createReview: (data) => api.post('/reviews', data)
+  createReview: (data) => api.post('/reviews', data),
+  getAllReviews: () => api.get('/reviews/all')
 };
 
 export const eventService = {

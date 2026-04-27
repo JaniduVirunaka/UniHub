@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { eventService, registrationService } from '../../services/services';
+import { authService, eventService, registrationService } from '../../services/services';
 import PageWrapper from '../../components/PageWrapper';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
@@ -28,8 +28,8 @@ function KpiCard({ icon, value, label, color }) {
 
 const regStatusBadgeMap = { pending_payment: 'PENDING', registered: 'APPROVED', cancelled: 'INACTIVE' };
 
-const TABS = ['dashboard', 'events', 'registrations'];
-const TAB_LABELS = { dashboard: 'Dashboard', events: 'Manage Events', registrations: 'Registrations' };
+const TABS = ['dashboard', 'events', 'registrations', 'reviews'];
+const TAB_LABELS = { dashboard: 'Dashboard', events: 'Manage Events', registrations: 'Registrations', reviews: 'Reviews' };
 
 export const AdminDashboard = () => {
   const { user } = useAuth();
@@ -43,6 +43,7 @@ export const AdminDashboard = () => {
   const [verifyModal, setVerifyModal] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [reviews, setReviews] = useState([]);
 
   const [newEventForm, setNewEventForm] = useState({
     title: '', description: '', eventType: 'event', location: '',
@@ -77,6 +78,15 @@ export const AdminDashboard = () => {
     }
   }, [regPage, regFilter, regEventFilter]);
 
+  const fetchReviews = useCallback(async () => {
+    try {
+      const res = await authService.getAllReviews();
+      setReviews(res.data);
+    } catch (err) {
+      console.error('Failed to fetch reviews', err);
+    }
+  }, []);
+
   useEffect(() => {
     (async () => {
       try {
@@ -93,7 +103,8 @@ export const AdminDashboard = () => {
 
   useEffect(() => {
     if (activeTab === 'registrations') fetchRegistrations();
-  }, [activeTab, fetchRegistrations]);
+    if (activeTab === 'reviews') fetchReviews();
+  }, [activeTab, fetchRegistrations, fetchReviews]);
 
   const handleInputChange = e => {
     const { name, value } = e.target;
@@ -534,6 +545,37 @@ export const AdminDashboard = () => {
               <Button size="sm" variant="ghost" leftIcon={<ChevronLeft size={14} />} disabled={regPage === 1} onClick={() => setRegPage(p => p - 1)}>Prev</Button>
               <span className="text-sm text-slate-500 dark:text-slate-400">{regPage} / {totalPages}</span>
               <Button size="sm" variant="ghost" rightIcon={<ChevronRight size={14} />} disabled={regPage === totalPages} onClick={() => setRegPage(p => p + 1)}>Next</Button>
+            </div>
+          )}
+        </Card>
+      )}
+
+      {/* Tab: Reviews */}
+      {activeTab === 'reviews' && (
+        <Card variant="glass" padding="lg">
+          <h2 className="mb-5 text-lg font-bold text-slate-900 dark:text-white">Event Reviews</h2>
+          {reviews.length === 0 ? (
+            <p className="text-slate-500 dark:text-slate-400">No reviews found.</p>
+          ) : (
+            <div className="flex flex-col gap-4">
+              {reviews.map(review => (
+                <div key={review._id} className="rounded-2xl border-l-4 border-amber-500 bg-slate-50/60 p-4 dark:bg-white/5">
+                  <div className="mb-2 flex items-center justify-between">
+                    <div>
+                      <p className="font-bold text-slate-900 dark:text-white">{review.event?.title || 'Unknown Event'}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">by {review.user?.name || 'Unknown User'}</p>
+                    </div>
+                    <div className="flex items-center gap-1 text-amber-500">
+                      <span className="font-bold">{review.rating}</span>
+                      <span className="text-xs text-slate-400">/ 5</span>
+                    </div>
+                  </div>
+                  <p className="text-sm text-slate-700 dark:text-slate-300">{review.review}</p>
+                  <p className="mt-2 text-[10px] text-slate-400">
+                    {new Date(review.createdAt).toLocaleDateString()} at {new Date(review.createdAt).toLocaleTimeString()}
+                  </p>
+                </div>
+              ))}
             </div>
           )}
         </Card>
