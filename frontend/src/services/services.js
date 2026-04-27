@@ -23,6 +23,7 @@ export const eventService = {
   getEventById: (eventId) => api.get(`/events/${eventId}`),
   checkAvailability: (eventId) => api.get(`/events/${eventId}/availability`),
   createEvent: (eventData) => api.post('/events', eventData),
+  updateEvent: (eventId, data) => api.put(`/events/${eventId}`, data),
   deleteEvent: (eventId) => api.delete(`/events/${eventId}`),
   uploadEventImage: (formData) => api.post('/upload/event-poster', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }

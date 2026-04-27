@@ -9,7 +9,7 @@ import LoadingSpinner from '../../components/LoadingSpinner';
 import { AnimatePresence, motion } from 'framer-motion';
 import { scaleUp, staggerContainer, staggerItem } from '../../hooks/animationVariants';
 import { useCountUp } from '../../hooks/useCountUp';
-import { Calendar, Users, Clock, BarChart2, Trash2, Plus, X, ChevronLeft, ChevronRight, Star, MapPin, MessageSquare } from 'lucide-react';
+import { Calendar, Users, Clock, BarChart2, Trash2, Plus, X, ChevronLeft, ChevronRight, Star, MapPin, MessageSquare, Pencil, Save } from 'lucide-react';
 
 const inputCls = 'w-full rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/30 dark:border-white/10 dark:bg-slate-950/40 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500';
 
@@ -41,6 +41,7 @@ export const AdminDashboard = () => {
   const [regEventFilter, setRegEventFilter] = useState('');
   const [regPage, setRegPage] = useState(1);
   const [verifyModal, setVerifyModal] = useState(null);
+  const [editModal, setEditModal] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [reviews, setReviews] = useState([]);
@@ -149,6 +150,105 @@ export const AdminDashboard = () => {
       ...p,
       tickets: p.tickets.map((t, i) => i === idx ? { ...t, [field]: value } : t),
     }));
+  };
+
+  const openEditModal = (event) => {
+    const dateStr = event.date ? new Date(event.date).toISOString().split('T')[0] : '';
+    setEditModal({
+      eventId: event._id,
+      form: {
+        title:               event.title        || '',
+        description:         event.description  || '',
+        eventType:           event.eventType    || 'event',
+        location:            event.location     || '',
+        date:                dateStr,
+        time:                event.time         || '',
+        isUnlimitedCapacity: (event.totalCapacity >= 999999),
+        totalCapacity:       event.totalCapacity >= 999999 ? '' : String(event.totalCapacity || ''),
+        isTicketed:          event.isTicketed   || false,
+        tickets:             Array.isArray(event.tickets) && event.tickets.length > 0
+                               ? event.tickets.map(t => ({ name: t.name, price: String(t.price) }))
+                               : [],
+        bankAccount:         event.bankAccount    || '',
+        whatsappNumber:      event.whatsappNumber || '',
+        paymentMessage:      event.paymentMessage || 'Pay the payment for this bank account number and send the receipt for this WhatsApp number.',
+        imageFile:           null,
+        existingImage:       event.posterImage || event.thumbnail || null,
+      },
+    });
+  };
+
+  const setEditForm = (updater) =>
+    setEditModal(prev => ({ ...prev, form: updater(prev.form) }));
+
+  const handleEditInputChange = e => {
+    const { name, value } = e.target;
+    setEditForm(f => ({ ...f, [name]: value }));
+  };
+
+  const handleEditImageChange = e => {
+    if (e.target.files?.[0]) setEditForm(f => ({ ...f, imageFile: e.target.files[0] }));
+  };
+
+  const handleEditUnlimitedToggle = () =>
+    setEditForm(f => ({ ...f, isUnlimitedCapacity: !f.isUnlimitedCapacity, totalCapacity: !f.isUnlimitedCapacity ? '' : f.totalCapacity }));
+
+  const handleEditTicketedToggle = () =>
+    setEditForm(f => {
+      const nowTicketed = !f.isTicketed;
+      return { ...f, isTicketed: nowTicketed, tickets: nowTicketed && f.tickets.length === 0 ? [{ name: '', price: '' }] : f.tickets };
+    });
+
+  const handleEditAddTicket    = () => setEditForm(f => ({ ...f, tickets: [...f.tickets, { name: '', price: '' }] }));
+  const handleEditRemoveTicket = (idx) => setEditForm(f => ({ ...f, tickets: f.tickets.filter((_, i) => i !== idx) }));
+  const handleEditTicketChange = (idx, field, value) =>
+    setEditForm(f => ({ ...f, tickets: f.tickets.map((t, i) => i === idx ? { ...t, [field]: value } : t) }));
+
+  const handleUpdateEvent = async (e) => {
+    e.preventDefault();
+    const form = editModal.form;
+    try {
+      let thumbnailUrl = form.existingImage || '';
+      if (form.imageFile) {
+        const fd = new FormData();
+        fd.append('posterImage', form.imageFile);
+        const uploadRes = await eventService.uploadEventImage(fd);
+        thumbnailUrl = `http://localhost:5000/uploads/events/${uploadRes.data.filename}`;
+      }
+
+      const isTicketed = form.isTicketed;
+      const cleanTickets = isTicketed
+        ? form.tickets.filter(t => t.name.trim() && Number(t.price) >= 0).map(t => ({ name: t.name.trim(), price: Number(t.price) }))
+        : [];
+      const primaryPrice = cleanTickets.length > 0 ? Math.min(...cleanTickets.map(t => t.price)) : 0;
+      const priceOptions = cleanTickets.length > 0 ? [...new Set(cleanTickets.map(t => t.price))].sort((a, b) => a - b) : [];
+
+      await eventService.updateEvent(editModal.eventId, {
+        title:             form.title,
+        description:       form.description,
+        eventType:         form.eventType,
+        location:          form.location,
+        date:              form.date,
+        time:              form.time,
+        totalCapacity:     form.isUnlimitedCapacity ? 999999 : Number(form.totalCapacity),
+        isTicketed,
+        ticketPrice:       primaryPrice,
+        ticketPriceOptions: priceOptions,
+        tickets:           cleanTickets,
+        thumbnail:         thumbnailUrl,
+        posterImage:       thumbnailUrl,
+        bankAccount:       form.bankAccount,
+        whatsappNumber:    form.whatsappNumber,
+        paymentMessage:    form.paymentMessage,
+      });
+
+      const eventsRes = await eventService.getAllEvents();
+      setEvents(eventsRes.data);
+      setEditModal(null);
+      await fetchStats();
+    } catch (error) {
+      alert('Error updating event: ' + (error?.response?.data?.message || error.message));
+    }
   };
 
   const handleCreateEvent = async (e) => {
@@ -446,7 +546,10 @@ export const AdminDashboard = () => {
                 <div key={event._id} className="rounded-2xl border-l-4 border-indigo-500 bg-slate-50/60 p-4 dark:bg-white/5">
                   <div className="mb-1 flex items-start justify-between gap-2">
                     <h3 className="font-bold text-slate-900 dark:text-white">{event.title}</h3>
-                    <Button size="xs" variant="danger" leftIcon={<Trash2 size={12} />} aria-label="Delete event" onClick={() => handleDeleteEvent(event._id)} />
+                    <div className="flex shrink-0 gap-1.5">
+                      <Button size="xs" variant="secondary" leftIcon={<Pencil size={12} />} aria-label="Edit event" onClick={() => openEditModal(event)} />
+                      <Button size="xs" variant="danger"    leftIcon={<Trash2 size={12} />} aria-label="Delete event" onClick={() => handleDeleteEvent(event._id)} />
+                    </div>
                   </div>
                   <p className="text-sm text-slate-500 dark:text-slate-400">
                     {new Date(event.date).toLocaleDateString()} · {event.location}
@@ -666,6 +769,162 @@ export const AdminDashboard = () => {
           </div>
         );
       })()}
+
+      {/* Edit Event Modal */}
+      <AnimatePresence>
+        {editModal && (
+          <motion.div
+            key="edit-overlay"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 px-4 py-8 backdrop-blur-sm"
+            onClick={() => setEditModal(null)}
+          >
+            <motion.div
+              variants={scaleUp} initial="hidden" animate="visible" exit="exit"
+              onClick={e => e.stopPropagation()}
+              className="w-full max-w-xl rounded-3xl border border-white/80 bg-white/90 p-6 shadow-2xl backdrop-blur-xl dark:border-slate-700/40 dark:bg-slate-900/90"
+              role="dialog" aria-modal="true" aria-labelledby="edit-event-title"
+            >
+              <div className="mb-5 flex items-center justify-between border-b border-slate-200/60 pb-4 dark:border-white/10">
+                <h3 id="edit-event-title" className="text-lg font-bold text-slate-900 dark:text-white">Edit Event</h3>
+                <Button size="sm" variant="ghost" leftIcon={<X size={14} />} aria-label="Close" onClick={() => setEditModal(null)} />
+              </div>
+
+              <form onSubmit={handleUpdateEvent} className="flex flex-col gap-3">
+                <div>
+                  <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Title</label>
+                  <input name="title" value={editModal.form.title} onChange={handleEditInputChange} className={inputCls} required />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Type</label>
+                  <select name="eventType" value={editModal.form.eventType} onChange={handleEditInputChange} className={inputCls}>
+                    <option value="event">Event</option>
+                    <option value="club">Club</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Event Poster / Image</label>
+                  {editModal.form.existingImage && !editModal.form.imageFile && (
+                    <div className="mb-2 h-32 w-full overflow-hidden rounded-2xl border border-slate-200 dark:border-white/10">
+                      <img src={editModal.form.existingImage} alt="Current poster" className="h-full w-full object-cover" />
+                    </div>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/jpeg, image/png, image/webp, image/gif"
+                    onChange={handleEditImageChange}
+                    className="w-full text-sm text-slate-500 file:mr-4 file:rounded-xl file:border-0 file:bg-indigo-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-indigo-700 hover:file:bg-indigo-100 dark:text-slate-400 dark:file:bg-indigo-900/30 dark:file:text-indigo-400"
+                  />
+                  {editModal.form.imageFile && (
+                    <div className="mt-2 h-32 w-full overflow-hidden rounded-2xl border border-slate-200 dark:border-white/10">
+                      <img src={URL.createObjectURL(editModal.form.imageFile)} alt="New poster preview" className="h-full w-full object-cover" />
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Description</label>
+                  <textarea name="description" value={editModal.form.description} onChange={handleEditInputChange} rows={3} className={`${inputCls} min-h-[80px]`} />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Date</label>
+                    <input type="date" name="date" value={editModal.form.date} onChange={handleEditInputChange} className={inputCls} required />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Time</label>
+                    <input type="time" name="time" value={editModal.form.time} onChange={handleEditInputChange} className={inputCls} required />
+                  </div>
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Location</label>
+                  <input name="location" value={editModal.form.location} onChange={handleEditInputChange} className={inputCls} required />
+                </div>
+
+                {/* Unlimited capacity toggle */}
+                <div className="flex items-center gap-3 rounded-2xl bg-slate-50/60 p-3 dark:bg-white/5">
+                  <button
+                    type="button" role="switch" aria-checked={editModal.form.isUnlimitedCapacity}
+                    onClick={handleEditUnlimitedToggle}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 ${editModal.form.isUnlimitedCapacity ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-600'}`}
+                  >
+                    <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition-transform duration-200 ${editModal.form.isUnlimitedCapacity ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                  </button>
+                  <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">No capacity limit</span>
+                </div>
+                {!editModal.form.isUnlimitedCapacity && (
+                  <div>
+                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Capacity</label>
+                    <input type="number" name="totalCapacity" value={editModal.form.totalCapacity} onChange={handleEditInputChange} className={inputCls} required={!editModal.form.isUnlimitedCapacity} />
+                  </div>
+                )}
+
+                {/* Ticketed toggle */}
+                <div className="flex items-center gap-3 rounded-2xl bg-slate-50/60 p-3 dark:bg-white/5">
+                  <button
+                    type="button" role="switch" aria-checked={editModal.form.isTicketed}
+                    onClick={handleEditTicketedToggle}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 ${editModal.form.isTicketed ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-600'}`}
+                  >
+                    <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition-transform duration-200 ${editModal.form.isTicketed ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                  </button>
+                  <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">This is a ticketed event</span>
+                </div>
+
+                {editModal.form.isTicketed && (
+                  <div className="rounded-2xl border border-indigo-200/60 bg-indigo-50/40 p-4 dark:border-indigo-500/20 dark:bg-indigo-950/20">
+                    <div className="mb-3 flex items-center justify-between">
+                      <label className="text-xs font-bold uppercase tracking-wide text-indigo-600 dark:text-indigo-400">Ticket Types</label>
+                      <button type="button" onClick={handleEditAddTicket} className="inline-flex items-center gap-1 rounded-xl bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-indigo-700 active:bg-indigo-800">
+                        <Plus size={12} /> Add Ticket
+                      </button>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      {editModal.form.tickets.map((ticket, idx) => (
+                        <div key={idx} className="flex items-center gap-2">
+                          <input type="text" placeholder="Ticket name (e.g. VIP)" value={ticket.name} onChange={e => handleEditTicketChange(idx, 'name', e.target.value)}
+                            className="min-w-0 flex-1 rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/30 dark:border-white/10 dark:bg-slate-950/40 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500" required />
+                          <input type="number" placeholder="Price" value={ticket.price} onChange={e => handleEditTicketChange(idx, 'price', e.target.value)} min="0"
+                            className="w-24 shrink-0 rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/30 dark:border-white/10 dark:bg-slate-950/40 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500" required />
+                          <button type="button" onClick={() => handleEditRemoveTicket(idx)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-rose-500 transition hover:bg-rose-50 dark:hover:bg-rose-950/30" aria-label="Remove ticket">
+                            <X size={16} />
+                          </button>
+                        </div>
+                      ))}
+                      {editModal.form.tickets.length === 0 && (
+                        <p className="py-2 text-center text-xs italic text-slate-400">No tickets added yet. Click "Add Ticket" above.</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {editModal.form.isTicketed && (
+                  <>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Bank Account Number</label>
+                      <input name="bankAccount" value={editModal.form.bankAccount} onChange={handleEditInputChange} placeholder="e.g. 001234567890" className={inputCls} />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">WhatsApp Number</label>
+                      <input name="whatsappNumber" value={editModal.form.whatsappNumber} onChange={handleEditInputChange} placeholder="e.g. +94770001122" className={inputCls} />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Payment Message</label>
+                      <textarea name="paymentMessage" value={editModal.form.paymentMessage} onChange={handleEditInputChange} rows={2} className={`${inputCls} min-h-[60px]`} />
+                    </div>
+                  </>
+                )}
+
+                <div className="mt-2 flex gap-3">
+                  <Button type="submit" className="flex-1" leftIcon={<Save size={14} />}>Save Changes</Button>
+                  <Button type="button" variant="secondary" leftIcon={<X size={14} />} onClick={() => setEditModal(null)}>Cancel</Button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Verify Payment Modal */}
       <AnimatePresence>
