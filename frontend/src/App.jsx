@@ -61,6 +61,8 @@ import { Register as EventRegister } from './pages/events/EventRegister';
 import { UserDashboard } from './pages/events/UserDashboard';
 
 import './App.css';
+import NotificationDropdown from './components/NotificationDropdown';
+import Notifications from './pages/Notifications';
 
 const SPORT_ROLES = ['sport_admin', 'captain', 'vice_captain'];
 
@@ -173,6 +175,7 @@ function AppNav({ isDark, toggleTheme }) {
         {/* Desktop nav */}
         <nav className="hidden items-center gap-2 md:flex" aria-label="Main navigation">
           {navLinks}
+          {user && <NotificationDropdown />}
 
           {/* Theme toggle */}
           <button
@@ -223,6 +226,7 @@ function AppNav({ isDark, toggleTheme }) {
           >
             <div className="flex flex-col gap-1 px-4 py-4">
               {navLinks}
+              {user && <NavLink to="/notifications" onClick={() => setMenuOpen(false)}>Notifications</NavLink>}
             </div>
           </motion.nav>
         )}
@@ -291,6 +295,7 @@ function App() {
               <Route path="/signup"   element={user ? <Navigate to={getDashboardPath(user)} replace /> : <Signup />} />
               <Route path="/register" element={user ? <Navigate to={getDashboardPath(user)} replace /> : <Register />} />
               <Route path="/profile"  element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+              <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
 
               {/* ── Club module (public listing, protected detail pages) ── */}
               <Route path="/clubs" element={<ClubManagement />} />

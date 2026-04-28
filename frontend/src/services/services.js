@@ -31,6 +31,18 @@ export const registrationService = {
     api.patch(`/registrations/${registrationId}/verify-payment`, { action })
 };
 
+export const paymentService = {
+  createPayment: (registrationId, method = 'paypal') => api.post('/payments/create', { registrationId, method }),
+  approvePayment: (paymentId) => api.get(`/payments/approve/${paymentId}`),
+  rejectPayment: (paymentId) => api.get(`/payments/reject/${paymentId}`)
+};
+
+export const notificationService = {
+  getNotifications: () => api.get('/notifications'),
+  markRead: (id) => api.patch(`/notifications/${id}/read`),
+  markAllRead: () => api.patch('/notifications/mark-all-read')
+};
+
 export const cartService = {
   addToCart: (eventId, quantity) => api.post('/cart/add', { eventId, quantity }),
   getCart: () => api.get('/cart'),

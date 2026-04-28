@@ -1,6 +1,7 @@
 const JoinRequest = require('../models/JoinRequest');
 const Sport = require('../models/Sport');
 const User = require('../models/User');
+const Notification = require('../models/Notification');
 
 const canManage = async (user, sportId) => {
   if (user.role === 'sport_admin') return true;
@@ -23,6 +24,24 @@ const createRequest = async (req, res) => {
     if (existing) return res.status(400).json({ message: 'Request already sent' });
 
     const request = await JoinRequest.create({ sport: sportId, student: req.user._id, nic, name, registrationNumber, email, phone, height, weight, extraSkills });
+
+    // Notify the student that their request was submitted
+    await Notification.create({ recipient: req.user._id, message: `Join request submitted for ${sport.name}`, type: 'request', data: { requestId: request._id, sportId } });
+
+    // Notify sport managers and admins about new request
+    const admins = await User.find({ role: { $in: ['admin', 'sport_admin'] } });
+    const recipients = new Set(admins.map(a => String(a._id)));
+    if (sport.captain) recipients.add(String(sport.captain));
+    if (sport.viceCaptain) recipients.add(String(sport.viceCaptain));
+
+    const notifications = [];
+    recipients.forEach((r) => {
+      if (r !== String(req.user._id)) {
+        notifications.push({ recipient: r, message: `New join request for ${sport.name}`, type: 'request', data: { requestId: request._id, sportId } });
+      }
+    });
+    if (notifications.length) await Notification.insertMany(notifications);
+
     res.status(201).json(request);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -75,6 +94,9 @@ const approveRequest = async (req, res) => {
     const student = await User.findById(request.student);
     if (student) { student.sport = request.sport; await student.save(); }
 
+    // Notify the student
+    await Notification.create({ recipient: request.student, message: `Your join request for ${sport.name} was approved`, type: 'request', data: { requestId: request._id, sportId: request.sport } });
+
     res.json({ message: 'Request approved successfully' });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -93,6 +115,9 @@ const rejectRequest = async (req, res) => {
     request.status = 'REJECTED';
     request.approvedBy = req.user._id;
     await request.save();
+
+    // Notify the student
+    await Notification.create({ recipient: request.student, message: `Your join request for ${sport.name} was rejected`, type: 'request', data: { requestId: request._id, sportId: request.sport } });
 
     res.json({ message: 'Request rejected successfully' });
   } catch (error) {

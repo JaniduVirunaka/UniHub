@@ -3,6 +3,7 @@ import PageWrapper from '../../components/PageWrapper';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import { ArrowLeft, Ticket, Building2, MessageCircle, CheckCircle } from 'lucide-react';
+import { paymentService } from '../../services/services';
 import { motion } from 'framer-motion';
 import { staggerContainer, staggerItem } from '../../hooks/animationVariants';
 
@@ -43,6 +44,20 @@ export const Checkout = () => {
                     <p className="text-xs text-slate-400">Bank Account</p>
                     <p className="font-semibold text-slate-900 dark:text-white">{item.bankAccount || 'N/A'}</p>
                   </div>
+                </div>
+                <div className="mt-3 flex gap-2">
+                  <Button variant="secondary" onClick={async () => {
+                    try {
+                      if (!item.registrationId) { alert('No registration found'); return; }
+                      const res = await paymentService.createPayment(item.registrationId, 'paypal');
+                      const paymentId = res.data.paymentId;
+                      // Immediately simulate approval (server will mark registration as paid)
+                      const approve = await paymentService.approvePayment(paymentId);
+                      alert('Payment approved. Your registration is marked as paid. Go to My Events to view it.');
+                    } catch (err) {
+                      alert('Failed to complete payment: ' + (err.response?.data?.message || err.message));
+                    }
+                  }}>Pay with PayPal</Button>
                 </div>
                 <div className="flex items-center gap-3 rounded-2xl bg-slate-50/60 p-3 dark:bg-white/5">
                   <MessageCircle size={16} className="shrink-0 text-emerald-500" />

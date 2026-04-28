@@ -1,5 +1,7 @@
 const Registration = require('../models/Registration');
 const Event = require('../models/Event');
+const Notification = require('../models/Notification');
+const User = require('../models/User');
 
 exports.registerEvent = async (req, res, next) => {
   try {
@@ -31,6 +33,9 @@ exports.registerEvent = async (req, res, next) => {
     }
 
     const registration = await Registration.create({ userId, eventId, ticketsBooked: 1 });
+
+    // Notify user
+    await Notification.create({ recipient: userId, message: `Registered for event ${event.title}`, type: 'registration', data: { registrationId: registration._id, eventId: event._id } });
 
     res.status(201).json({ message: 'Registered successfully', registration });
   } catch (error) {
@@ -151,6 +156,14 @@ exports.verifyPayment = async (req, res, next) => {
         $inc: { availableTickets: registration.ticketsBooked }
       });
     }
+
+    // Notify the user about verification result
+    await Notification.create({ recipient: registration.userId, message: action === 'approve' ? `Payment approved for your registration ${registration._id}` : `Payment rejected for your registration ${registration._id}`, type: 'payment', data: { registrationId: registration._id } });
+
+    // Optionally notify admins
+    const admins = await User.find({ role: { $in: ['admin', 'sport_admin'] } });
+    const adminNotifications = admins.map(a => ({ recipient: a._id, message: `Registration ${registration._id} payment ${action}`, type: 'payment', data: { registrationId: registration._id } }));
+    if (adminNotifications.length) await Notification.insertMany(adminNotifications);
 
     res.json({ message: action === 'approve' ? 'Payment verified' : 'Payment rejected', registration });
   } catch (error) {
