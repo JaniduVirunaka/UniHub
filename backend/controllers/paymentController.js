@@ -39,16 +39,17 @@ exports.approvePayment = async (req, res, next) => {
 
     payment.status = 'APPROVED';
     await payment.save();
+    
+    // Do NOT change registration status here — admin must still verify the payment.
+    // Notify the paying user that payment succeeded (registration still pending admin verification)
+    await Notification.create({ recipient: payment.user, message: `Payment successful for registration ${payment.registration._id}. Awaiting admin verification.`, type: 'payment', data: { registrationId: payment.registration._id, paymentId: payment._id } });
 
-    // Update registration to registered
-    const registration = await Registration.findById(payment.registration._id);
-    registration.status = 'registered';
-    await registration.save();
+    // Notify admins that a payment was completed for review
+    const admins = await require('../models/User').find({ role: { $in: ['admin', 'sport_admin'] } }).lean();
+    const adminNotifications = admins.map(a => ({ recipient: a._id, message: `Payment completed for registration ${payment.registration._id}`, type: 'payment', data: { registrationId: payment.registration._id, paymentId: payment._id } }));
+    if (adminNotifications.length) await Notification.insertMany(adminNotifications);
 
-    // Notify user
-    await Notification.create({ recipient: payment.user, message: `Payment successful for registration ${registration._id}`, type: 'payment', data: { registrationId: registration._id, paymentId: payment._id } });
-
-    res.json({ message: 'Payment approved and registration marked as paid', registration });
+    res.json({ message: 'Payment marked as completed. Awaiting admin verification.' });
   } catch (error) {
     next(error);
   }
@@ -64,17 +65,15 @@ exports.rejectPayment = async (req, res, next) => {
 
     payment.status = 'REJECTED';
     await payment.save();
+    
+    // Notify the user and admins that provider rejected the payment. Registration remains pending_payment so user may retry.
+    await Notification.create({ recipient: payment.user, message: `Payment was rejected for registration ${payment.registration._id}. Please retry or contact support.`, type: 'payment', data: { registrationId: payment.registration._id, paymentId: payment._id } });
 
-    const registration = await Registration.findById(payment.registration._id);
-    registration.status = 'cancelled';
-    await registration.save();
+    const admins = await require('../models/User').find({ role: { $in: ['admin', 'sport_admin'] } }).lean();
+    const adminNotifications = admins.map(a => ({ recipient: a._id, message: `Payment rejected for registration ${payment.registration._id}`, type: 'payment', data: { registrationId: payment.registration._id, paymentId: payment._id } }));
+    if (adminNotifications.length) await Notification.insertMany(adminNotifications);
 
-    // restore tickets
-    await Event.findByIdAndUpdate(registration.eventId, { $inc: { availableTickets: registration.ticketsBooked } });
-
-    await Notification.create({ recipient: payment.user, message: `Payment rejected for registration ${registration._id}`, type: 'payment', data: { registrationId: registration._id, paymentId: payment._id } });
-
-    res.json({ message: 'Payment rejected and registration cancelled', registration });
+    res.json({ message: 'Payment marked as rejected' });
   } catch (error) {
     next(error);
   }

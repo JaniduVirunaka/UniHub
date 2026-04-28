@@ -22,7 +22,12 @@ export default function useNotifications(pollInterval = 15000) {
   useEffect(() => {
     fetchNotifications();
     const id = setInterval(fetchNotifications, pollInterval);
-    return () => clearInterval(id);
+    const onRefresh = () => fetchNotifications();
+    window.addEventListener('notifications:refresh', onRefresh);
+    return () => {
+      clearInterval(id);
+      window.removeEventListener('notifications:refresh', onRefresh);
+    };
   }, [fetchNotifications, pollInterval]);
 
   const markRead = async (id) => {
