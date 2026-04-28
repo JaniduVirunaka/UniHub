@@ -99,7 +99,7 @@ export default function PaymentModal({ isOpen, onClose, registrationId, amount, 
             <label className="mb-1 block text-xs font-medium text-slate-600">Card number</label>
             <div className="flex items-center gap-2">
               <input
-                className="w-full rounded-md border px-3 py-2"
+                className="w-full rounded-md border px-3 py-2 bg-white/60 dark:bg-slate-800 text-indigo-900 dark:text-indigo-200 placeholder:text-slate-400 dark:placeholder:text-slate-400 border-slate-200 dark:border-white/15"
                 value={cardNumber}
                 onChange={(e) => setCardNumber(e.target.value)}
                 placeholder="4242 4242 4242 4242"
@@ -111,19 +111,19 @@ export default function PaymentModal({ isOpen, onClose, registrationId, amount, 
 
           <div>
             <label className="mb-1 block text-xs font-medium text-slate-600">Name on card</label>
-            <input className="w-full rounded-md border px-3 py-2" value={cardName} onChange={(e) => setCardName(e.target.value)} placeholder="Full name" />
+            <input className="w-full rounded-md border px-3 py-2 bg-white/60 dark:bg-slate-800 text-indigo-900 dark:text-indigo-200 placeholder:text-slate-400 dark:placeholder:text-slate-400 border-slate-200 dark:border-white/15" value={cardName} onChange={(e) => setCardName(e.target.value)} placeholder="Full name" />
             {errors.cardName && <div className="mt-1 text-xs text-rose-500">{errors.cardName}</div>}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="mb-1 block text-xs font-medium text-slate-600">Expiry (MM/YY)</label>
-              <input className="w-full rounded-md border px-3 py-2" value={expiry} onChange={(e) => setExpiry(e.target.value)} placeholder="08/26" />
+              <input className="w-full rounded-md border px-3 py-2 bg-white/60 dark:bg-slate-800 text-indigo-900 dark:text-indigo-200 placeholder:text-slate-400 dark:placeholder:text-slate-400 border-slate-200 dark:border-white/15" value={expiry} onChange={(e) => setExpiry(e.target.value)} placeholder="08/26" />
               {errors.expiry && <div className="mt-1 text-xs text-rose-500">{errors.expiry}</div>}
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-slate-600">CVV</label>
-              <input className="w-full rounded-md border px-3 py-2" value={cvv} onChange={(e) => setCvv(e.target.value)} placeholder="123" inputMode="numeric" />
+              <input className="w-full rounded-md border px-3 py-2 bg-white/60 dark:bg-slate-800 text-indigo-900 dark:text-indigo-200 placeholder:text-slate-400 dark:placeholder:text-slate-400 border-slate-200 dark:border-white/15" value={cvv} onChange={(e) => setCvv(e.target.value)} placeholder="123" inputMode="numeric" />
               {errors.cvv && <div className="mt-1 text-xs text-rose-500">{errors.cvv}</div>}
             </div>
           </div>
