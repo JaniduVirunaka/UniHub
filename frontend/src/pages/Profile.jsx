@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
-import { User, Mail, Hash, BookOpen, Phone, Calendar, LogOut, Pencil, X, Save, Camera, Loader2, Lock, Eye, EyeOff, KeyRound } from 'lucide-react';
+import { User, Mail, Hash, BookOpen, Phone, Calendar, LogOut, Pencil, X, Save, Camera } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { authService } from '../services/services';
+import api from '../config/api';
 import PageWrapper from '../components/PageWrapper';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
@@ -31,6 +32,10 @@ function Profile() {
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [error, setError]   = useState('');
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
 
   const [showPwSection, setShowPwSection] = useState(false);
   const [pwForm, setPwForm] = useState({ current: '', newPw: '', confirm: '' });
@@ -106,6 +111,8 @@ function Profile() {
   };
 
   const initials = currentUser.name.charAt(0).toUpperCase();
+  const uploadsBase = api.defaults.baseURL ? api.defaults.baseURL.replace('/api', '') : '';
+  const avatarUrl = currentUser.profilePicture ? `${uploadsBase}/uploads/profiles/${currentUser.profilePicture}` : null;
 
   return (
     <PageWrapper title="My Profile">
@@ -115,28 +122,57 @@ function Profile() {
           {/* ── Sidebar ── */}
           <Card variant="glass" padding="lg" className="flex flex-col items-center gap-4 text-center">
             {/* Avatar */}
-            <div className="relative group cursor-pointer rounded-full h-24 w-24">
-              {currentUser.profilePicture ? (
-                <div className="h-full w-full overflow-hidden rounded-full shadow-lg shadow-indigo-500/30 border-2 border-indigo-500 dark:border-indigo-400 bg-white">
-                  <img src={currentUser.profilePicture} alt="Profile" className="h-full w-full object-cover" />
-                </div>
-              ) : (
-                <div className="flex h-full w-full items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-3xl font-bold text-white shadow-lg shadow-indigo-500/30">
-                  {initials}
+            <div className="flex flex-col items-center gap-3">
+              <div className="relative">
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="avatar" className="h-24 w-24 rounded-full object-cover shadow-lg" />
+                ) : (
+                  <div className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-3xl font-bold text-white shadow-lg shadow-indigo-500/30">
+                    {initials}
+                  </div>
+                )}
+              </div>
+
+              <input id="profilePicInput" type="file" accept="image/*" className="hidden" onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (!f) return;
+                setSelectedFile(f);
+                setPreview(URL.createObjectURL(f));
+                setUploadError('');
+              }} />
+
+              {editing && (
+                <label htmlFor="profilePicInput" className="inline-flex items-center gap-2 text-sm font-medium text-indigo-600 cursor-pointer">
+                  <Camera size={14} /> Change picture
+                </label>
+              )}
+
+              {preview && (
+                <div className="mt-2 flex w-full items-center gap-2">
+                  <img src={preview} alt="preview" className="h-12 w-12 rounded-full object-cover" />
+                  <div className="flex gap-2">
+                    <button type="button" className="rounded-2xl bg-indigo-600 px-3 py-1 text-white" onClick={async () => {
+                      setUploading(true);
+                      setUploadError('');
+                      try {
+                        const fd = new FormData();
+                        fd.append('profilePicture', selectedFile);
+                        const res = await authService.uploadProfilePicture(fd);
+                        updateUser(res.data.user);
+                        setSelectedFile(null);
+                        setPreview(null);
+                      } catch (err) {
+                        setUploadError(err?.response?.data?.message || 'Upload failed');
+                      } finally {
+                        setUploading(false);
+                      }
+                    }}>{uploading ? 'Uploading...' : 'Upload'}</button>
+                    <button type="button" className="rounded-2xl bg-white/10 px-3 py-1" onClick={() => { setPreview(null); setSelectedFile(null); }}>{'Cancel'}</button>
+                  </div>
                 </div>
               )}
-              
-              {/* Upload Overlay */}
-              <label className="absolute inset-0 flex items-center justify-center bg-black/60 text-white opacity-0 group-hover:opacity-100 rounded-full transition-opacity cursor-pointer">
-                {uploadingImage ? <Loader2 size={24} className="animate-spin" /> : <Camera size={24} />}
-                <input 
-                  type="file" 
-                  className="hidden" 
-                  accept="image/jpeg, image/png, image/webp, image/gif" 
-                  onChange={handleDirectUpload} 
-                  disabled={uploadingImage}
-                />
-              </label>
+
+              {uploadError && <p className="text-xs text-rose-600">{uploadError}</p>}
             </div>
 
             <div>

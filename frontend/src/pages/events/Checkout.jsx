@@ -3,6 +3,9 @@ import PageWrapper from '../../components/PageWrapper';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import { ArrowLeft, Ticket, Building2, MessageCircle, CheckCircle } from 'lucide-react';
+import { paymentService } from '../../services/services';
+import PaymentModal from '../../components/PaymentModal';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { staggerContainer, staggerItem } from '../../hooks/animationVariants';
 
@@ -23,6 +26,8 @@ export const Checkout = () => {
   }
 
   const { items = [], grandTotal, note } = data;
+  const [selectedForPayment, setSelectedForPayment] = useState(null);
+  const [modalOpen, setModalOpen] = useState(false);
 
   return (
     <PageWrapper title="Payment Details" subtitle={note} className="max-w-3xl">
@@ -46,6 +51,9 @@ export const Checkout = () => {
                     <p className="text-xs text-slate-400">Bank Account</p>
                     <p className="font-semibold text-slate-900 dark:text-white">{item.bankAccount || 'N/A'}</p>
                   </div>
+                </div>
+                <div className="mt-3 flex gap-2">
+                  <Button variant="secondary" onClick={() => { setSelectedForPayment(item); setModalOpen(true); }}>Pay with PayPal</Button>
                 </div>
                 <div className="flex items-center gap-3 rounded-2xl bg-slate-50/60 p-3 dark:bg-white/5">
                   <MessageCircle size={16} className="shrink-0 text-emerald-500" />
@@ -85,6 +93,15 @@ export const Checkout = () => {
           <Button onClick={() => navigate('/events/my-events')}>Go to My Events</Button>
         </div>
       </motion.div>
+      {modalOpen && selectedForPayment && (
+        <PaymentModal
+          isOpen={modalOpen}
+          onClose={() => { setModalOpen(false); setSelectedForPayment(null); }}
+          registrationId={selectedForPayment.registrationId}
+          amount={selectedForPayment.totalPrice}
+          title={selectedForPayment.title}
+        />
+      )}
     </PageWrapper>
   );
 };

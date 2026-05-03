@@ -23,6 +23,8 @@ const cartRouter    = require('./routes/cartRoutes');
 const regRouter     = require('./routes/registrationRoutes');
 const reviewsRouter = require('./routes/reviewsRoutes');
 const uploadRouter  = require('./routes/uploadRoutes');
+const notificationRouter = require('./routes/notificationRoutes');
+const paymentRouter = require('./routes/paymentRoutes');
 
 app.use('/api/auth',          authRouter);
 app.use('/api/clubs',         clubRouter);
@@ -33,6 +35,8 @@ app.use('/api/cart',          cartRouter);
 app.use('/api/registrations', regRouter);
 app.use('/api/reviews',       reviewsRouter);
 app.use('/api/upload',        uploadRouter);
+app.use('/api/notifications', notificationRouter);
+app.use('/api/payments', paymentRouter);
 
 // Global error handler (used by event controllers that call next(error))
 app.use((err, req, res, next) => {

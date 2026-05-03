@@ -4,6 +4,7 @@ const authMiddleware = require('../middleware/authMiddleware');
 const Cart = require('../models/Cart');
 const Event = require('../models/Event');
 const Registration = require('../models/Registration');
+const Notification = require('../models/Notification');
 
 // POST /api/cart/add - Add items to cart (ticketed events only)
 router.post('/add', authMiddleware.protect, async (req, res, next) => {
@@ -127,6 +128,9 @@ router.post('/checkout', authMiddleware.protect, async (req, res, next) => {
         ticketsBooked: item.quantity,
         selectedTicketName: selectedTicketName
       });
+
+      // Notify user that registration is pending payment
+      await Notification.create({ recipient: userId, message: `Registration pending payment for ${event.title}`, type: 'registration', data: { registrationId: registration._id, eventId: event._id } });
 
       checkoutItems.push({
         eventId: event._id,

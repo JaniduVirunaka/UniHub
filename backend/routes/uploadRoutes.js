@@ -4,25 +4,27 @@ const path = require('path');
 const fs = require('fs');
 const router = express.Router();
 const { protect } = require('../middleware/authMiddleware');
+const User = require('../models/User');
 
 // Storage config
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    let destPath = 'uploads/';
+    let dir;
     if (file.fieldname === 'profilePicture') {
-      destPath = 'uploads/profiles/';
+      dir = 'uploads/profiles/';
     } else if (file.fieldname === 'posterImage') {
-      destPath = 'uploads/events/';
+      dir = 'uploads/events/';
     } else if (file.fieldname === 'logo') {
-      destPath = 'uploads/logos/';
+      dir = 'uploads/logos/';
+    } else {
+      dir = 'uploads/';
     }
-    
-    // Create directory if it doesn't exist
-    if (!fs.existsSync(destPath)) {
-      fs.mkdirSync(destPath, { recursive: true });
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+    } catch (err) {
+      // ignore mkdir errors and let multer surface if something else fails
     }
-    
-    cb(null, destPath);
+    cb(null, dir);
   },
   filename: (req, file, cb) => {
     cb(null, Date.now() + path.extname(file.originalname));
@@ -44,9 +46,16 @@ const upload = multer({
 });
 
 // Routes
-router.post('/profile-picture', protect, upload.single('profilePicture'), (req, res) => {
-  if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
-  res.json({ message: 'Profile picture uploaded', filename: req.file.filename });
+router.post('/profile-picture', protect, upload.single('profilePicture'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
+    const filename = req.file.filename;
+    const user = await User.findByIdAndUpdate(req.user._id, { profilePicture: filename }, { new: true }).select('-password');
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    res.json({ message: 'Profile picture uploaded', user });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
 });
 
 router.post('/event-poster', protect, upload.single('posterImage'), (req, res) => {

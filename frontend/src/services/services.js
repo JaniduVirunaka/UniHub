@@ -5,6 +5,7 @@ export const authService = {
   login: (email, password) => api.post('/auth/login', { email, password }),
   getProfile: () => api.get('/auth/profile'),
   updateProfile: (profileData) => api.put('/auth/profile', profileData),
+  uploadProfilePicture: (formData) => api.post('/upload/profile-picture', formData),
   logout: () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
@@ -38,6 +39,18 @@ export const registrationService = {
   getStats: () => api.get('/registrations/stats'),
   verifyPayment: (registrationId, action) =>
     api.patch(`/registrations/${registrationId}/verify-payment`, { action })
+};
+
+export const paymentService = {
+  createPayment: (registrationId, method = 'paypal') => api.post('/payments/create', { registrationId, method }),
+  approvePayment: (paymentId) => api.get(`/payments/approve/${paymentId}`),
+  rejectPayment: (paymentId) => api.get(`/payments/reject/${paymentId}`)
+};
+
+export const notificationService = {
+  getNotifications: () => api.get('/notifications'),
+  markRead: (id) => api.patch(`/notifications/${id}/read`),
+  markAllRead: () => api.patch('/notifications/mark-all-read')
 };
 
 export const cartService = {
