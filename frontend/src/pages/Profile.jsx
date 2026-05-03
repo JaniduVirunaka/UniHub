@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
-import { User, Mail, Hash, BookOpen, Phone, Calendar, LogOut, Pencil, X, Save } from 'lucide-react';
+import { User, Mail, Hash, BookOpen, Phone, Calendar, LogOut, Pencil, X, Save, Camera } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { authService } from '../services/services';
+import api from '../config/api';
 import PageWrapper from '../components/PageWrapper';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
@@ -30,6 +31,10 @@ function Profile() {
   });
   const [saving, setSaving] = useState(false);
   const [error, setError]   = useState('');
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
 
   if (!currentUser) return <Navigate to="/login" replace />;
 
@@ -51,6 +56,8 @@ function Profile() {
   };
 
   const initials = currentUser.name.charAt(0).toUpperCase();
+  const uploadsBase = api.defaults.baseURL ? api.defaults.baseURL.replace('/api', '') : '';
+  const avatarUrl = currentUser.profilePicture ? `${uploadsBase}/uploads/profiles/${currentUser.profilePicture}` : null;
 
   return (
     <PageWrapper title="My Profile">
@@ -60,8 +67,57 @@ function Profile() {
           {/* ── Sidebar ── */}
           <Card variant="glass" padding="lg" className="flex flex-col items-center gap-4 text-center">
             {/* Avatar */}
-            <div className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-3xl font-bold text-white shadow-lg shadow-indigo-500/30">
-              {initials}
+            <div className="flex flex-col items-center gap-3">
+              <div className="relative">
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="avatar" className="h-24 w-24 rounded-full object-cover shadow-lg" />
+                ) : (
+                  <div className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-3xl font-bold text-white shadow-lg shadow-indigo-500/30">
+                    {initials}
+                  </div>
+                )}
+              </div>
+
+              <input id="profilePicInput" type="file" accept="image/*" className="hidden" onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (!f) return;
+                setSelectedFile(f);
+                setPreview(URL.createObjectURL(f));
+                setUploadError('');
+              }} />
+
+              {editing && (
+                <label htmlFor="profilePicInput" className="inline-flex items-center gap-2 text-sm font-medium text-indigo-600 cursor-pointer">
+                  <Camera size={14} /> Change picture
+                </label>
+              )}
+
+              {preview && (
+                <div className="mt-2 flex w-full items-center gap-2">
+                  <img src={preview} alt="preview" className="h-12 w-12 rounded-full object-cover" />
+                  <div className="flex gap-2">
+                    <button type="button" className="rounded-2xl bg-indigo-600 px-3 py-1 text-white" onClick={async () => {
+                      setUploading(true);
+                      setUploadError('');
+                      try {
+                        const fd = new FormData();
+                        fd.append('profilePicture', selectedFile);
+                        const res = await authService.uploadProfilePicture(fd);
+                        updateUser(res.data.user);
+                        setSelectedFile(null);
+                        setPreview(null);
+                      } catch (err) {
+                        setUploadError(err?.response?.data?.message || 'Upload failed');
+                      } finally {
+                        setUploading(false);
+                      }
+                    }}>{uploading ? 'Uploading...' : 'Upload'}</button>
+                    <button type="button" className="rounded-2xl bg-white/10 px-3 py-1" onClick={() => { setPreview(null); setSelectedFile(null); }}>{'Cancel'}</button>
+                  </div>
+                </div>
+              )}
+
+              {uploadError && <p className="text-xs text-rose-600">{uploadError}</p>}
             </div>
 
             <div>

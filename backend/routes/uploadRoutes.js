@@ -1,21 +1,30 @@
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
 const router = express.Router();
 const { protect } = require('../middleware/authMiddleware');
+const User = require('../models/User');
 
 // Storage config
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
+    let dir;
     if (file.fieldname === 'profilePicture') {
-      cb(null, 'uploads/profiles/');
+      dir = 'uploads/profiles/';
     } else if (file.fieldname === 'posterImage') {
-      cb(null, 'uploads/events/');
+      dir = 'uploads/events/';
     } else if (file.fieldname === 'logo') {
-      cb(null, 'uploads/logos/');
+      dir = 'uploads/logos/';
     } else {
-      cb(null, 'uploads/');
+      dir = 'uploads/';
     }
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+    } catch (err) {
+      // ignore mkdir errors and let multer surface if something else fails
+    }
+    cb(null, dir);
   },
   filename: (req, file, cb) => {
     cb(null, Date.now() + path.extname(file.originalname));
@@ -37,9 +46,16 @@ const upload = multer({
 });
 
 // Routes
-router.post('/profile-picture', protect, upload.single('profilePicture'), (req, res) => {
-  if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
-  res.json({ message: 'Profile picture uploaded', filename: req.file.filename });
+router.post('/profile-picture', protect, upload.single('profilePicture'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
+    const filename = req.file.filename;
+    const user = await User.findByIdAndUpdate(req.user._id, { profilePicture: filename }, { new: true }).select('-password');
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    res.json({ message: 'Profile picture uploaded', user });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
 });
 
 router.post('/event-poster', protect, upload.single('posterImage'), (req, res) => {
