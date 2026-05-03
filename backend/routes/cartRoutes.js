@@ -10,12 +10,13 @@ const Notification = require('../models/Notification');
 router.post('/add', authMiddleware.protect, async (req, res, next) => {
   try {
     const userId = req.user._id;
-    const { eventId, quantity } = req.body;
+    const { eventId, quantity, selectedTicketName } = req.body;
+    const ticketName = selectedTicketName || '';
 
     const qty = Math.max(1, parseInt(quantity || 1, 10));
     const event = await Event.findById(eventId).lean();
     if (!event) return res.status(404).json({ message: 'Event not found' });
-    if (!event.ticketPrice || event.ticketPrice <= 0) {
+    if (!event.ticketPrice && (!event.tickets || event.tickets.length === 0) && !event.isTicketed) {
       return res.status(400).json({ message: 'This event does not require a ticket' });
     }
 
@@ -25,11 +26,11 @@ router.post('/add', authMiddleware.protect, async (req, res, next) => {
       { new: true, upsert: true }
     );
 
-    const idx = cart.items.findIndex((i) => String(i.eventId) === String(eventId));
+    const idx = cart.items.findIndex((i) => String(i.eventId) === String(eventId) && i.selectedTicketName === ticketName);
     if (idx >= 0) {
       cart.items[idx].quantity += qty;
     } else {
-      cart.items.push({ eventId, quantity: qty });
+      cart.items.push({ eventId, quantity: qty, selectedTicketName: ticketName });
     }
     cart.updatedAt = new Date();
     await cart.save();
@@ -62,13 +63,13 @@ router.post('/checkout', authMiddleware.protect, async (req, res, next) => {
     let cartItems = [];
 
     if (requestItems && requestItems.length > 0) {
-      cartItems = requestItems.map((i) => ({ eventId: i.eventId, quantity: Math.max(1, parseInt(i.quantity || 1, 10)) }));
+      cartItems = requestItems.map((i) => ({ eventId: i.eventId, quantity: Math.max(1, parseInt(i.quantity || 1, 10)), selectedTicketName: i.selectedTicketName || '' }));
     } else {
       cart = await Cart.findOne({ userId }).populate('items.eventId');
       if (!cart || cart.items.length === 0) {
         return res.status(400).json({ message: 'Cart is empty' });
       }
-      cartItems = cart.items.map((i) => ({ eventId: i.eventId?._id || i.eventId, quantity: i.quantity }));
+      cartItems = cart.items.map((i) => ({ eventId: i.eventId?._id || i.eventId, quantity: i.quantity, selectedTicketName: i.selectedTicketName || '' }));
     }
 
     const hydratedItems = [];
@@ -76,7 +77,7 @@ router.post('/checkout', authMiddleware.protect, async (req, res, next) => {
     for (const item of cartItems) {
       const event = await Event.findById(item.eventId);
       if (!event) return res.status(400).json({ message: 'Invalid event in cart' });
-      if (!event.ticketPrice || event.ticketPrice <= 0) {
+      if (!event.ticketPrice && (!event.tickets || event.tickets.length === 0) && !event.isTicketed) {
         return res.status(400).json({ message: `Event "${event.title}" is not ticketed` });
       }
       if (event.availableTickets < item.quantity) {
@@ -90,6 +91,16 @@ router.post('/checkout', authMiddleware.protect, async (req, res, next) => {
     // Reserve tickets by creating pending registrations
     for (const item of hydratedItems) {
       const event = item.event;
+
+      // Determine the unit price based on ticket type selection
+      let unitPrice = event.ticketPrice || 0;
+      const selectedTicketName = item.selectedTicketName || '';
+      if (selectedTicketName && Array.isArray(event.tickets) && event.tickets.length > 0) {
+        const matchedTicket = event.tickets.find(t => t.name === selectedTicketName);
+        if (matchedTicket) {
+          unitPrice = matchedTicket.price;
+        }
+      }
 
       const existing = await Registration.findOne({
         userId,
@@ -114,7 +125,8 @@ router.post('/checkout', authMiddleware.protect, async (req, res, next) => {
         userId,
         eventId: event._id,
         status: 'pending_payment',
-        ticketsBooked: item.quantity
+        ticketsBooked: item.quantity,
+        selectedTicketName: selectedTicketName
       });
 
       // Notify user that registration is pending payment
@@ -124,8 +136,9 @@ router.post('/checkout', authMiddleware.protect, async (req, res, next) => {
         eventId: event._id,
         title: event.title,
         quantity: item.quantity,
-        unitPrice: event.ticketPrice,
-        totalPrice: event.ticketPrice * item.quantity,
+        selectedTicketName: selectedTicketName,
+        unitPrice: unitPrice,
+        totalPrice: unitPrice * item.quantity,
         bankAccount: event.bankAccount,
         whatsappNumber: event.whatsappNumber,
         paymentMessage:

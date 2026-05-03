@@ -11,7 +11,12 @@ export const authService = {
     localStorage.removeItem('user');
   },
   getReviewsForEvent: (eventId) => api.get(`/reviews/event/${eventId}`),
-  createReview: (data) => api.post('/reviews', data)
+  createReview: (data) => api.post('/reviews', data),
+  getAllReviews: () => api.get('/reviews/all'),
+  uploadProfilePicture: (formData) => api.post('/upload/profile-picture', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  changePassword: (data) => api.put('/auth/change-password', data)
 };
 
 export const eventService = {
@@ -19,7 +24,11 @@ export const eventService = {
   getEventById: (eventId) => api.get(`/events/${eventId}`),
   checkAvailability: (eventId) => api.get(`/events/${eventId}/availability`),
   createEvent: (eventData) => api.post('/events', eventData),
-  deleteEvent: (eventId) => api.delete(`/events/${eventId}`)
+  updateEvent: (eventId, data) => api.put(`/events/${eventId}`, data),
+  deleteEvent: (eventId) => api.delete(`/events/${eventId}`),
+  uploadEventImage: (formData) => api.post('/upload/event-poster', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
 };
 
 export const registrationService = {
@@ -45,7 +54,7 @@ export const notificationService = {
 };
 
 export const cartService = {
-  addToCart: (eventId, quantity) => api.post('/cart/add', { eventId, quantity }),
+  addToCart: (eventId, quantity, selectedTicketName) => api.post('/cart/add', { eventId, quantity, selectedTicketName }),
   getCart: () => api.get('/cart'),
   checkout: (items) => api.post('/cart/checkout', { items })
 };

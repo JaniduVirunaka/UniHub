@@ -16,6 +16,7 @@ dist/
 # Uploads (user-generated files)
 backend/uploads/*
 !backend/uploads/.gitkeep
+frontend/playwrite-report/
 
 # Logs
 *.log

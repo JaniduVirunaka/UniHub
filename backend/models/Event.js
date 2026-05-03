@@ -29,12 +29,23 @@ const eventSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
+  isTicketed: {
+    type: Boolean,
+    default: false
+  },
   ticketPrice: {
     type: Number,
     default: 0
   },
   ticketPriceOptions: {
     type: [Number],
+    default: []
+  },
+  tickets: {
+    type: [{
+      name: { type: String, required: true },
+      price: { type: Number, required: true, min: 0 }
+    }],
     default: []
   },
   bankAccount: String,

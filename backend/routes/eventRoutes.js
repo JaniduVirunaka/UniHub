@@ -42,7 +42,8 @@ router.get('/:id/availability', async (req, res, next) => {
 const ALLOWED_EVENT_FIELDS = [
   'title', 'description', 'eventType', 'thumbnail', 'posterImage', 'ticketImage',
   'date', 'time', 'location', 'organizer', 'totalCapacity', 'availableTickets',
-  'ticketPrice', 'ticketPriceOptions', 'bankAccount', 'whatsappNumber', 'paymentMessage',
+  'isTicketed', 'ticketPrice', 'ticketPriceOptions', 'tickets',
+  'bankAccount', 'whatsappNumber', 'paymentMessage',
 ];
 
 function pickEventFields(body) {

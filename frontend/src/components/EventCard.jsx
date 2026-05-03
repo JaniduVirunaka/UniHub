@@ -5,8 +5,11 @@ import { useScrollReveal } from '../hooks/useScrollReveal';
 export function EventCard({ event, onBuy, onRegister, user }) {
   const { ref, ...reveal } = useScrollReveal();
 
+  const isPaid = event.isTicketed || event.ticketPrice > 0;
+  const hasMultipleTickets = Array.isArray(event.tickets) && event.tickets.length > 0;
+
   const handlePrimaryAction = () => {
-    if (event.ticketPrice > 0) {
+    if (isPaid) {
       if (onRegister) { onRegister(event); return; }
       if (onBuy) onBuy(event);
       return;
@@ -14,10 +17,13 @@ export function EventCard({ event, onBuy, onRegister, user }) {
     if (onRegister) onRegister(event);
   };
 
-  const isPaid = event.ticketPrice > 0;
   const label = !user
     ? (isPaid ? 'Sign in to buy ticket' : 'Sign in to register')
     : (isPaid ? 'Register & Buy Ticket' : 'Register');
+
+  const lowestPrice = hasMultipleTickets
+    ? Math.min(...event.tickets.map(t => t.price))
+    : event.ticketPrice;
 
   return (
     <motion.div
@@ -48,7 +54,7 @@ export function EventCard({ event, onBuy, onRegister, user }) {
         {isPaid && (
           <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-indigo-600/90 px-3 py-1 text-xs font-semibold text-white backdrop-blur-sm">
             <Ticket size={12} />
-            LKR {event.ticketPrice}
+            {hasMultipleTickets ? `From LKR ${lowestPrice}` : `LKR ${event.ticketPrice}`}
           </span>
         )}
         {!isPaid && (
@@ -78,9 +84,20 @@ export function EventCard({ event, onBuy, onRegister, user }) {
           </li>
           <li className="flex items-center gap-2">
             <Ticket size={14} className="shrink-0 text-indigo-500 dark:text-indigo-400" />
-            {event.availableTickets} tickets left
+            {event.totalCapacity >= 999999 ? 'Unlimited capacity' : `${event.availableTickets} tickets left`}
           </li>
         </ul>
+
+        {/* Show ticket types if available */}
+        {hasMultipleTickets && (
+          <div className="flex flex-wrap gap-1.5">
+            {event.tickets.map((t, i) => (
+              <span key={i} className="inline-flex items-center gap-1 rounded-lg bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">
+                {t.name}: LKR {t.price}
+              </span>
+            ))}
+          </div>
+        )}
 
         <motion.button
           type="button"
