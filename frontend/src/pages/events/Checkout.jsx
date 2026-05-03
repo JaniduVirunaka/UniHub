@@ -13,6 +13,8 @@ export const Checkout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const data = location.state;
+  const [selectedForPayment, setSelectedForPayment] = useState(null);
+  const [modalOpen, setModalOpen] = useState(false);
 
   if (!data) {
     return (
@@ -26,8 +28,6 @@ export const Checkout = () => {
   }
 
   const { items = [], grandTotal, note } = data;
-  const [selectedForPayment, setSelectedForPayment] = useState(null);
-  const [modalOpen, setModalOpen] = useState(false);
 
   return (
     <PageWrapper title="Payment Details" subtitle={note} className="max-w-3xl">

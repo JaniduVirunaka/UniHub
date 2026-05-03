@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
-import { User, Mail, Hash, BookOpen, Phone, Calendar, LogOut, Pencil, X, Save, Camera } from 'lucide-react';
+import { User, Mail, Hash, BookOpen, Phone, Calendar, LogOut, Pencil, X, Save, Camera, KeyRound, Lock, EyeOff, Eye } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { authService } from '../services/services';
 import api from '../config/api';
